@@ -55,7 +55,9 @@ read_pipe_3d <- function(inFormat, dim_order=NULL, complex_data=FALSE) {
 	
 	#print(header)
 	
-	fheader <- rbind(fheader, SIZE=fsizes)
+	fheader <- rbind(fheader, SIZE=fsizes, DMXVAL=0)
+	
+	fheader["DMXVAL",forder==1] <- header["FDDMXVAL"]
 	
 	FDFILECOUNT <- header["FDFILECOUNT"]
 	FDDIMCOUNT <- header["FDDIMCOUNT"]
@@ -88,6 +90,7 @@ read_pipe_3d <- function(inFormat, dim_order=NULL, complex_data=FALSE) {
 		}
 		data_array[seq(1+(i-1)*n, length.out=n)] <- data_read
 	}
+	
 	
 	fheader <- fheader[,head(forder, header["FDDIMCOUNT"]),drop=FALSE]
 	
@@ -165,6 +168,9 @@ fill_group <- function(x, array_dim, na_dim1_same=FALSE) {
 aq_times <- function(fheader, empirically_correct=TRUE) {
 
 	aq <- unname(fheader["SIZE",]/fheader["SW",]*fheader["TDSIZE",]/fheader["FTSIZE",])
+	
+	# Correct for FID offset as a result of digital oversampling
+	aq <- aq*unname(1-fheader["DMXVAL",]/fheader["TDSIZE",])
 	
 	if (empirically_correct) {
 	
