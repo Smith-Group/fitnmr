@@ -1,0 +1,11 @@
+Package: fitnmr
+Version: 0.1
+Title: Fit NMR
+Authors@R: c(person("Colin", "Smith", role=c("aut", "cre"),
+                    email = "colin.smith@wesleyan.edu"))
+Depends: 
+Description: Fit multidimensional peaks in NMR spectra.
+License: GPL
+Imports: minpack.lm
+Encoding: UTF-8
+RoxygenNote: 6.1.0
