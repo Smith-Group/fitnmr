@@ -2,6 +2,7 @@
 
 export(contour_pipe)
 export(get_spec_int)
+export(height_assign)
 export(make_fit_input)
 export(nmr_pipe)
 export(noise_estimate)

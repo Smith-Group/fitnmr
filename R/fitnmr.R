@@ -1093,3 +1093,53 @@ noise_estimate <- function(x, height=TRUE, thresh=10, plot_distributions=TRUE, p
 	
 	c(fit$m$getPars(), max_data)
 }
+
+#' Calculate mapping from assigned peak list onto an unknown peak list
+#'
+#' This uses a greedy algorithm. It iterates over the unknown peaks in order of
+#' decreasing height and assigns each unknown to the closest assigned peak within a
+#' distance determined by the thresh parameter, as long as that peak wasn't already
+#' assigned.
+#'
+#' @param assigned two column matrix with assigned peak chemical shifts
+#' @param unknown three column matrix with unknown peak chemical shifts and heights
+#' @param thresh maximum distance (as a fraction of the two chemical shift ranges)
+#' @export
+height_assign <- function(assigned, unknown, thresh=0.01) {
+
+	# find widths peak ranges in each dimension
+	wd1 <- abs(diff(range(assigned[,1], unknown[,1], na.rm=TRUE)))
+	wd2 <- abs(diff(range(assigned[,2], unknown[,2], na.rm=TRUE)))
+	
+	# normalize assigned peaks by their ranges
+	assigned[,1] <- assigned[,1]/wd1
+	assigned[,2] <- assigned[,2]/wd2
+	
+	# normalize unknown peaks by their ranges
+	unknown[,1] <- unknown[,1]/wd1
+	unknown[,2] <- unknown[,2]/wd2
+	
+	t_assigned <- t(assigned)
+	
+	# initialize empty output
+	assign_idx <- integer(nrow(assigned))
+	
+	for (i in order(-abs(unknown[,3]))) {
+		
+		# distances of all the peaks
+		i_dist <- sqrt(colSums((t_assigned - as.numeric(unknown[i,1:2]))^2))
+		# index of closest peak
+		i_min <- which(i_dist == min(i_dist, na.rm=TRUE))
+		
+		# check threshold and previous assignment criteria
+		if (i_dist[i_min] < thresh && assign_idx[i_min] == 0) {
+			assign_idx[i_min] <- i
+		}
+	}
+	
+	# set unassigned peaks to NA
+	assign_idx[assign_idx == 0] <- NA
+	
+	assign_idx
+}
+
