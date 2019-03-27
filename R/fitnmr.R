@@ -1,5 +1,5 @@
 #' @export
-read_pipe_3d <- function(inFormat, dim_order=NULL, complex_data=FALSE) {
+read_nmrpipe <- function(inFormat, dim_order=NULL, complex_data=FALSE) {
 	
 	inFile <- sprintf(inFormat, 1)
 	
