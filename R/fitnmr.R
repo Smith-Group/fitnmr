@@ -1212,93 +1212,120 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 #' Fit a cluster nearby peaks starting from a seed table of chemical shifts
 #'
 #' @export
-fit_peak_cluster <- function(spec_list, cs_start, spec_ord) {
+fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001) {
 
-	fit_output <- fit_peaks(spec_list, cs_start, spec_ord=spec_ord)
-	
-	if (any(fit_output$fit_list$m0 == 0)) {
-		return(NULL)
-	}
-	
-	# TODO: need to also do F-test against no peak (pure baseline)
-	
+	stopifnot(length(spec_list) == 1)
+
+	cs_new <- cs_start
+	fit_output <- NULL
+	fit_residuals <- NULL
+	footprint <- NULL
+	ndf <- 0
 	f_alpha <- 0
-	
-	f_alpha_thresh <- 0.001
 	
 	while (f_alpha < f_alpha_thresh) {
 	
-		input_spec_int <- fitnmr::get_spec_int(fit_output, "input")
-		fit_spec_int <- fitnmr::get_spec_int(fit_output, "fit")
+		# perform trial fit
+		trial_fit_output <- fit_peaks(spec_list, cs_new, fit_output, spec_ord=spec_ord, positive_only=TRUE)
 		
-		#fitnmr::contour_pipe(aperm(input_spec_int[[1]], spec_ord), col_pos="black", col_neg="gray")
-		
-		resid_int <- input_spec_int[[1]]-fit_spec_int[[1]]
-		footprint <- fit_footprint(fit_output)
-		resid_max_idx <- which(resid_int == max(resid_int[footprint]), arr.ind=TRUE)
-		
-		new_cs <- matrix(as.numeric(c(dimnames(footprint)[[1]][resid_max_idx[1]], dimnames(footprint)[[2]][resid_max_idx[2]])), nrow=1)
-		
-		trial_fit_output <- fit_peaks(spec_list, new_cs[,spec_ord,drop=FALSE], fit_output, spec_ord=spec_ord, positive_only=TRUE)
-		
+		# get new data from trial fit
+		trial_input_spec_int <- fitnmr::get_spec_int(trial_fit_output, "input")
 		trial_fit_spec_int <- fitnmr::get_spec_int(trial_fit_output, "fit")
-		
+		trial_fit_residuals <- trial_input_spec_int[[1]]-trial_fit_spec_int[[1]]
 		trial_footprint <- fit_footprint(trial_fit_output)
 		
-		common_rows <- intersect(dimnames(fit_spec_int[[1]])[[1]], dimnames(trial_fit_spec_int[[1]])[[1]])
-		common_cols <- intersect(dimnames(fit_spec_int[[1]])[[2]], dimnames(trial_fit_spec_int[[1]])[[2]])
+		# terminate search if any peak had zero volume
+		if (any(trial_fit_output$fit_list$m0 == 0)) {
+			cat("Terminating search because fit produced zero volume", sep="\n")
+			if (is.null(fit_output)) {
+				fit_output <- trial_input_spec_int[[1]]
+			}
+			break
+		}
 		
-		common_footprint <- footprint[common_rows,common_cols] | trial_footprint[common_rows,common_cols]
+		# determine footprint of the peaks from the union of previous and current fits
+		if (is.null(footprint)) {
+			common_footprint <- trial_footprint
+		} else {
+			common_rows <- intersect(dimnames(fit_spec_int[[1]])[[1]], dimnames(trial_fit_spec_int[[1]])[[1]])
+			common_cols <- intersect(dimnames(fit_spec_int[[1]])[[2]], dimnames(trial_fit_spec_int[[1]])[[2]])
+			common_footprint <- footprint[common_rows,common_cols] | trial_footprint[common_rows,common_cols]
+		}
 		
 		common_footprint_idx <- which(common_footprint, arr.ind=TRUE)
 		common_footprint_idx <- cbind(dimnames(common_footprint)[[1]][common_footprint_idx[,1]], dimnames(common_footprint)[[2]][common_footprint_idx[,2]])
 		
-		common_footprint_idx <- common_footprint_idx[
-			!is.na(input_spec_int[[1]][common_footprint_idx]) &
-			!is.na(fit_spec_int[[1]][common_footprint_idx]) &
-			!is.na(trial_fit_spec_int[[1]][common_footprint_idx]),
-		]
+		if (is.null(fit_residuals)) {
 		
-		rss <- sum((input_spec_int[[1]][common_footprint_idx]-fit_spec_int[[1]][common_footprint_idx])^2)
-		trial_rss <- sum((input_spec_int[[1]][common_footprint_idx]-trial_fit_spec_int[[1]][common_footprint_idx])^2)
+			# initial model is having no peak (residuals = input)
+			fit_residuals <- trial_input_spec_int[[1]]
+			
+		} else {
 		
-		ndf <- sum(sapply(fit_output$group_list, function(x) length(unique(x[x!=0]))))
+			# remove footprint locations where residuals are undefined
+			common_footprint_idx <- common_footprint_idx[!is.na(fit_residuals[common_footprint_idx]) & !is.na(trial_fit_residuals[common_footprint_idx]),,drop=FALSE]
+		}
+		
+		# calculate residual sum of squares for both models
+		rss <- sum(fit_residuals[common_footprint_idx]^2)
+		trial_rss <- sum(trial_fit_residuals[common_footprint_idx]^2)
+		
+		# calculate new degrees of freedom
 		trial_ndf <- sum(sapply(trial_fit_output$group_list, function(x) length(unique(x[x!=0]))))
+		
+		# scale the number of points to account for zero-filling
 		num_pts <- nrow(common_footprint_idx)*prod(spec_list[[1]]$fheader["TDSIZE",]/(spec_list[[1]]$fheader["FTSIZE",]/2))
 		
+		# calculate value of F statistic and corresponding P-value
 		f_val <- ((rss-trial_rss)/(trial_ndf-ndf))/(trial_rss/(num_pts-trial_ndf))
-		
 		f_alpha <- 1-pf(f_val, trial_ndf-ndf, num_pts-trial_ndf)
 		
-		cat(sprintf("F = %0.1f (p = %g)", f_val, f_alpha), sep="\n")
+		cat(sprintf("%2i -> %2i degrees of freedom: F = %0.1f (p = %g)", ndf, trial_ndf, f_val, f_alpha), sep="\n")
 		
 		if (f_alpha < f_alpha_thresh)  {
+		
 			fit_output <- trial_fit_output
+			input_spec_int <- trial_input_spec_int
+			fit_spec_int <- trial_fit_spec_int
+			fit_residuals <- trial_fit_residuals
+			footprint <- trial_footprint
+			ndf <- trial_ndf
+			
+			resid_max_idx <- which(fit_residuals == max(fit_residuals[footprint]), arr.ind=TRUE)
+		
+			cs_new <- matrix(as.numeric(c(dimnames(footprint)[[1]][resid_max_idx[1]], dimnames(footprint)[[2]][resid_max_idx[2]])), nrow=1)[,spec_ord,drop=FALSE]
+		
+		} else {
+		
+			cat(sprintf("Terminating search because F-test p-value < %g", f_alpha_thresh), sep="\n")
+			if (is.null(fit_output)) {
+				fit_output <- trial_fit_spec_int[[1]]
+			}
 		}
+	}
+	
+	if (is.list(fit_output))  {
 		
-		if (f_alpha >= f_alpha_thresh)  {
-		
-			zlim <- range(input_spec_int[[1]], na.rm=TRUE)
-		
-			fitnmr::contour_pipe(aperm(input_spec_int[[1]], spec_ord), zlim=zlim, col_pos="black", col_neg="gray")
-			#title(paste("Cluster", j))
-			fitnmr::contour_pipe(aperm(fit_spec_int[[1]], spec_ord), zlim=zlim, col_pos="red", col_neg="pink", add=TRUE)
-			#fitnmr::contour_pipe(aperm(trial_fit_spec_int[[1]], spec_ord), zlim=zlim, col_pos="purple", col_neg="plum", add=TRUE)
-		
-			#points(common_footprint_idx[,spec_ord], col="gray")
-		
-			rect(fit_output$upper_list$omega0[spec_ord[1],,1], fit_output$upper_list$omega0[spec_ord[2],,1], fit_output$lower_list$omega0[spec_ord[1],,1], fit_output$lower_list$omega0[spec_ord[2],,1], border="gray")
-		
-			points(t(fit_output$fit_list$omega0[spec_ord,,1]), pch=16)
-			lab_text <- sprintf("%s: %.0f%%", seq_len(dim(fit_output$fit_list$omega0)[2]), 100*fit_output$fit_list$m0/sum(abs(fit_output$fit_list$m0)))
-			text(t(fit_output$fit_list$omega0[spec_ord,,1]), labels=lab_text, pos=3, cex=0.6)
-		
-			#other_clust_idx <- peak_tab_list[[i]][,"TYPE"] == 1 & peak_tab_list[[i]][,"CLUSTID"] != j
-			#points(peak_tab_list[[i]][other_clust_idx,paste(hn_name_mat[i,], "_PPM", sep=""),drop=FALSE], col="purple")
-			#text(peak_tab_list[[i]][other_clust_idx,paste(hn_name_mat[i,], "_PPM", sep=""),drop=FALSE], labels=peak_tab_list[[i]][other_clust_idx,"CLUSTID"], pos=1, cex=0.6, col="purple")
-		
-			points(cs_start, col="green")
-		}
+		zlim <- range(input_spec_int[[1]], na.rm=TRUE)
+	
+		fitnmr::contour_pipe(aperm(input_spec_int[[1]], spec_ord), zlim=zlim, col_pos="black", col_neg="gray")
+		#title(paste("Cluster", j))
+		fitnmr::contour_pipe(aperm(fit_spec_int[[1]], spec_ord), zlim=zlim, col_pos="red", col_neg="pink", add=TRUE)
+		#fitnmr::contour_pipe(aperm(trial_fit_spec_int[[1]], spec_ord), zlim=zlim, col_pos="purple", col_neg="plum", add=TRUE)
+	
+		#points(common_footprint_idx[,spec_ord], col="gray")
+	
+		rect(fit_output$upper_list$omega0[spec_ord[1],,1], fit_output$upper_list$omega0[spec_ord[2],,1], fit_output$lower_list$omega0[spec_ord[1],,1], fit_output$lower_list$omega0[spec_ord[2],,1], border="gray")
+	
+		points(t(fit_output$fit_list$omega0[spec_ord,,1]), pch=16)
+		lab_text <- sprintf("%s: %.0f%%", seq_len(dim(fit_output$fit_list$omega0)[2]), 100*fit_output$fit_list$m0/sum(abs(fit_output$fit_list$m0)))
+		text(t(fit_output$fit_list$omega0[spec_ord,,1]), labels=lab_text, pos=3, cex=0.6)
+	
+		#other_clust_idx <- peak_tab_list[[i]][,"TYPE"] == 1 & peak_tab_list[[i]][,"CLUSTID"] != j
+		#points(peak_tab_list[[i]][other_clust_idx,paste(hn_name_mat[i,], "_PPM", sep=""),drop=FALSE], col="purple")
+		#text(peak_tab_list[[i]][other_clust_idx,paste(hn_name_mat[i,], "_PPM", sep=""),drop=FALSE], labels=peak_tab_list[[i]][other_clust_idx,"CLUSTID"], pos=1, cex=0.6, col="purple")
+	
+		points(cs_start, col="green")
 	}
 	
 	fit_output
