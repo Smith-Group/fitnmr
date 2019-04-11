@@ -1215,7 +1215,13 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 fit_peak_cluster <- function(spec_list, cs_start, spec_ord) {
 
 	fit_output <- fit_peaks(spec_list, cs_start, spec_ord=spec_ord)
-		
+	
+	if (any(fit_output$fit_list$m0 == 0)) {
+		return(NULL)
+	}
+	
+	# TODO: need to also do F-test against no peak (pure baseline)
+	
 	f_alpha <- 0
 	
 	f_alpha_thresh <- 0.001
