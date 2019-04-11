@@ -780,6 +780,48 @@ plot_fit_1d <- function(fit_data, always_show_start=FALSE) {
 	}
 }
 
+#' Plot a two dimensional peak fit
+#'
+#' @export
+plot_fit_2d <- function(fit_output, spec_ord, plot_start=FALSE, main=NULL) {
+
+	input_spec_int <- fitnmr::get_spec_int(fit_output, "input")
+	fit_spec_int <- fitnmr::get_spec_int(fit_output, "fit")
+	
+	ref_freq_mat <- sapply(fit_output$spec_data, "[[", "ref_freq")
+	ref_freq_mat_exp <- ref_freq_mat[,rep(seq_len(ncol(ref_freq_mat)), each=dim(fit_output$start_list$r2)[2])]
+
+	fit_r2_ppm <- fit_output$fit_list$r2/as.numeric(ref_freq_mat_exp)
+	fit_r2_ppm_low <- fit_output$fit_list$omega0-fit_r2_ppm
+	fit_r2_ppm_high <- fit_output$fit_list$omega0+fit_r2_ppm
+	
+	if (plot_start) {
+		start_spec_int <- fitnmr::get_spec_int(fit_output, "start")
+		
+		start_r2_ppm <- fit_output$start_list$r2/as.numeric(ref_freq_mat_exp)
+		start_r2_ppm_low <- fit_output$start_list$omega0-start_r2_ppm
+		start_r2_ppm_high <- fit_output$start_list$omega0+start_r2_ppm
+	}
+	
+	for (i in seq_along(input_spec_int)) {
+
+		zlim <- range(input_spec_int[[i]], na.rm=TRUE)
+		fitnmr::contour_pipe(aperm(input_spec_int[[i]], spec_ord), zlim=zlim, col_pos="black", col_neg="gray")
+		title(main)
+		if (plot_start) {
+			fitnmr::contour_pipe(aperm(input_spec_int[[i]], spec_ord), zlim=zlim, col_pos="blue", col_neg="lightblue", add=TRUE)
+			points(t(fit_output$start_list$omega0[spec_ord,,i]), pch=16, col="blue")
+			segments(fit_output$start_list$omega0[spec_ord[1],,i], start_r2_ppm_low[spec_ord[2],,i], fit_output$start_list$omega0[spec_ord[1],,i], start_r2_ppm_high[spec_ord[2],,i], col="blue")
+			segments(start_r2_ppm_low[spec_ord[1],,i], fit_output$start_list$omega0[spec_ord[2],,i], start_r2_ppm_high[spec_ord[1],,i], fit_output$start_list$omega0[spec_ord[2],,i], col="blue")
+		}
+		fitnmr::contour_pipe(aperm(fit_spec_int[[i]], spec_ord), zlim=zlim, col_pos="red", col_neg="pink", add=TRUE)
+		rect(fit_output$upper_list$omega0[spec_ord[1],,i], fit_output$upper_list$omega0[spec_ord[2],,i], fit_output$lower_list$omega0[spec_ord[1],,i], fit_output$lower_list$omega0[spec_ord[2],,i], border="gray")
+		points(t(fit_output$fit_list$omega0[spec_ord,,i]), pch=16, col="red")
+		segments(fit_output$fit_list$omega0[spec_ord[1],,i], fit_r2_ppm_low[spec_ord[2],,i], fit_output$fit_list$omega0[spec_ord[1],,i], fit_r2_ppm_high[spec_ord[2],,i], col="red")
+		segments(fit_r2_ppm_low[spec_ord[1],,i], fit_output$fit_list$omega0[spec_ord[2],,i], fit_r2_ppm_high[spec_ord[1],,i], fit_output$fit_list$omega0[spec_ord[2],,i], col="red")
+	}
+}
+
 #' @export
 contour_pipe <- function(data_mat, nlevels=10, zlim=range(data_mat, na.rm=TRUE), low_frac=0.05, lwd=0.25, main=NA, col_pos="blue", col_neg="red", add=FALSE, xlab=NULL, ylab=NULL, frame.plot=TRUE) {
 
@@ -908,6 +950,352 @@ collapse_args <- function(named_args) {
 	named_args <- as.vector(rbind(paste("-", names(named_args), sep=""), named_args))
 	
 	named_args[named_args != ""]
+}
+
+#' Extract parameters from fit object for use with make_fit_input
+extract_params <- function(fit, expand=0) {
+
+	fit_params <- fit$fit_list
+	group_params <- fit$group_list
+	
+	if (expand) {
+	
+		expand_idx <- c(seq_len(dim(fit_params$omega0)[2]), rep(NA, expand))
+		new_idx <- is.na(expand_idx)
+		
+		fit_params$omega0 <- fit_params$omega0[,expand_idx,,drop=FALSE]
+		fit_params$r2 <- fit_params$r2[,expand_idx,,drop=FALSE]
+		fit_params$m0 <- fit_params$m0[expand_idx,,drop=FALSE]
+		fit_params$p0 <- fit_params$p0[,expand_idx,,drop=FALSE]
+		fit_params$p1 <- fit_params$p1[,expand_idx,,drop=FALSE]
+		
+		#fit_params$m0[new_idx,] <- 0
+		fit_params$p0[,new_idx,] <- 0
+		fit_params$p1[,new_idx,] <- 0
+		
+		group_params$omega0 <- group_params$omega0[,expand_idx,,drop=FALSE]
+		group_params$r2 <- group_params$r2[,expand_idx,,drop=FALSE]
+		group_params$m0 <- group_params$m0[expand_idx,,drop=FALSE]
+		group_params$p0 <- group_params$p0[,expand_idx,,drop=FALSE]
+		group_params$p1 <- group_params$p1[,expand_idx,,drop=FALSE]
+		
+		group_params$p0[,new_idx,] <- 0
+		group_params$p1[,new_idx,] <- 0
+	}
+	
+	names(fit_params) <- paste(names(fit_params), "_start", sep="")
+	names(group_params) <- paste(names(group_params), "_group", sep="")
+	
+	c(fit_params, group_params)
+}
+
+#' Determine the region of a spectrum containing the majority of the fit peaks
+fit_footprint <- function(fit, frac=0.12) {
+
+	fit_spec_int <- fitnmr::get_spec_int(fit, "fit")
+	
+	sort_int <- sort(abs(fit_spec_int[[1]]))
+	cum_int <- cumsum(sort_int)
+	cum_frac_int <- cum_int/tail(cum_int, 1)
+	
+	thresh <- sort_int[which(cum_frac_int > frac)[1]]
+	
+	fit_spec_int[[1]][is.na(fit_spec_int[[1]])] <- 0
+	
+	abs(fit_spec_int[[1]]) > thresh
+	
+	#abs(fit_spec_int[[1]]) > max(abs(fit_spec_int[[1]]))*.025
+}
+
+#' Add upper/lower limits based on the r2 value
+#'
+#' @export
+limit_omega0_by_r2 <- function(fit_input, factor=1.5) {
+
+	ref_freq_mat <- sapply(fit_input$spec_data, "[[", "ref_freq")
+	ref_freq_mat_exp <- ref_freq_mat[,rep(seq_len(ncol(ref_freq_mat)), each=dim(fit_input$start_list$r2)[2])]
+
+	#print(fit_input$start_list$r2)
+	#print(ref_freq_mat_exp)
+
+	#r2_ppm <- fit_input$start_list$r2/spec_list[[1]]$fheader["OBS",]
+	r2_ppm <- fit_input$start_list$r2/as.numeric(ref_freq_mat_exp)
+	
+	fit_input$upper_list$omega0 <- fit_input$start_list$omega0+r2_ppm*factor
+	fit_input$lower_list$omega0 <- fit_input$start_list$omega0-r2_ppm*factor
+	
+	fit_input
+}
+
+#' Get spectra for individual peaks
+get_spec_peak_int <- function(fit_data, spec_type=c("start", "fit"), spec_idx=seq_along(fit_data$spec_data), peak_idx=seq_len(dim(fit_data$start_list$omega0)[2])) {
+
+	spec_type <- match.arg(spec_type)
+	
+	spec_peak_list <- vector("list", length(spec_idx))
+	
+	for (i in seq_along(peak_idx)) {
+	
+		spec_list <- fitnmr::get_spec_int(fit_data, spec_type, spec_idx, peak_idx[i])
+		
+		for (j in seq_along(spec_list)) {
+			spec_peak_list[[j]] <- c(spec_peak_list[[j]], spec_list[j])
+		}
+	}
+	
+	spec_peak_list
+}
+
+#' Determine a matrix of fractional peak overlap
+spec_overlap_mat <- function(peak_int_list) {
+
+	norm_peak_int_list <- lapply(peak_int_list, function(x) abs(x)/sum(abs(x), na.rm=TRUE))
+
+	overlap_mat <- matrix(NA_real_, nrow=length(peak_int_list), ncol=length(peak_int_list))
+	
+	for (i in seq_len(nrow(overlap_mat)-1)) {
+		for (j in seq(i+1, nrow(overlap_mat))) {
+			overlap_mat[i,j] <- overlap_mat[j,i] <- sum(pmin(norm_peak_int_list[[i]], norm_peak_int_list[[j]]))
+		}
+	}
+	
+	overlap_mat
+}
+
+#' Fit peaks from a table of chemical shifts
+fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plus=c(0.075, 0.75), r2_start=c(5,5), positive_only=TRUE) {
+	
+	plot=FALSE
+	
+	idx_prev <- rep(FALSE, nrow(cs_mat))
+	
+	if (is.null(fit_prev)) {
+		
+		omega0_start <- t(cs_mat[,spec_ord,drop=FALSE])
+		dim(omega0_start) <- c(dim(omega0_start), 1)
+		
+		param_list <- list(
+			omega0_start=omega0_start,
+			r2_start=r2_start[spec_ord],
+			m0_start=1,
+			omega0_group=0,
+			r2_group=0,
+			m0_group=NA
+		)
+		
+		r2_group <- array(seq_len(prod(dim(cs_mat))), dim(omega0_start))
+		
+	} else {
+	
+		param_list <- extract_params(fit_prev, nrow(cs_mat))
+		
+		idx_prev <- c(rep(TRUE, dim(fit_prev$fit_list$omega0)[2]), idx_prev)
+		
+		r2_group <- param_list$r2_group
+		
+		peak_int_list <- get_spec_peak_int(fit_prev)[[1]]
+		norm_peak_int_list <- lapply(peak_int_list, function(x) abs(x)/sum(x, na.rm=TRUE))
+		
+		int_ppm <- lapply(dimnames(peak_int_list[[1]]), as.numeric)
+		
+		cs_mat_idx <- matrix(sapply(seq_along(spec_ord), function(i) apply(abs(outer(int_ppm[[i]], cs_mat[,spec_ord[i]], "-")), 2, which.min)), ncol=ncol(cs_mat))
+		
+		prev_overlap_idx <- sapply(nrow(cs_mat_idx), function(i) which.max(sapply(norm_peak_int_list, "[", cs_mat_idx[i,,drop=FALSE])))
+		
+		r2_group[,!idx_prev,] <- r2_group[,prev_overlap_idx,]
+		
+		#print(r2_group)
+		
+		#print(idx_prev)
+		
+		param_list$omega0_start[,!idx_prev,] <- as.numeric(cs_mat[,spec_ord])
+		param_list$r2_start[,!idx_prev,] <- param_list$r2_start[,prev_overlap_idx,]
+		param_list$m0_start[!idx_prev,] <- 1
+		
+		param_list$omega0_group[] <- 0
+		param_list$r2_group[] <- 0
+		param_list$m0_group[!idx_prev,] <- 1
+		param_list$m0_group[idx_prev,] <- 0
+		param_list$m0_group[] <- NA
+	}
+	
+	fit_input <- do.call(fitnmr::make_fit_input, c(list(spec_list, omega0_plus=omega0_plus[spec_ord]), param_list))
+	if (positive_only) {
+		fit_input$lower_list$m0[] <- 0
+	}
+	fit_output <- fitnmr::perform_fit(fit_input)
+	param_list <- extract_params(fit_output)
+	
+	if (plot) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Fit Parameters: m0")
+	
+	# unfix r2 values
+	param_list$r2_group[] <- r2_group[]
+	
+	fit_input <- do.call(fitnmr::make_fit_input, c(list(spec_list, omega0_plus=omega0_plus[spec_ord]), param_list))
+	if (positive_only) {
+		fit_input$lower_list$m0[] <- 0
+	}
+	fit_input$lower_list$r2[] <- 0
+	fit_input$upper_list$r2[] <- 20
+	fit_output <- fitnmr::perform_fit(fit_input)
+	param_list <- extract_params(fit_output)
+	
+	if (plot) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Fit Parameters: m0, r2")
+	
+	# unfix omega0 values
+	param_list$omega0_group[] <- NA
+	
+	fit_input <- do.call(fitnmr::make_fit_input, c(list(spec_list, omega0_plus=omega0_plus[spec_ord]), param_list))
+	if (positive_only) {
+		fit_input$lower_list$m0[] <- 0
+	}
+	fit_input$lower_list$r2[] <- 0
+	fit_input$upper_list$r2[] <- 20
+	fit_input <- limit_omega0_by_r2(fit_input)
+	fit_output <- fitnmr::perform_fit(fit_input)
+	
+	if (plot) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Fit Parameters: m0, r2, omega0")
+	
+	refit_thresh <- c(1e-3, 1e-2)[spec_ord]*2
+	
+	if (any(c(fit_output$fit_list$omega0 > fit_output$upper_list$omega0 - refit_thresh, fit_output$fit_list$omega0 < fit_output$lower_list$omega0 + refit_thresh))) {
+	
+		#print("refitting")
+		param_list <- extract_params(fit_output)
+		fit_input <- do.call(fitnmr::make_fit_input, c(list(spec_list, omega0_plus=omega0_plus[spec_ord]), param_list))
+		if (positive_only) {
+			fit_input$lower_list$m0[] <- 0
+		}
+		fit_input <- limit_omega0_by_r2(fit_input)
+		fit_input$lower_list$r2[] <- 0
+		fit_input$upper_list$r2[] <- 20
+		fit_output <- fitnmr::perform_fit(fit_input)
+		
+		if (plot) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Fit Parameters: m0, r2, omega0 (Refit 1)")
+	}
+	
+	if (any(fit_output$fit_list$omega0 > fit_output$upper_list$omega0 - refit_thresh, fit_output$fit_list$omega0 < fit_output$lower_list$omega0 + refit_thresh)) {
+	
+		#print("refitting2")
+		param_list <- extract_params(fit_output)
+		fit_input <- do.call(fitnmr::make_fit_input, c(list(spec_list, omega0_plus=omega0_plus[spec_ord]), param_list))
+		if (positive_only) {
+			fit_input$lower_list$m0[] <- 0
+		}
+		fit_input$lower_list$r2[] <- 0
+		fit_input$upper_list$r2[] <- 20
+		fit_input <- limit_omega0_by_r2(fit_input)
+		fit_output <- fitnmr::perform_fit(fit_input)
+		
+		if (plot) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Fit Parameters: m0, r2, omega0 (Refit 1)")
+	}
+	
+	if (any(fit_output$fit_list$omega0 > fit_output$upper_list$omega0 - refit_thresh, fit_output$fit_list$omega0 < fit_output$lower_list$omega0 + refit_thresh)) {
+	
+		#print("refitting")
+		param_list <- extract_params(fit_output)
+		fit_input <- do.call(fitnmr::make_fit_input, c(list(spec_list, omega0_plus=omega0_plus[spec_ord]), param_list))
+		if (positive_only) {
+			fit_input$lower_list$m0[] <- 0
+		}
+		fit_input$lower_list$r2[] <- 0
+		fit_input$upper_list$r2[] <- 20
+		fit_input <- limit_omega0_by_r2(fit_input)
+		fit_output <- fitnmr::perform_fit(fit_input)
+		
+		if (plot) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Fit Parameters: m0, r2, omega0 (Refit 1)")
+	}
+	
+	fit_output
+}
+
+#' Fit a cluster nearby peaks starting from a seed table of chemical shifts
+#'
+#' @export
+fit_peak_cluster <- function(spec_list, cs_start, spec_ord) {
+
+	fit_output <- fit_peaks(spec_list, cs_start, spec_ord=spec_ord)
+		
+	f_alpha <- 0
+	
+	f_alpha_thresh <- 0.001
+	
+	while (f_alpha < f_alpha_thresh) {
+	
+		input_spec_int <- fitnmr::get_spec_int(fit_output, "input")
+		fit_spec_int <- fitnmr::get_spec_int(fit_output, "fit")
+		
+		#fitnmr::contour_pipe(aperm(input_spec_int[[1]], spec_ord), col_pos="black", col_neg="gray")
+		
+		resid_int <- input_spec_int[[1]]-fit_spec_int[[1]]
+		footprint <- fit_footprint(fit_output)
+		resid_max_idx <- which(resid_int == max(resid_int[footprint]), arr.ind=TRUE)
+		
+		new_cs <- matrix(as.numeric(c(dimnames(footprint)[[1]][resid_max_idx[1]], dimnames(footprint)[[2]][resid_max_idx[2]])), nrow=1)
+		
+		trial_fit_output <- fit_peaks(spec_list, new_cs[,spec_ord,drop=FALSE], fit_output, spec_ord=spec_ord, positive_only=TRUE)
+		
+		trial_fit_spec_int <- fitnmr::get_spec_int(trial_fit_output, "fit")
+		
+		trial_footprint <- fit_footprint(trial_fit_output)
+		
+		common_rows <- intersect(dimnames(fit_spec_int[[1]])[[1]], dimnames(trial_fit_spec_int[[1]])[[1]])
+		common_cols <- intersect(dimnames(fit_spec_int[[1]])[[2]], dimnames(trial_fit_spec_int[[1]])[[2]])
+		
+		common_footprint <- footprint[common_rows,common_cols] | trial_footprint[common_rows,common_cols]
+		
+		common_footprint_idx <- which(common_footprint, arr.ind=TRUE)
+		common_footprint_idx <- cbind(dimnames(common_footprint)[[1]][common_footprint_idx[,1]], dimnames(common_footprint)[[2]][common_footprint_idx[,2]])
+		
+		common_footprint_idx <- common_footprint_idx[
+			!is.na(input_spec_int[[1]][common_footprint_idx]) &
+			!is.na(fit_spec_int[[1]][common_footprint_idx]) &
+			!is.na(trial_fit_spec_int[[1]][common_footprint_idx]),
+		]
+		
+		rss <- sum((input_spec_int[[1]][common_footprint_idx]-fit_spec_int[[1]][common_footprint_idx])^2)
+		trial_rss <- sum((input_spec_int[[1]][common_footprint_idx]-trial_fit_spec_int[[1]][common_footprint_idx])^2)
+		
+		ndf <- sum(sapply(fit_output$group_list, function(x) length(unique(x[x!=0]))))
+		trial_ndf <- sum(sapply(trial_fit_output$group_list, function(x) length(unique(x[x!=0]))))
+		num_pts <- nrow(common_footprint_idx)*prod(spec_list[[1]]$fheader["TDSIZE",]/(spec_list[[1]]$fheader["FTSIZE",]/2))
+		
+		f_val <- ((rss-trial_rss)/(trial_ndf-ndf))/(trial_rss/(num_pts-trial_ndf))
+		
+		f_alpha <- 1-pf(f_val, trial_ndf-ndf, num_pts-trial_ndf)
+		
+		cat(sprintf("F = %0.1f (p = %g)", f_val, f_alpha), sep="\n")
+		
+		if (f_alpha < f_alpha_thresh)  {
+			fit_output <- trial_fit_output
+		}
+		
+		if (f_alpha >= f_alpha_thresh)  {
+		
+			zlim <- range(input_spec_int[[1]], na.rm=TRUE)
+		
+			fitnmr::contour_pipe(aperm(input_spec_int[[1]], spec_ord), zlim=zlim, col_pos="black", col_neg="gray")
+			#title(paste("Cluster", j))
+			fitnmr::contour_pipe(aperm(fit_spec_int[[1]], spec_ord), zlim=zlim, col_pos="red", col_neg="pink", add=TRUE)
+			#fitnmr::contour_pipe(aperm(trial_fit_spec_int[[1]], spec_ord), zlim=zlim, col_pos="purple", col_neg="plum", add=TRUE)
+		
+			#points(common_footprint_idx[,spec_ord], col="gray")
+		
+			rect(fit_output$upper_list$omega0[spec_ord[1],,1], fit_output$upper_list$omega0[spec_ord[2],,1], fit_output$lower_list$omega0[spec_ord[1],,1], fit_output$lower_list$omega0[spec_ord[2],,1], border="gray")
+		
+			points(t(fit_output$fit_list$omega0[spec_ord,,1]), pch=16)
+			lab_text <- sprintf("%s: %.0f%%", seq_len(dim(fit_output$fit_list$omega0)[2]), 100*fit_output$fit_list$m0/sum(abs(fit_output$fit_list$m0)))
+			text(t(fit_output$fit_list$omega0[spec_ord,,1]), labels=lab_text, pos=3, cex=0.6)
+		
+			#other_clust_idx <- peak_tab_list[[i]][,"TYPE"] == 1 & peak_tab_list[[i]][,"CLUSTID"] != j
+			#points(peak_tab_list[[i]][other_clust_idx,paste(hn_name_mat[i,], "_PPM", sep=""),drop=FALSE], col="purple")
+			#text(peak_tab_list[[i]][other_clust_idx,paste(hn_name_mat[i,], "_PPM", sep=""),drop=FALSE], labels=peak_tab_list[[i]][other_clust_idx,"CLUSTID"], pos=1, cex=0.6, col="purple")
+		
+			points(cs_start, col="green")
+		}
+	}
+	
+	fit_output
 }
 
 #' @export
