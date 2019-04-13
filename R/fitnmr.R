@@ -1144,7 +1144,6 @@ extract_params <- function(fit, expand=0) {
 		fit_params$m0 <- fit_params$m0[expand_idx,,drop=FALSE]
 		fit_params$p0 <- fit_params$p0[,expand_idx,,drop=FALSE]
 		fit_params$p1 <- fit_params$p1[,expand_idx,,drop=FALSE]
-		fit_params$omega0_comb <- fit_params$omega0_comb[,expand_idx,,drop=FALSE]
 		
 		#fit_params$m0[new_idx,] <- 0
 		fit_params$p0[,new_idx,] <- 0
@@ -1155,7 +1154,6 @@ extract_params <- function(fit, expand=0) {
 		group_params$m0 <- group_params$m0[expand_idx,,drop=FALSE]
 		group_params$p0 <- group_params$p0[,expand_idx,,drop=FALSE]
 		group_params$p1 <- group_params$p1[,expand_idx,,drop=FALSE]
-		group_params$omega0_comb <- group_params$omega0_comb[,expand_idx,,drop=FALSE]
 		
 		group_params$p0[,new_idx,] <- 0
 		group_params$p1[,new_idx,] <- 0
