@@ -150,6 +150,22 @@ fill_array_int <- function(x, array_dim) {
 	array(x, array_dim)
 }
 
+fill_array_list <- function(x, array_dim, comb=FALSE) {
+
+	if (is.null(x)) {
+		x <- vector("list", 1)
+	} else {
+		x <- as.list(x)
+	}
+	
+	not_null_idx <- !sapply(x, is.null)
+	x[not_null_idx] <- lapply(x[not_null_idx], function(y) {
+		data.frame(as.integer(y[[1]]), as.numeric(y[[2]]), fix.empty.names=FALSE)
+	})
+	
+	array(x, array_dim)
+}
+
 fill_group <- function(x, array_dim, na_dim1_same=FALSE) {
 
 	x <- fill_array_int(x, array_dim)
@@ -163,6 +179,35 @@ fill_group <- function(x, array_dim, na_dim1_same=FALSE) {
 	}
 	
 	x
+}
+
+fill_comb_group <- function(x, comb_array) {
+
+	not_null_idx <- which(!sapply(comb_array, is.null))
+	
+	if (length(not_null_idx)) {
+	
+		if (is.null(x)) {
+			x <- NA_integer_
+		} else {
+			x <- as.integer(x)
+		}
+	
+		all_comb <- do.call(rbind, comb_array[not_null_idx])
+		max_comb_idx <- max(all_comb[,1])
+		stopifnot(seq_len(max_comb_idx) %in% all_comb[,1])
+	
+		x <- rep_len(x, max_comb_idx)
+	
+		na_idx <- is.na(x)
+		x[na_idx] <- head(setdiff(seq_along(x), x[!na_idx]), sum(na_idx))
+	
+		x
+	
+	} else {
+	
+		integer()
+	}
 }
 
 aq_times <- function(fheader, empirically_correct=TRUE) {
@@ -188,6 +233,7 @@ pack_fit_params <- function(start_list, group_list) {
 	stopifnot(all(tapply(start_list[["m0"]][group_list[["m0"]] != 0], group_list[["m0"]][group_list[["m0"]] != 0], function(x) all(x==x[1]))))
 	stopifnot(all(tapply(start_list[["p0"]][group_list[["p0"]] != 0], group_list[["p0"]][group_list[["p0"]] != 0], function(x) all(x==x[1]))))
 	stopifnot(all(tapply(start_list[["p1"]][group_list[["p1"]] != 0], group_list[["p1"]][group_list[["p1"]] != 0], function(x) all(x==x[1]))))
+	stopifnot(all(tapply(start_list[["omega0_comb"]][group_list[["omega0_comb"]] != 0], group_list[["omega0_comb"]][group_list[["omega0_comb"]] != 0], function(x) all(x==x[1]))))
 
 	omega0_group_unique <- setdiff(unique(as.vector(group_list[["omega0"]])), 0)
 	omega0_vec <- start_list[["omega0"]][match(omega0_group_unique, group_list[["omega0"]])]
@@ -219,10 +265,16 @@ pack_fit_params <- function(start_list, group_list) {
 		names(p1_vec) <- paste("p1", p1_group_unique, sep="_")
 	}
 	
-	c(omega0_vec, r2_vec, m0_vec, p0_vec, p1_vec)
+	omega0_comb_group_unique <- setdiff(unique(as.vector(group_list[["omega0_comb"]])), 0)
+	omega0_comb_vec <- start_list[["omega0_comb"]][match(omega0_comb_group_unique, group_list[["omega0_comb"]])]
+	if (length(omega0_comb_group_unique)) {
+		names(omega0_comb_vec) <- paste("omega0_comb", omega0_comb_group_unique, sep="_")
+	}
+	
+	c(omega0_vec, r2_vec, m0_vec, p0_vec, p1_vec, omega0_comb_vec)
 }
 
-unpack_fit_params <- function(start_vec, group_list, default_list=group_list) {
+unpack_fit_params <- function(start_vec, group_list, comb_list, default_list=group_list) {
 
 	unpacked_list <- default_list
 	
@@ -231,23 +283,110 @@ unpack_fit_params <- function(start_vec, group_list, default_list=group_list) {
 	unpacked_list[["m0"]][group_list[["m0"]] != 0] <- start_vec[paste("m0", group_list[["m0"]][group_list[["m0"]] != 0], sep="_")]
 	unpacked_list[["p0"]][group_list[["p0"]] != 0] <- start_vec[paste("p0", group_list[["p0"]][group_list[["p0"]] != 0], sep="_")]
 	unpacked_list[["p1"]][group_list[["p1"]] != 0] <- start_vec[paste("p1", group_list[["p1"]][group_list[["p1"]] != 0], sep="_")]
+	unpacked_list[["omega0_comb"]][group_list[["omega0_comb"]] != 0] <- start_vec[paste("omega0_comb", group_list[["omega0_comb"]][group_list[["omega0_comb"]] != 0], sep="_")]
+	
+	unpacked_list[["omega0"]] <- comb_vec_to_param_array(unpacked_list[["omega0_comb"]], comb_list[["omega0"]], unpacked_list[["omega0"]])
 	
 	unpacked_list
 }
 
-group_param_idx <- function(param_names, group_list) {
+group_param_idx <- function(param_names, group_list, start_list) {
 
 	idx_list <- group_list
 	
-	for (i in seq_along(group_list)) {
+	for (i in seq_along(start_list)) {
 		idx_list[[i]][] <- match(paste(names(group_list)[i], group_list[[i]], sep="_"), param_names)
 	}
 	
 	idx_list
 }
 
+#' Determine array of destination parameters from a source vector
+#'
+#' @param vector of source parameters
+#' @param comb_array array of 2xN data frames with mapping between vector and array
+#' @param param_array starting array of destination parameters
+#' @param na_only only overwrite values in param_array if they are NA
+comb_vec_to_param_array <- function(comb_vec, comb_array, param_array=NULL, na_only=FALSE) {
+
+	not_null_idx <- which(!sapply(comb_array, is.null))
+	
+	if (length(not_null_idx)) {
+	
+		if (is.null(param_array)) {
+			param_array <- fill_array(NA_real_, dim(comb_array))
+		}
+	
+		all_comb <- do.call(rbind, comb_array[not_null_idx])
+	
+		stopifnot(length(comb_vec) == max(all_comb[,1]))
+	
+		for (i in seq_along(not_null_idx)) {
+			comb_df <- comb_array[[not_null_idx[i]]]
+			if (!na_only || is.na(param_array[not_null_idx[i]])) {
+				param_array[not_null_idx[i]] <- sum(comb_vec[comb_df[,1]]*comb_df[,2])
+			}
+		}
+	}
+	
+	param_array
+}
+
+#' Determine vector of source parameters from destination array via least squares
+#'
+#' @param param_array array of destination parameters
+#' @param comb_array array of 2xN data frames with mapping between vector and array
+#' @param group_vec optional vector of group numbers for source parameters
+#' @param resid_thresh all residuals from least squares fit must be less than this value
+param_array_to_comb_vec <- function(param_array, comb_array, group_vec=NULL, resid_thresh=1e-8) {
+
+	not_null_idx <- which(!sapply(comb_array, is.null))
+	
+	if (length(not_null_idx)) {
+	
+		# get all combination data
+		all_comb <- do.call(rbind, comb_array[not_null_idx])
+		
+		if (is.null(group_vec)) {
+			# default group vec
+			group_vec <- seq_len(max(all_comb[,1]))
+		} else {
+			# replace any 0 values with unused numbers
+			zero_idx <- group_vec == 0
+			group_vec[zero_idx] <- head(setdiff(seq_along(group_vec), group_vec[!zero_idx]), sum(zero_idx))
+			# ensure group_vec ordered sequentially from 1
+			group_vec <- match(group_vec, unique(group_vec))
+		}
+		
+		# make sure all combinations from 1 to the maximum are represented
+		stopifnot(seq_len(max(all_comb[,1])) %in% all_comb[,1])
+		
+		y <- param_array[not_null_idx]
+		x <- matrix(0, nrow=length(not_null_idx), ncol=max(group_vec))
+		
+		empty_full_values <- numeric(length(group_vec))
+		
+		for (i in seq_along(not_null_idx)) {
+			full_values <- empty_full_values
+			idx <- comb_array[[not_null_idx[i]]][,1]
+			full_values[idx] <- comb_array[[not_null_idx[i]]][,2]
+			x[i,] <- tapply(full_values, group_vec, sum)
+		}
+		
+		fit <- lsfit(x, y, intercept=FALSE)
+		
+		stopifnot(abs(fit$residuals) < resid_thresh)
+		
+		unname(fit$coefficients[group_vec])
+		
+	} else {
+	
+		numeric()
+	}
+}
+
 #' @export
-make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omega0_plus, r2_start=NULL, m0_start=NULL, m0_region=(omega0_plus+omega0_minus)/2, p0_start=0, p1_start=0, omega0_group=NULL, r2_group=NULL, m0_group=NULL, p0_group=0, p1_group=0, fheader=NULL) {
+make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omega0_plus, r2_start=NULL, m0_start=NULL, m0_region=(omega0_plus+omega0_minus)/2, p0_start=0, p1_start=0, omega0_group=NULL, r2_group=NULL, m0_group=NULL, p0_group=0, p1_group=0, omega0_comb=NULL, omega0_comb_start=NULL, omega0_comb_group=NULL, fheader=NULL) {
 
 	if (is.data.frame(spectra)) {
 		fheader <- fheader
@@ -263,7 +402,7 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 	n_dimensions <- ncol(spectra[[1]][["fheader"]])
 	n_spectra <- length(spectra)
 	
-	if (is.null(dim(omega0_start))) {
+	if (is.null(dim(omega0_start)) || length(dim(omega0_start)) != 3) {
 		dim(omega0_start) <- c(n_dimensions, length(omega0_start)/n_dimensions/n_spectra, n_spectra)
 	}
 	
@@ -280,6 +419,19 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 	m0_group <- fill_group(m0_group, dim(omega0_start)[-1])
 	p0_group <- fill_group(p0_group, dim(omega0_start), TRUE)
 	p1_group <- fill_group(p1_group, dim(omega0_start), TRUE)
+	
+	omega0_comb <- fill_array_list(omega0_comb, dim(omega0_start), TRUE)
+	
+	if (is.null(omega0_comb_start)) {
+		omega0_comb_start <- param_array_to_comb_vec(omega0_start, omega0_comb, omega0_comb_group)
+	} else {
+		omega0_start <- comb_vec_to_param_array(omega0_comb_start, omega0_comb, omega0_start)
+	}
+	
+	omega0_comb_group <- fill_comb_group(omega0_comb_group, omega0_comb)
+	
+	# make sure group setting for combinations is 0
+	stopifnot(omega0_group[!sapply(omega0_comb, is.null)] == 0)
 	
 	if (FALSE) {
 	stopifnot(all(dim(omega0_start) == dim(omega0_plus)))
@@ -435,7 +587,8 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 		r2=r2_start,
 		m0=m0_start,
 		p0=p0_start,
-		p1=p1_start
+		p1=p1_start,
+		omega0_comb=omega0_comb_start
 	)
 	
 	group_list <- list(
@@ -443,7 +596,12 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 		r2=r2_group,
 		m0=m0_group,
 		p0=p0_group,
-		p1=p1_group
+		p1=p1_group,
+		omega0_comb=omega0_comb_group
+	)
+	
+	comb_list <- list(
+		omega0=omega0_comb
 	)
 	
 	lower_list <- upper_list <- start_list
@@ -455,6 +613,7 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 	
 	lower_list[["omega0"]] <- omega0_start - omega0_minus
 	upper_list[["omega0"]] <- omega0_start + omega0_plus
+	lower_list[["r2"]][] <- 0
 	
 	#print(start_list)
 	
@@ -462,6 +621,7 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 		spec_data=spec_data,
 		start_list=start_list,
 		group_list=group_list,
+		comb_list=comb_list,
 		lower_list=lower_list,
 		upper_list=upper_list,
 		num_points=spec_offset
@@ -539,7 +699,7 @@ fit_fn <- function(par, fit_data, return_resid=TRUE) {
 
 	func_eval <- numeric(fit_data$num_points)
 
-	param_list <- unpack_fit_params(par, fit_data$group_list, fit_data$start_list)
+	param_list <- unpack_fit_params(par, fit_data$group_list, fit_data$comb_list, fit_data$start_list)
 
 	for (spec_idx in seq_along(fit_data$spec_data)) {
 	
@@ -584,9 +744,9 @@ fit_jac <- function(par, fit_data) {
 
 	jac_eval <- matrix(0, nrow=fit_data$num_points, ncol=length(par), dimnames=list(NULL, names(par)))
 
-	param_list <- unpack_fit_params(par, fit_data$group_list, fit_data$start_list)
+	param_list <- unpack_fit_params(par, fit_data$group_list, fit_data$comb_list, fit_data$start_list)
 
-	idx_list <- group_param_idx(names(par), fit_data$group_list)
+	idx_list <- group_param_idx(names(par), fit_data$group_list, fit_data$start_list)
 
 	for (spec_idx in seq_along(fit_data$spec_data)) {
 	
@@ -642,6 +802,21 @@ fit_jac <- function(par, fit_data) {
 				}
 				jac_eval[spec_eval_idx,idx_list[["m0"]][peak_idx,spec_idx]] <- jac_eval[spec_eval_idx,idx_list[["m0"]][peak_idx,spec_idx]] + func_nd_prod
 			}
+			
+			for (var_name in c("omega0")) {
+				var_comb_name <- paste(var_name, "comb", sep="_")
+				var_idx <- which(!sapply(fit_data$comb_list[[var_name]][,peak_idx,spec_idx], is.null))
+				for (idx in var_idx) {
+					deriv_nd_prod <- deriv_1d_evals[[idx]][spec_data$spec_eval_idx[,idx],var_name]*param_list[["m0"]][peak_idx,spec_idx]
+					for (i in seq_len(ncol(spec_data$spec_eval_idx))[-idx]) {
+						deriv_nd_prod <- deriv_nd_prod*deriv_1d_evals[[i]][spec_data$spec_eval_idx[,i],"f"]
+					}
+					comb_data <- fit_data$comb_list[[var_name]][[idx,peak_idx,spec_idx]]
+					for (comb_idx in which(!is.na(idx_list[[var_comb_name]][comb_data[,1]]))) {
+						jac_eval[spec_eval_idx,idx_list[[var_comb_name]][comb_data[comb_idx,1]]] <- jac_eval[spec_eval_idx,idx_list[[var_comb_name]][comb_data[comb_idx,1]]] + deriv_nd_prod*comb_data[comb_idx,2]
+					}
+				}
+			}
 		}
 	}
 	
@@ -659,7 +834,7 @@ perform_fit <- function(fit_input) {
 		
 	fit <- suppressWarnings(minpack.lm::nls.lm(fit_par, fit_lower, fit_upper, fn=fit_fn, jac=fit_jac, fit_data=fit_input, control=list(minpack.lm::nls.lm.control(nprint=0), maxiter = 1e5)))
 	
-	fit_input[["fit_list"]] <- unpack_fit_params(fit$par, fit_input$group_list, default_list=fit_input$start_list)
+	fit_input[["fit_list"]] <- unpack_fit_params(fit$par, fit_input$group_list, fit_input$comb_list, default_list=fit_input$start_list)
 	fit_input[["fit_rsstrace"]] <- fit$rsstrace
 		
 	fit_input
@@ -678,7 +853,7 @@ perform_fit_nlfb <- function(fit_input) {
 
 	fit <- nlfb(fit_par, resfn=fit_fn, jacfn=fit_jac_nlfb, fit_data=fit_input)
 	
-	fit_input[["fit_list"]] <- unpack_fit_params(fit$coefficients, fit_input$group_list, default_list=fit_input$start_list)
+	fit_input[["fit_list"]] <- unpack_fit_params(fit$coefficients, fit_input$group_list, fit_input$comb_list, default_list=fit_input$start_list)
 	
 	fit_input
 }
@@ -957,6 +1132,7 @@ extract_params <- function(fit, expand=0) {
 
 	fit_params <- fit$fit_list
 	group_params <- fit$group_list
+	comb_params <- fit$comb_list
 	
 	if (expand) {
 	
@@ -968,6 +1144,7 @@ extract_params <- function(fit, expand=0) {
 		fit_params$m0 <- fit_params$m0[expand_idx,,drop=FALSE]
 		fit_params$p0 <- fit_params$p0[,expand_idx,,drop=FALSE]
 		fit_params$p1 <- fit_params$p1[,expand_idx,,drop=FALSE]
+		fit_params$omega0_comb <- fit_params$omega0_comb[,expand_idx,,drop=FALSE]
 		
 		#fit_params$m0[new_idx,] <- 0
 		fit_params$p0[,new_idx,] <- 0
@@ -978,13 +1155,17 @@ extract_params <- function(fit, expand=0) {
 		group_params$m0 <- group_params$m0[expand_idx,,drop=FALSE]
 		group_params$p0 <- group_params$p0[,expand_idx,,drop=FALSE]
 		group_params$p1 <- group_params$p1[,expand_idx,,drop=FALSE]
+		group_params$omega0_comb <- group_params$omega0_comb[,expand_idx,,drop=FALSE]
 		
 		group_params$p0[,new_idx,] <- 0
 		group_params$p1[,new_idx,] <- 0
+		
+		comb_params$omega0 <- comb_params$omega0[,expand_idx,,drop=FALSE]
 	}
 	
 	names(fit_params) <- paste(names(fit_params), "_start", sep="")
 	names(group_params) <- paste(names(group_params), "_group", sep="")
+	names(comb_params) <- paste(names(comb_params), "_comb", sep="")
 	
 	c(fit_params, group_params)
 }
