@@ -188,6 +188,7 @@ fill_comb_group <- function(x, comb_array) {
 	if (length(not_null_idx)) {
 	
 		x_dim <- dim(x)
+		x_dimnames <- dimnames(x)
 	
 		if (is.null(x)) {
 			x <- NA_integer_
@@ -206,6 +207,7 @@ fill_comb_group <- function(x, comb_array) {
 	
 		if (prod(x_dim) == length(x)) {
 			dim(x) <- x_dim
+			dimnames(x) <- x_dimnames
 		}
 	
 		x
@@ -1263,27 +1265,29 @@ spec_overlap_mat <- function(peak_int_list) {
 }
 
 #' Fit peaks from a table of chemical shifts
-fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plus=c(0.075, 0.75), r2_start=c(5,5), j_bounds=NULL, positive_only=TRUE) {
+fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plus=c(0.075, 0.75), r2_start=c(5,5), sc_start=NULL, sc_bounds=c(0, Inf), positive_only=TRUE) {
 	
 	plot=FALSE
 	
-	j_start <- NULL
+	if (FALSE) {
+	sc_start <- NULL
 	if (!is.null(j_bounds)) {
-		j_start <- rep(NA_real_, length(j_bounds))
-		bounds_not_null_idx <- !sapply(j_bounds, is.null)
+		sc_start <- rep(NA_real_, length(j_bounds))
+		bounds_not_null_idx <- !sapply(sc_bounds, is.null)
 		if (sum(bounds_not_null_idx) > 0) {
 			# the code currently only supports one type of scalar coupling
 			stopifnot(sum(bounds_not_null_idx) == 1)
-			j_start[bounds_not_null_idx] <- sapply(j_bounds[bounds_not_null_idx], mean)
-			j_bounds <- j_bounds[[which(bounds_not_null_idx)]]
+			sc_start[bounds_not_null_idx] <- sapply(sc_bounds[bounds_not_null_idx], mean)
+			sc_bounds <- sc_bounds[[which(bounds_not_null_idx)]]
 		}
 	}
 	
-	if (is.null(j_start) || all(is.na(j_start))) {
-		j_bounds <- c(-Inf, Inf)
+	if (is.null(sc_start) || all(is.na(sc_start))) {
+		sc_bounds <- c(-Inf, Inf)
+	}
 	}
 	
-	param_list_orig <- make_param_list(spec_list, cs_mat[,spec_ord,drop=FALSE], fit_prev=fit_prev, r2_start=r2_start[spec_ord], j_start=j_start[spec_ord], same_r2=TRUE, same_coupling=TRUE) 
+	param_list_orig <- make_param_list(spec_list, cs_mat[,spec_ord,drop=FALSE], fit_prev=fit_prev, r2_start=r2_start[spec_ord], sc_start=sc_start[spec_ord], same_r2=TRUE, same_coupling=TRUE) 
 	param_list <- param_list_orig
 	omega0_idx <- omega0_param_idx(param_list)
 	coupling_idx <- coupling_param_idx(param_list)
@@ -1316,8 +1320,8 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 	}
 	fit_input$lower_list$r2[] <- 0
 	fit_input$upper_list$r2[] <- 20
-	param_values(fit_input$lower_list, coupling_idx) <- j_bounds[1]
-	param_values(fit_input$upper_list, coupling_idx) <- j_bounds[2]
+	param_values(fit_input$lower_list, coupling_idx) <- sc_bounds[1]
+	param_values(fit_input$upper_list, coupling_idx) <- sc_bounds[2]
 	fit_output <- fitnmr::perform_fit(fit_input)
 	param_list <- fit_output[c("fit_list", "group_list", "comb_list")]
 	names(param_list)[1] <- "start_list"
@@ -1333,8 +1337,8 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 	}
 	fit_input$lower_list$r2[] <- 0
 	fit_input$upper_list$r2[] <- 20
-	param_values(fit_input$lower_list, coupling_idx) <- j_bounds[1]
-	param_values(fit_input$upper_list, coupling_idx) <- j_bounds[2]
+	param_values(fit_input$lower_list, coupling_idx) <- sc_bounds[1]
+	param_values(fit_input$upper_list, coupling_idx) <- sc_bounds[2]
 	fit_input <- limit_omega0_by_r2(fit_input)
 	fit_output <- fitnmr::perform_fit(fit_input)
 	
@@ -1354,8 +1358,8 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 		fit_input <- limit_omega0_by_r2(fit_input)
 		fit_input$lower_list$r2[] <- 0
 		fit_input$upper_list$r2[] <- 20
-		param_values(fit_input$lower_list, coupling_idx) <- j_bounds[1]
-		param_values(fit_input$upper_list, coupling_idx) <- j_bounds[2]
+		param_values(fit_input$lower_list, coupling_idx) <- sc_bounds[1]
+		param_values(fit_input$upper_list, coupling_idx) <- sc_bounds[2]
 		fit_output <- fitnmr::perform_fit(fit_input)
 		
 		if (plot) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Fit Parameters: m0, r2, omega0 (Refit 1)")
@@ -1372,8 +1376,8 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 		}
 		fit_input$lower_list$r2[] <- 0
 		fit_input$upper_list$r2[] <- 20
-		param_values(fit_input$lower_list, coupling_idx) <- j_bounds[1]
-		param_values(fit_input$upper_list, coupling_idx) <- j_bounds[2]
+		param_values(fit_input$lower_list, coupling_idx) <- sc_bounds[1]
+		param_values(fit_input$upper_list, coupling_idx) <- sc_bounds[2]
 		fit_input <- limit_omega0_by_r2(fit_input)
 		fit_output <- fitnmr::perform_fit(fit_input)
 		
@@ -1391,8 +1395,8 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 		}
 		fit_input$lower_list$r2[] <- 0
 		fit_input$upper_list$r2[] <- 20
-		param_values(fit_input$lower_list, coupling_idx) <- j_bounds[1]
-		param_values(fit_input$upper_list, coupling_idx) <- j_bounds[2]
+		param_values(fit_input$lower_list, coupling_idx) <- sc_bounds[1]
+		param_values(fit_input$upper_list, coupling_idx) <- sc_bounds[2]
 		fit_input <- limit_omega0_by_r2(fit_input)
 		fit_output <- fitnmr::perform_fit(fit_input)
 		
@@ -1402,7 +1406,7 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 	fit_output
 }
 
-make_param_list <- function(spec_list, cs_mat, fit_prev=NULL, r2_start=5, m0_start=1, j_start=NULL, same_r2=FALSE, same_coupling=FALSE) {
+make_param_list <- function(spec_list, cs_mat, fit_prev=NULL, r2_start=5, m0_start=1, sc_start=NULL, same_r2=FALSE, same_coupling=FALSE) {
 
 	num_spec <- length(spec_list)
 	
@@ -1424,7 +1428,7 @@ make_param_list <- function(spec_list, cs_mat, fit_prev=NULL, r2_start=5, m0_sta
 		comb_group_offset <- max(fit_prev[["group_list"]][["omega0_comb"]], 0)
 	}
 	
-	if (is.null(j_start)) {
+	if (is.null(sc_start)) {
 	
 		num_peaks <- 1
 		omega0_start <- t(cs_mat)
@@ -1437,8 +1441,8 @@ make_param_list <- function(spec_list, cs_mat, fit_prev=NULL, r2_start=5, m0_sta
 	
 	} else {
 	
-		stopifnot(length(j_start) == num_dim)
-		num_peaks <- 2^sum(!is.na(j_start))
+		stopifnot(length(sc_start) == num_dim)
+		num_peaks <- 2^sum(!is.na(sc_start))
 		omega0_start <- NA_real_
 		omega0_group <- 0L
 		m0_start <- rep(m0_start, each=num_peaks)
@@ -1449,13 +1453,13 @@ make_param_list <- function(spec_list, cs_mat, fit_prev=NULL, r2_start=5, m0_sta
 		r2_group <- r2_group_offset+matrix(r2_vec, nrow=num_dim, ncol=nrow(cs_mat))[rep(seq_len(num_dim), num_peaks),,drop=FALSE]
 		m0_group <- m0_group_offset+rep(seq_len(nrow(cs_mat)), each=num_peaks)
 		
-		comb_spacing <- num_dim+sum(!is.na(j_start))
-		comb_grid_params <- c(lapply(is.na(j_start), function(x) if (x) 0 else c(-0.5, 0.5)), list(seq(comb_idx_offset, by=comb_spacing, length.out=2)))
+		comb_spacing <- num_dim+sum(!is.na(sc_start))
+		comb_grid_params <- c(lapply(seq_along(sc_start), function(i) if (is.na(sc_start[i])) 0 else c(-0.5, 0.5)/spec_list[[1]]$fheader["OBS",i]), list(seq(comb_idx_offset, by=comb_spacing, length.out=2)))
 		comb_grid <- do.call(expand.grid, comb_grid_params)
 		scalar_coupling_coef_mat <- t(as.matrix(comb_grid[,-ncol(comb_grid),drop=FALSE]))
 		omega0_idx_mat <- outer(seq_len(num_dim), comb_grid[,ncol(comb_grid)], "+")
 		scalar_coupling_idx_vec <- rep(NA_integer_, num_dim)
-		scalar_coupling_idx_vec[!is.na(j_start)] <- num_dim+seq_len(sum(!is.na(j_start)))
+		scalar_coupling_idx_vec[!is.na(sc_start)] <- num_dim+seq_len(sum(!is.na(sc_start)))
 		scalar_coupling_idx_mat <- outer(scalar_coupling_idx_vec, comb_grid[,ncol(comb_grid)], "+")
 		
 		omega0_comb <- lapply(seq_along(scalar_coupling_coef_mat), function(i) {
@@ -1466,11 +1470,19 @@ make_param_list <- function(spec_list, cs_mat, fit_prev=NULL, r2_start=5, m0_sta
 			}
 		})
 		
-		omega0_comb_start <- rbind(t(cs_mat), matrix(rep(j_start[!is.na(j_start)], each=nrow(cs_mat)), ncol=nrow(cs_mat), byrow=TRUE))
+		if (is.null(colnames(cs_mat))) {
+			colnames(cs_mat) <- paste("omega0_ppm_", seq_len(ncol(cs_mat)), sep="")
+		}
+		sc_mat <- matrix(rep(sc_start[!is.na(sc_start)], each=nrow(cs_mat)), ncol=nrow(cs_mat), byrow=TRUE)
+		if (nrow(sc_mat)) {
+			rownames(sc_mat) <- paste("sc_hz_", which(!is.na(sc_start)), sep="")
+		}
+		omega0_comb_start <- rbind(t(cs_mat), sc_mat)
 		omega0_comb_group <- comb_group_offset+array(seq_along(omega0_comb_start), dim=dim(omega0_comb_start))
 		if (same_coupling) {
 			omega0_comb_group[-seq_len(ncol(cs_mat)),] <- omega0_comb_group[-seq_len(ncol(cs_mat)),1]
 		}
+		rownames(omega0_comb_group) <- rownames(omega0_comb_start)
 	}
 	
 	param_list <- list(
@@ -1613,7 +1625,7 @@ param_list_to_arg_list <- function(param_list) {
 #' Fit a cluster nearby peaks starting from a seed table of chemical shifts
 #'
 #' @export
-fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001, h_sc=FALSE, h_sc_bounds=c(2, 12)) {
+fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001, sc_start=NULL, sc_bounds=c(0, Inf)) {
 
 	stopifnot(length(spec_list) == 1)
 
@@ -1624,15 +1636,10 @@ fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001
 	ndf <- 0
 	f_alpha <- 0
 	
-	j_bounds <- NULL
-	if (h_sc) {
-		j_bounds <- list(h_sc_bounds/spec_list[[1]]$fheader["OBS",spec_ord[1]], NULL)
-	}
-	
 	while (f_alpha < f_alpha_thresh) {
 	
 		# perform trial fit
-		trial_fit_output <- fit_peaks(spec_list, cs_new, fit_output, spec_ord=spec_ord, j_bounds=j_bounds, positive_only=TRUE)
+		trial_fit_output <- fit_peaks(spec_list, cs_new, fit_output, spec_ord=spec_ord, sc_start=sc_start, sc_bounds=sc_bounds, positive_only=TRUE)
 		
 		# get new data from trial fit
 		trial_input_spec_int <- fitnmr::get_spec_int(trial_fit_output, "input")
