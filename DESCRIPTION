@@ -6,6 +6,6 @@ Authors@R: c(person("Colin", "Smith", role=c("aut", "cre"),
 Depends: 
 Description: Fit multidimensional peaks in NMR spectra.
 License: GPL
-Imports: minpack.lm
+Imports: minpack.lm, abind
 Encoding: UTF-8
 RoxygenNote: 6.1.0

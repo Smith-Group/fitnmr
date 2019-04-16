@@ -187,6 +187,8 @@ fill_comb_group <- function(x, comb_array) {
 	
 	if (length(not_null_idx)) {
 	
+		x_dim <- dim(x)
+	
 		if (is.null(x)) {
 			x <- NA_integer_
 		} else {
@@ -201,6 +203,10 @@ fill_comb_group <- function(x, comb_array) {
 	
 		na_idx <- is.na(x)
 		x[na_idx] <- head(setdiff(seq_along(x), x[!na_idx]), sum(na_idx))
+	
+		if (prod(x_dim) == length(x)) {
+			dim(x) <- x_dim
+		}
 	
 		x
 	
@@ -1388,10 +1394,198 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 	fit_output
 }
 
+make_param_list <- function(spec_list, cs_mat, fit_prev=NULL, r2_start=5, m0_start=1, j_start=NULL, same_r2=FALSE, same_coupling=FALSE) {
+
+	num_spec <- length(spec_list)
+	
+	spec_dim <- sapply(spec_list, function(x) ncol(x$fheader))
+	num_dim <- spec_dim[1]
+	
+	stopifnot(spec_dim == num_dim, ncol(cs_mat) == num_dim)
+
+	r2_group_offset <- 0
+	m0_group_offset <- 0
+	comb_idx_offset <- 0
+	comb_group_offset <- 0
+	
+	if (!is.null(fit_prev)) {
+	
+		r2_group_offset <- max(fit_prev[["group_list"]][["r2"]])
+		m0_group_offset <- max(fit_prev[["group_list"]][["m0"]])
+		comb_idx_offset <- length(fit_prev[["group_list"]][["omega0_comb"]])
+		comb_group_offset <- max(fit_prev[["group_list"]][["omega0_comb"]])
+	}
+	
+	if (is.null(j_start)) {
+	
+		num_peaks <- 1
+		omega0_start <- t(cs_mat)
+		omega0_group <- rep(NA_integer_, num_dim)
+		r2_group <- rep(NA_integer_, num_dim)
+		m0_group <- NA_integer_
+		omega0_comb <- vector("list", 1)
+		omega0_comb_start <- numeric()
+		omega0_comb_group <- integer()
+	
+	} else {
+	
+		stopifnot(length(j_start) == num_dim)
+		num_peaks <- 2^sum(!is.na(j_start))
+		omega0_start <- NA_real_
+		omega0_group <- 0L
+		m0_start <- rep(m0_start, each=num_peaks)
+		r2_vec <- seq_len(num_dim*nrow(cs_mat))
+		if (same_r2) {
+			r2_vec <- seq_len(num_dim)
+		}
+		r2_group <- r2_group_offset+matrix(r2_vec, nrow=num_dim, ncol=nrow(cs_mat))[rep(seq_len(num_dim), num_peaks),,drop=FALSE]
+		m0_group <- m0_group_offset+rep(seq_len(nrow(cs_mat)), each=num_peaks)
+		
+		comb_spacing <- num_dim+sum(!is.na(j_start))
+		comb_grid_params <- c(lapply(is.na(j_start), function(x) if (x) 0 else c(-0.5, 0.5)), list(seq(comb_idx_offset, by=comb_spacing, length.out=2)))
+		comb_grid <- do.call(expand.grid, comb_grid_params)
+		scalar_coupling_coef_mat <- t(as.matrix(comb_grid[,-ncol(comb_grid),drop=FALSE]))
+		omega0_idx_mat <- outer(seq_len(num_dim), comb_grid[,ncol(comb_grid)], "+")
+		scalar_coupling_idx_vec <- rep(NA_integer_, num_dim)
+		scalar_coupling_idx_vec[!is.na(j_start)] <- num_dim+seq_len(sum(!is.na(j_start)))
+		scalar_coupling_idx_mat <- outer(scalar_coupling_idx_vec, comb_grid[,ncol(comb_grid)], "+")
+		
+		omega0_comb <- lapply(seq_along(scalar_coupling_coef_mat), function(i) {
+			if (is.na(scalar_coupling_idx_mat[i])) {
+				data.frame(omega0_idx_mat[i], 1, fix.empty.names=FALSE)
+			} else {
+				data.frame(c(omega0_idx_mat[i], scalar_coupling_idx_mat[i]), c(1, scalar_coupling_coef_mat[i]), fix.empty.names=FALSE)
+			}
+		})
+		
+		omega0_comb_start <- rbind(t(cs_mat), matrix(rep(j_start[!is.na(j_start)], each=nrow(cs_mat)), ncol=nrow(cs_mat), byrow=TRUE))
+		omega0_comb_group <- comb_group_offset+array(seq_along(omega0_comb_start), dim=dim(omega0_comb_start))
+		if (same_coupling) {
+			omega0_comb_group[-seq_len(ncol(cs_mat)),] <- omega0_comb_group[-seq_len(ncol(cs_mat)),1]
+			print(omega0_comb_group) 
+		}
+	}
+	
+	param_list <- list(
+		start_list=list(
+			omega0=array(omega0_start, dim=c(num_dim, nrow(cs_mat)*num_peaks, num_spec)),
+			r2=array(r2_start, dim=c(num_dim, nrow(cs_mat)*num_peaks, num_spec)),
+			m0=array(m0_start, dim=c(nrow(cs_mat)*num_peaks, num_spec)),
+			omega0_comb=omega0_comb_start
+		),
+		group_list=list(
+			omega0=array(omega0_group, dim=c(num_dim, nrow(cs_mat)*num_peaks, num_spec)),
+			r2=array(r2_group, dim=c(num_dim, nrow(cs_mat)*num_peaks, num_spec)),
+			m0=array(m0_group, dim=c(nrow(cs_mat)*num_peaks, num_spec)),
+			omega0_comb=omega0_comb_group
+		),
+		comb_list=list(
+			omega0=array(omega0_comb, dim=c(num_dim, nrow(cs_mat)*num_peaks, num_spec))
+		)
+	)
+	
+	if (!is.null(fit_prev)) {
+		
+		if (same_r2) {
+			param_list[["start_list"]][["r2"]][] <- fit_prev[["fit_list"]][["r2"]][,1,]
+			param_list[["group_list"]][["r2"]][] <- fit_prev[["group_list"]][["r2"]][,1,]
+		}
+		
+		if (same_coupling) {
+			new_coupling_idx <- coupling_idx(param_list, comb_idx_offset)
+			prev_coupling_idx <- coupling_idx(fit_prev)
+			param_values(param_list[["start_list"]], new_coupling_idx) <- fit_prev[["fit_list"]][["omega0_comb"]][which(prev_coupling_idx[["omega0_comb"]][,1])]
+			param_values(param_list[["group_list"]], new_coupling_idx) <- fit_prev[["group_list"]][["omega0_comb"]][which(prev_coupling_idx[["omega0_comb"]][,1])]
+		}
+		
+		param_list[["start_list"]][["omega0"]] <- abind::abind(fit_prev[["fit_list"]][["omega0"]], param_list[["start_list"]][["omega0"]], rev.along=2)
+		param_list[["start_list"]][["r2"]] <- abind::abind(fit_prev[["fit_list"]][["r2"]], param_list[["start_list"]][["r2"]], rev.along=2)
+		param_list[["start_list"]][["m0"]] <- abind::abind(fit_prev[["fit_list"]][["m0"]], param_list[["start_list"]][["m0"]], rev.along=2)
+		param_list[["start_list"]][["omega0_comb"]] <- abind::abind(fit_prev[["fit_list"]][["omega0_comb"]], param_list[["start_list"]][["omega0_comb"]])
+		
+		param_list[["group_list"]][["omega0"]] <- abind::abind(fit_prev[["group_list"]][["omega0"]], param_list[["group_list"]][["omega0"]], rev.along=2)
+		param_list[["group_list"]][["r2"]] <- abind::abind(fit_prev[["group_list"]][["r2"]], param_list[["group_list"]][["r2"]], rev.along=2)
+		param_list[["group_list"]][["m0"]] <- abind::abind(fit_prev[["group_list"]][["m0"]], param_list[["group_list"]][["m0"]], rev.along=2)
+		param_list[["group_list"]][["omega0_comb"]] <- abind::abind(fit_prev[["group_list"]][["omega0_comb"]], param_list[["group_list"]][["omega0_comb"]])
+		
+		# abind::abind doesn't work for arrays of lists...
+		#param_list[["comb"]][["omega0"]] <- abind::(list(fit_prev[["comb_list"]][["omega0"]], param_list[["comb"]][["omega0"]]), rev.along=2)
+		stopifnot(dim(param_list[["comb"]][["omega0"]])[3] == 1)
+		param_list[["comb_list"]][["omega0"]] <- array(c(fit_prev[["comb_list"]][["omega0"]], param_list[["comb_list"]][["omega0"]]), dim=dim(fit_prev[["comb_list"]][["omega0"]])+c(0, dim(param_list[["comb_list"]][["omega0"]])[2], 0))
+	}
+	
+	param_list
+}
+
+omega0_idx <- function(param_list) {
+	
+	idx_list <- lapply(param_list[["group_list"]], function(x) if (is.array(x)) array(FALSE, dim(x)) else logical(length(x)))
+	names(idx_list) <- names(param_list[["group_list"]])
+	
+	idx_list[["omega0"]] <- sapply(param_list[["comb_list"]][["omega0"]], is.null)
+	
+	for (i in which(!idx_list[["omega0"]] )) {
+		unity_idx <- param_list[["comb_list"]][["omega0"]][[i]][,2] == 1
+		idx_list[["omega0_comb"]][ param_list[["comb_list"]][["omega0"]][[i]][unity_idx,1] ] <- TRUE
+	}
+	
+	idx_list
+}
+
+coupling_idx <- function(param_list, comb_idx_offset=0) {
+	
+	idx_list <- lapply(param_list[["group_list"]], function(x) if (is.array(x)) array(FALSE, dim(x)) else logical(length(x)))
+	names(idx_list) <- names(param_list[["group_list"]])
+	
+	not_null_idx <- which(!sapply(param_list[["comb_list"]][["omega0"]], is.null))
+	
+	for (i in which(!idx_list[["omega0"]] )) {
+		not_unity_idx <- param_list[["comb_list"]][["omega0"]][[i]][,2] != 1
+		idx_list[["omega0_comb"]][ param_list[["comb_list"]][["omega0"]][[i]][not_unity_idx,1]-comb_idx_offset ] <- TRUE
+	}
+	
+	idx_list
+}
+
+param_values <- function(params, idx_list) {
+
+	params_subset <- lapply(seq_along(params), function(i) params[[i]][idx_list[[i]]])
+	
+	do.call(c, params_subset)
+}
+
+"param_values<-" <- function(params, idx_list, value) {
+
+	stopifnot(sapply(params, length) == sapply(idx_list, length))
+	#print(value)
+	#print(idx_list)
+	value <- rep(value, sum(sapply(idx_list, sum)))
+
+	idx_offset <- 0
+	
+	for (i in seq_along(params)) {
+		idx <- which(idx_list[[i]])
+		params[[i]][idx_offset+idx] <- value[idx_offset+seq_along(idx)]
+		idx_offset <- length(idx)
+	}
+	
+	params
+}
+
+param_list_to_arg_list <- function(param_list) {
+
+	for (i in seq_along(param_list)) {
+		names(param_list[[i]]) <- paste(names(param_list[[i]]), sub("_list", "", names(param_list)[i]), sep="_")
+	}
+	names(param_list) <- NULL
+
+	do.call(c, param_list)
+}
+
 #' Fit a cluster nearby peaks starting from a seed table of chemical shifts
 #'
 #' @export
-fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001) {
+fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001, h_scalar_coupling=FALSE) {
 
 	stopifnot(length(spec_list) == 1)
 
