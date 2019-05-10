@@ -1459,7 +1459,7 @@ make_param_list <- function(spec_list, cs_mat, fit_prev=NULL, r2_start=5, m0_sta
 		m0_group <- m0_group_offset+rep(seq_len(nrow(cs_mat)), each=num_peaks)
 		
 		comb_spacing <- num_dim+sum(!is.na(sc_start))
-		comb_grid_params <- c(lapply(seq_along(sc_start), function(i) if (is.na(sc_start[i])) 0 else c(-0.5, 0.5)/spec_list[[1]]$fheader["OBS",i]), list(seq(comb_idx_offset, by=comb_spacing, length.out=2)))
+		comb_grid_params <- c(lapply(seq_along(sc_start), function(i) if (is.na(sc_start[i])) 0 else c(-0.5, 0.5)/spec_list[[1]]$fheader["OBS",i]), list(seq(comb_idx_offset, by=comb_spacing, length.out=nrow(cs_mat))))
 		comb_grid <- do.call(expand.grid, comb_grid_params)
 		scalar_coupling_coef_mat <- t(as.matrix(comb_grid[,-ncol(comb_grid),drop=FALSE]))
 		omega0_idx_mat <- outer(seq_len(num_dim), comb_grid[,ncol(comb_grid)], "+")
