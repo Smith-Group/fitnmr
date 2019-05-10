@@ -99,6 +99,11 @@ read_nmrpipe <- function(inFormat, dim_order=NULL, complex_data=FALSE) {
 	#print(f_ppm)
 
 	if (!is.null(dim_order)) {
+		if (is.character(dim_order) && dim_order == "hx") {
+			h_idx <- which.max(fheader["OBS",])
+			x_idx <- which.min(fheader["OBS",])
+			dim_order <- c(h_idx, x_idx)
+		}
 		data_array <- aperm(data_array, dim_order)
 		fheader <- fheader[,dim_order]
 		f_ppm <- f_ppm[dim_order]
