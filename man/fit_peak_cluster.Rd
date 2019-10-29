@@ -4,7 +4,10 @@
 \alias{fit_peak_cluster}
 \title{Fit a cluster nearby peaks starting from a seed table of chemical shifts}
 \usage{
-fit_peak_cluster(spec_list, cs_start, spec_ord, f_alpha_thresh = 0.001)
+fit_peak_cluster(spec_list, cs_start, spec_ord, f_alpha_thresh = 0.001,
+  r2_start = 5, r2_bounds = c(0.5, 20), sc_start = NULL,
+  sc_bounds = c(0, Inf), plot_main_prefix = NULL,
+  peak_num_offset = 0)
 }
 \description{
 Fit a cluster nearby peaks starting from a seed table of chemical shifts

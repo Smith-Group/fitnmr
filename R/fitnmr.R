@@ -1,3 +1,5 @@
+#' Read a NMRPipe spectrum
+#'
 #' @export
 read_nmrpipe <- function(inFormat, dim_order=NULL, complex_data=FALSE) {
 	
@@ -57,15 +59,15 @@ read_nmrpipe <- function(inFormat, dim_order=NULL, complex_data=FALSE) {
 	
 	fheader <- rbind(fheader, SIZE=fsizes, DMXVAL=0)
 	
-	fheader["DMXVAL",which.max(head(forder, header["FDDIMCOUNT"]))] <- header["FDDMXVAL"]
+	fheader["DMXVAL",which.max(utils::head(forder, header["FDDIMCOUNT"]))] <- header["FDDMXVAL"]
 	
 	FDFILECOUNT <- header["FDFILECOUNT"]
 	FDDIMCOUNT <- header["FDDIMCOUNT"]
 	
 	f_ppm <- apply(fheader, 2, function(x) (x["ORIG"]+x["SW"]*(1-seq_len(x["SIZE"])/x["SIZE"]))/x["OBS"])
-	f_ppm <- f_ppm[head(forder, header["FDDIMCOUNT"])]
+	f_ppm <- f_ppm[utils::head(forder, header["FDDIMCOUNT"])]
 	f_size <- sapply(f_ppm, length)
-	n <- if (header["FDFILECOUNT"] == 1) prod(f_size) else prod(head(f_size, 2))
+	n <- if (header["FDFILECOUNT"] == 1) prod(f_size) else prod(utils::head(f_size, 2))
 	
 	if (complex_data) {
 		data_array <- array(NA_complex_, f_size, f_ppm)
@@ -92,7 +94,7 @@ read_nmrpipe <- function(inFormat, dim_order=NULL, complex_data=FALSE) {
 	}
 	
 	
-	fheader <- fheader[,head(forder, header["FDDIMCOUNT"]),drop=FALSE]
+	fheader <- fheader[,utils::head(forder, header["FDDIMCOUNT"]),drop=FALSE]
 	
 	#print(apply(fheader, 2, function(x) (x["ORIG"]+x["SW"]*(1-x["CENTER"]/x["SIZE"]))/x["OBS"]))
 	
@@ -130,7 +132,7 @@ lineshapes <- list(
 	)
 )
 
-lineshapes_parsed <- lapply(lineshapes, function(flist) lapply(flist, function(fvec) parse(text=fvec, keep.source=FALSE)))
+#lineshapes_parsed <- lapply(lineshapes, function(flist) lapply(flist, function(fvec) parse(text=fvec, keep.source=FALSE)))
 
 #lineshapes_simplified_func <- lapply(lineshapes, function(lineshape_list) compile(findSubexprs(eval(parse(text=paste("quote(", lineshape_list[[1]], ")"))), simplify=TRUE), options=list(optimize=3, suppressUndefined=TRUE)))
 
@@ -178,9 +180,9 @@ fill_group <- function(x, array_dim, na_dim1_same=FALSE) {
 	na_idx <- is.na(x)
 	
 	if (na_dim1_same) {
-		x[na_idx] <- head(setdiff(seq_along(x), x[!na_idx]), array_dim[1])
+		x[na_idx] <- utils::head(setdiff(seq_along(x), x[!na_idx]), array_dim[1])
 	} else {
-		x[na_idx] <- head(setdiff(seq_along(x), x[!na_idx]), sum(na_idx))
+		x[na_idx] <- utils::head(setdiff(seq_along(x), x[!na_idx]), sum(na_idx))
 	}
 	
 	x
@@ -208,7 +210,7 @@ fill_comb_group <- function(x, comb_array) {
 		x <- rep_len(x, max_comb_idx)
 	
 		na_idx <- is.na(x)
-		x[na_idx] <- head(setdiff(seq_along(x), x[!na_idx]), sum(na_idx))
+		x[na_idx] <- utils::head(setdiff(seq_along(x), x[!na_idx]), sum(na_idx))
 	
 		if (prod(x_dim) == length(x)) {
 			dim(x) <- x_dim
@@ -366,7 +368,7 @@ param_array_to_comb_vec <- function(param_array, comb_array, group_vec=NULL, res
 		} else {
 			# replace any 0 values with unused numbers
 			zero_idx <- group_vec == 0
-			group_vec[zero_idx] <- head(setdiff(seq_along(group_vec), group_vec[!zero_idx]), sum(zero_idx))
+			group_vec[zero_idx] <- utils::head(setdiff(seq_along(group_vec), group_vec[!zero_idx]), sum(zero_idx))
 			# ensure group_vec ordered sequentially from 1
 			group_vec <- match(group_vec, unique(group_vec))
 		}
@@ -386,7 +388,7 @@ param_array_to_comb_vec <- function(param_array, comb_array, group_vec=NULL, res
 			x[i,] <- tapply(full_values, group_vec, sum)
 		}
 		
-		fit <- lsfit(x, y, intercept=FALSE)
+		fit <- stats::lsfit(x, y, intercept=FALSE)
 		
 		stopifnot(abs(fit$residuals) < resid_thresh)
 		
@@ -398,6 +400,8 @@ param_array_to_comb_vec <- function(param_array, comb_array, group_vec=NULL, res
 	}
 }
 
+#' Prepare input data structure for peak fitting
+#'
 #' @export
 make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omega0_plus, r2_start=NULL, m0_start=NULL, m0_region=(omega0_plus+omega0_minus)/2, p0_start=0, p1_start=0, omega0_group=NULL, r2_group=NULL, m0_group=NULL, p0_group=0, p1_group=0, omega0_comb=NULL, omega0_comb_start=NULL, omega0_comb_group=NULL, fheader=NULL) {
 
@@ -839,6 +843,8 @@ fit_jac <- function(par, fit_data) {
 	-jac_eval
 }
 
+#' Perform a fit with an input data structure
+#'
 #' @export
 perform_fit <- function(fit_input) {
 
@@ -861,17 +867,19 @@ fit_jac_nlfb <- function(par, fit_data) {
 	jj
 }
 
-perform_fit_nlfb <- function(fit_input) {
+#perform_fit_nlfb <- function(fit_input) {
+#
+#	fit_par <- pack_fit_params(fit_input$start_list, fit_input$group_list)
+#
+#	fit <- nlfb(fit_par, resfn=fit_fn, jacfn=fit_jac_nlfb, fit_data=fit_input)
+#	
+#	fit_input[["fit_list"]] <- unpack_fit_params(fit$coefficients, fit_input$group_list, fit_input$comb_list, default_list=fit_input$start_list)
+#	
+#	fit_input
+#}
 
-	fit_par <- pack_fit_params(fit_input$start_list, fit_input$group_list)
-
-	fit <- nlfb(fit_par, resfn=fit_fn, jacfn=fit_jac_nlfb, fit_data=fit_input)
-	
-	fit_input[["fit_list"]] <- unpack_fit_params(fit$coefficients, fit_input$group_list, fit_input$comb_list, default_list=fit_input$start_list)
-	
-	fit_input
-}
-
+#' Get arrays of spectral intensities for input, starting parameters, and fit peaks
+#'
 #' @export
 get_spec_int <- function(fit_data, spec_type=c("input", "start", "fit"), spec_idx=seq_along(fit_data$spec_data), peak_idx=seq_len(dim(fit_data$start_list$omega0)[2])) {
 
@@ -928,6 +936,9 @@ get_spec_int <- function(fit_data, spec_type=c("input", "start", "fit"), spec_id
 	})
 }
 
+#' Plot a one dimensional peak fit
+#'
+#' @export
 plot_fit_1d <- function(fit_data, always_show_start=FALSE) {
 
 	original_int <- unlist(lapply(fit_data$spec_data, function(spec_data) spec_data$spec_int))
@@ -946,7 +957,7 @@ plot_fit_1d <- function(fit_data, always_show_start=FALSE) {
 	
 		omega_ppm <- spec_data$omega_eval[[1]]
 		
-		omega_ppm_seg_ends <- which(abs(diff(omega_ppm)) > abs(median(diff(omega_ppm)))*2)
+		omega_ppm_seg_ends <- which(abs(diff(omega_ppm)) > abs(stats::median(diff(omega_ppm)))*2)
 		omega_ppm_seg_starts <- c(1, omega_ppm_seg_ends+1)
 		omega_ppm_seg_ends <- c(omega_ppm_seg_ends, length(omega_ppm))
 		plot_idx <- unlist(lapply(seq_along(omega_ppm_seg_starts), function(i) c(NA, seq(omega_ppm_seg_starts[i], omega_ppm_seg_ends[i]))))[-1]
@@ -959,14 +970,14 @@ plot_fit_1d <- function(fit_data, always_show_start=FALSE) {
 		
 		ylim <- range(0, spec_original_int, spec_start_int, spec_fit_int)
 		
-		plot(omega_ppm[plot_idx], spec_original_int[plot_idx], type="l", xlim=rev(range(omega_ppm)), ylim=ylim, xlab=expression(delta (ppm)), ylab="Intensity")
+		graphics::plot(omega_ppm[plot_idx], spec_original_int[plot_idx], type="l", xlim=rev(range(omega_ppm)), ylim=ylim, xlab=expression(delta (ppm)), ylab="Intensity")
 
 		if (!is.null(spec_start_int)) {
-			points(omega_ppm[plot_idx], spec_start_int[plot_idx], type="l", col="blue")
+			graphics::points(omega_ppm[plot_idx], spec_start_int[plot_idx], type="l", col="blue")
 		}
 		
 		if (!is.null(spec_fit_int)) {
-			points(omega_ppm[plot_idx], spec_fit_int[plot_idx], type="l", col="red")
+			graphics::points(omega_ppm[plot_idx], spec_fit_int[plot_idx], type="l", col="red")
 		}
 	}
 }
@@ -998,27 +1009,29 @@ plot_fit_2d <- function(fit_output, spec_ord, plot_start=FALSE, main=NULL) {
 
 		zlim <- range(input_spec_int[[i]], na.rm=TRUE)
 		fitnmr::contour_pipe(aperm(input_spec_int[[i]], spec_ord), zlim=zlim, col_pos="black", col_neg="gray")
-		title(main)
+		graphics::title(main)
 		if (plot_start) {
 			fitnmr::contour_pipe(aperm(start_spec_int[[i]], spec_ord), zlim=zlim, col_pos="blue", col_neg="lightblue", add=TRUE)
-			points(t(fit_output$start_list$omega0[spec_ord,,i]), pch=16, col="blue")
-			segments(fit_output$start_list$omega0[spec_ord[1],,i], start_r2_ppm_low[spec_ord[2],,i], fit_output$start_list$omega0[spec_ord[1],,i], start_r2_ppm_high[spec_ord[2],,i], col="blue")
-			segments(start_r2_ppm_low[spec_ord[1],,i], fit_output$start_list$omega0[spec_ord[2],,i], start_r2_ppm_high[spec_ord[1],,i], fit_output$start_list$omega0[spec_ord[2],,i], col="blue")
+			graphics::points(t(fit_output$start_list$omega0[spec_ord,,i]), pch=16, col="blue")
+			graphics::segments(fit_output$start_list$omega0[spec_ord[1],,i], start_r2_ppm_low[spec_ord[2],,i], fit_output$start_list$omega0[spec_ord[1],,i], start_r2_ppm_high[spec_ord[2],,i], col="blue")
+			graphics::segments(start_r2_ppm_low[spec_ord[1],,i], fit_output$start_list$omega0[spec_ord[2],,i], start_r2_ppm_high[spec_ord[1],,i], fit_output$start_list$omega0[spec_ord[2],,i], col="blue")
 		}
 		fitnmr::contour_pipe(aperm(fit_spec_int[[i]], spec_ord), zlim=zlim, col_pos="red", col_neg="pink", add=TRUE)
-		rect(fit_output$upper_list$omega0[spec_ord[1],,i], fit_output$upper_list$omega0[spec_ord[2],,i], fit_output$lower_list$omega0[spec_ord[1],,i], fit_output$lower_list$omega0[spec_ord[2],,i], border="gray")
-		points(t(fit_output$fit_list$omega0[spec_ord,,i]), pch=16, col="red")
-		segments(fit_output$fit_list$omega0[spec_ord[1],,i], fit_r2_ppm_low[spec_ord[2],,i], fit_output$fit_list$omega0[spec_ord[1],,i], fit_r2_ppm_high[spec_ord[2],,i], col="red")
-		segments(fit_r2_ppm_low[spec_ord[1],,i], fit_output$fit_list$omega0[spec_ord[2],,i], fit_r2_ppm_high[spec_ord[1],,i], fit_output$fit_list$omega0[spec_ord[2],,i], col="red")
+		graphics::rect(fit_output$upper_list$omega0[spec_ord[1],,i], fit_output$upper_list$omega0[spec_ord[2],,i], fit_output$lower_list$omega0[spec_ord[1],,i], fit_output$lower_list$omega0[spec_ord[2],,i], border="gray")
+		graphics::points(t(fit_output$fit_list$omega0[spec_ord,,i]), pch=16, col="red")
+		graphics::segments(fit_output$fit_list$omega0[spec_ord[1],,i], fit_r2_ppm_low[spec_ord[2],,i], fit_output$fit_list$omega0[spec_ord[1],,i], fit_r2_ppm_high[spec_ord[2],,i], col="red")
+		graphics::segments(fit_r2_ppm_low[spec_ord[1],,i], fit_output$fit_list$omega0[spec_ord[2],,i], fit_r2_ppm_high[spec_ord[1],,i], fit_output$fit_list$omega0[spec_ord[2],,i], col="red")
 	}
 }
 
+#' Plot a two dimensional contour plot
+#'
 #' @export
-contour_pipe <- function(data_mat, nlevels=10, zlim=range(data_mat, na.rm=TRUE), low_frac=0.05, lwd=0.25, main=NA, col_pos="blue", col_neg="red", add=FALSE, xlab=NULL, ylab=NULL, frame.plot=TRUE) {
+contour_pipe <- function(data_mat, nlevels=10, zlim=range(data_mat, na.rm=TRUE), low_frac=0.05, lwd=0.25, main=NA, col_pos="black", col_neg=grDevices::rgb(t(grDevices::col2rgb(col_pos))/255*0.25+0.75), add=FALSE, xlab=NULL, ylab=NULL, frame.plot=TRUE) {
 
 	zlim <- zlim
 
-	usr <- par("usr")
+	usr <- graphics::par("usr")
 
 	x <- as.numeric(colnames(data_mat))
 	y <- as.numeric(rownames(data_mat))
@@ -1052,14 +1065,14 @@ contour_pipe <- function(data_mat, nlevels=10, zlim=range(data_mat, na.rm=TRUE),
 	if (is.null(xlab)) xlab <- paste(names(dimnames(data_mat))[1], "(ppm)")
 	if (is.null(ylab)) ylab <- paste(names(dimnames(data_mat))[2], "(ppm)")
 
-	contour(rev(y), rev(x), data_mat_transform, levels=levels, xlim=rev(range(y)), ylim=rev(range(x)), drawlabels=FALSE, add=add, col=col, lwd=lwd, xaxs="i", yaxs="i", main=main, xlab=xlab, ylab=ylab, frame.plot=frame.plot)
+	graphics::contour(rev(y), rev(x), data_mat_transform, levels=levels, xlim=rev(range(y)), ylim=rev(range(x)), drawlabels=FALSE, add=add, col=col, lwd=lwd, xaxs="i", yaxs="i", main=main, xlab=xlab, ylab=ylab, frame.plot=frame.plot)
 }
 
 read_nmrdraw_peak_tab_old <- function(filepath) {
 	vars <- readLines(filepath, 16)[16]
 	vars <- strsplit(substring(vars, 8), " ")[[1]]
 	
-	peaktab <- read.table(filepath, skip=18)
+	peaktab <- utils::read.table(filepath, skip=18)
 	colnames(peaktab) <- vars
 	
 	noise_level <- strsplit(readLines(filepath, 5)[5], " ")[[1]][3]
@@ -1072,6 +1085,8 @@ read_nmrdraw_peak_tab_old <- function(filepath) {
 	peaktab
 }
 
+#' Read an NMRDraw formatted peak table
+#'
 #' @export
 read_nmrdraw_peak_tab <- function(file_path) {
 
@@ -1085,7 +1100,7 @@ read_nmrdraw_peak_tab <- function(file_path) {
 	
 	blank_line_idx <- grep("^$", peak_tab_lines)
 	
-	peak_tab <- read.table(text=peak_tab_lines, skip=tail(blank_line_idx, 1), stringsAsFactors=FALSE)
+	peak_tab <- utils::read.table(text=peak_tab_lines, skip=utils::tail(blank_line_idx, 1), stringsAsFactors=FALSE)
 	colnames(peak_tab) <- var_names
 	
 	peak_tab
@@ -1094,6 +1109,8 @@ read_nmrdraw_peak_tab <- function(file_path) {
 peak_tab_formats <- c("%5d", "%9.3f", "%9.3f", "%6.3f", "%6.3f", "%8.3f", "%8.3f", "%9.3f", "%9.3f", "%7.3f", "%7.3f", "%8.3f", "%8.3f", "%4d", "%4d", "%4d", "%4d", "%+e", "%+e", "%+e", "%.5f", "%d", "%s", "%4d", "%4d")
 names(peak_tab_formats) <- c("INDEX", "X_AXIS", "Y_AXIS", "DX", "DY", "X_PPM", "Y_PPM", "X_HZ", "Y_HZ", "XW", "YW", "XW_HZ", "YW_HZ", "X1", "X3", "Y1", "Y3", "HEIGHT", "DHEIGHT", "VOL", "PCHI2", "TYPE", "ASS", "CLUSTID", "MEMCNT")
 
+#' Write an NMRDraw formatted peak table
+#'
 #' @export
 write_nmrdraw_peak_tab <- function(peak_tab, file_path) {
 
@@ -1113,6 +1130,9 @@ write_nmrdraw_peak_tab <- function(peak_tab, file_path) {
 	writeLines(peak_tab_lines, file_path)
 }
 
+#' Convert PPM values to points
+#'
+#' @export
 ppm_to_pts <- function(ppm_mat, fheader) {
 
 	orig <- fheader["CAR",]*fheader["OBS",]-fheader["SW",]/2+fheader["SW",]/fheader["FTSIZE",]
@@ -1125,6 +1145,7 @@ ppm_to_pts <- function(ppm_mat, fheader) {
 	points_mat
 }
 
+#' Convert widths in Hz into points
 whz_to_pts <- function(whz_mat, fheader) {
 
 	wpoints_mat <- t(t(whz_mat)/fheader["SW",]*fheader["FTSIZE",])
@@ -1193,7 +1214,7 @@ fit_footprint <- function(fit, frac=0.12) {
 	
 		sort_int <- sort(abs(fit_spec_int[[i]]))
 		cum_int <- cumsum(sort_int)
-		cum_frac_int <- cum_int/tail(cum_int, 1)
+		cum_frac_int <- cum_int/utils::tail(cum_int, 1)
 	
 		thresh <- sort_int[which(cum_frac_int > frac)[1]]
 	
@@ -1205,7 +1226,7 @@ fit_footprint <- function(fit, frac=0.12) {
 	})
 	
 	if (length(fit_footprints) == 1) {
-		fit_footprints <- fit_footprints[[i]]
+		fit_footprints <- fit_footprints[[1]]
 	}
 	
 	fit_footprints
@@ -1282,6 +1303,8 @@ spec_overlap_mat <- function(peak_int_list) {
 }
 
 #' Fit peaks from a table of chemical shifts
+#'
+#' @export
 fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plus=c(0.075, 0.75), r2_start=5, r2_bounds=c(0.5, 20), sc_start=NULL, sc_bounds=c(0, Inf), positive_only=TRUE) {
 	
 	plot <- FALSE
@@ -1430,6 +1453,9 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 	fit_output
 }
 
+#' Make a parameter list for a set of spectra and chemical shifts
+#'
+#' @export
 make_param_list <- function(spec_list, cs_mat, fit_prev=NULL, r2_start=5, m0_start=1, sc_start=NULL, same_r2=FALSE, same_coupling=FALSE) {
 
 	num_spec <- length(spec_list)
@@ -1564,6 +1590,9 @@ make_param_list <- function(spec_list, cs_mat, fit_prev=NULL, r2_start=5, m0_sta
 	param_list
 }
 
+#' Get a list of logical arrays indicating which parameters correspond to peak positions
+#'
+#' @export
 omega0_param_idx <- function(param_list) {
 	
 	idx_list <- lapply(param_list[["group_list"]], function(x) if (is.array(x)) array(FALSE, dim(x)) else logical(length(x)))
@@ -1579,6 +1608,9 @@ omega0_param_idx <- function(param_list) {
 	idx_list
 }
 
+#' Get a list of logical arrays indicating which parameters correspond to scalar couplings
+#'
+#' @export
 coupling_param_idx <- function(param_list, comb_idx_offset=0) {
 	
 	idx_list <- lapply(param_list[["group_list"]], function(x) if (is.array(x)) array(FALSE, dim(x)) else logical(length(x)))
@@ -1615,6 +1647,13 @@ omega0_comb_source_idx <- function(param_list, omega0_idx=omega0_param_idx(param
 	source_idx
 }
 
+#' Get/set a subset of fitting parameters specified by a list of logical vectors
+#'
+#' @param params a list of fitting parameters
+#' @param idx_list a list with the same structure as \code{params} but with logical
+#' vectors indicating which values should be return/set
+#' @return a vector of parameter values or the modified parameter list
+#' @export
 param_values <- function(params, idx_list) {
 
 	params_subset <- lapply(seq_along(params), function(i) params[[i]][idx_list[[i]]])
@@ -1622,6 +1661,8 @@ param_values <- function(params, idx_list) {
 	do.call(c, params_subset)
 }
 
+#' @rdname param_values
+#' @export
 "param_values<-" <- function(params, idx_list, value) {
 
 	stopifnot(sapply(params, length)[names(idx_list)] == sapply(idx_list, length))
@@ -1638,6 +1679,9 @@ param_values <- function(params, idx_list) {
 	params
 }
 
+#' Convert a list of parameters for use with make_fit_input
+#'
+#' @export
 param_list_to_arg_list <- function(param_list) {
 
 	for (i in seq_along(param_list)) {
@@ -1760,8 +1804,8 @@ fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001
 		
 		# calculate value of F statistic and corresponding P-value
 		f_val <- ((rss-trial_rss)/(trial_num_params-num_params))/(trial_rss/(num_pts-trial_num_params))
-		f_alpha <- 1-pf(f_val, trial_num_params-num_params, num_pts-trial_num_params)
-		f_alpha <- -expm1(pf(f_val, trial_num_params-num_params, num_pts-trial_num_params, log.p=TRUE))
+		f_alpha <- 1-stats::pf(f_val, trial_num_params-num_params, num_pts-trial_num_params)
+		f_alpha <- -expm1(stats::pf(f_val, trial_num_params-num_params, num_pts-trial_num_params, log.p=TRUE))
 		f_p_trace <- c(f_p_trace, f_alpha)
 		
 		cat(sprintf(" %2i -> %2i fit parameters: F = %0.1f (p = %g)", num_params, trial_num_params, f_val, f_alpha), sep="\n")
@@ -1818,16 +1862,16 @@ fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001
 			} else {
 				main <- paste(main, " (next 0 volume)", sep="")
 			}
-			title(main)
-			#title(paste("Cluster", j))
+			graphics::title(main)
+			#graphics::title(paste("Cluster", j))
 			fitnmr::contour_pipe(aperm(fit_spec_int[[i]], spec_ord), zlim=zlim, col_pos="red", col_neg="pink", add=TRUE)
 			#fitnmr::contour_pipe(aperm(trial_fit_spec_int[[1]], spec_ord), zlim=zlim, col_pos="purple", col_neg="plum", add=TRUE)
 	
-			points(cs_start, col="green")
+			graphics::points(cs_start, col="green")
 	
-			#points(common_footprint_idx[,spec_ord], col="gray")
+			#graphics::points(common_footprint_idx[,spec_ord], col="gray")
 	
-			#rect(fit_output$upper_list$omega0[spec_ord[1],,1], fit_output$upper_list$omega0[spec_ord[2],,1], fit_output$lower_list$omega0[spec_ord[1],,1], fit_output$lower_list$omega0[spec_ord[2],,1], border="gray")
+			#graphics::rect(fit_output$upper_list$omega0[spec_ord[1],,1], fit_output$upper_list$omega0[spec_ord[2],,1], fit_output$lower_list$omega0[spec_ord[1],,1], fit_output$lower_list$omega0[spec_ord[2],,1], border="gray")
 	
 			lab_coord <- matrix(nrow=length(omega_comb_ids_unique), ncol=2)
 			for (j in seq_along(omega_comb_ids_unique)) {
@@ -1836,15 +1880,15 @@ fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001
 					mean(fit_output$fit_list$omega0[spec_ord[1],id==omega_comb_ids[,i],i]),
 					max(fit_output$fit_list$omega0[spec_ord[2],id==omega_comb_ids[,i],i])
 				)
-				points(t(fit_output$fit_list$omega0[spec_ord,id==omega_comb_ids[,i],i]), type="l", col="blue")
+				graphics::points(t(fit_output$fit_list$omega0[spec_ord,id==omega_comb_ids[,i],i]), type="l", col="blue")
 			}
 			frac <- tapply(fit_output$fit_list$m0[,i], match(omega_comb_ids[,i], omega_comb_ids_unique), sum)
-			points(t(fit_output$fit_list$omega0[spec_ord,,i]), pch=16, col="blue")
-			text(lab_coord, labels=sprintf("%s: %.0f%%\np: %.0e", seq_along(frac)+peak_num_offset, 100*frac/sum(frac), fit_output$fit_fptrace[seq_along(frac)]), pos=1, cex=0.6)
+			graphics::points(t(fit_output$fit_list$omega0[spec_ord,,i]), pch=16, col="blue")
+			graphics::text(lab_coord, labels=sprintf("%s: %.0f%%\np: %.0e", seq_along(frac)+peak_num_offset, 100*frac/sum(frac), fit_output$fit_fptrace[seq_along(frac)]), pos=1, cex=0.6)
 	
 			#other_clust_idx <- peak_tab_list[[i]][,"TYPE"] == 1 & peak_tab_list[[i]][,"CLUSTID"] != j
-			#points(peak_tab_list[[i]][other_clust_idx,paste(hn_name_mat[i,], "_PPM", sep=""),drop=FALSE], col="purple")
-			#text(peak_tab_list[[i]][other_clust_idx,paste(hn_name_mat[i,], "_PPM", sep=""),drop=FALSE], labels=peak_tab_list[[i]][other_clust_idx,"CLUSTID"], pos=1, cex=0.6, col="purple")
+			#graphics::points(peak_tab_list[[i]][other_clust_idx,paste(hn_name_mat[i,], "_PPM", sep=""),drop=FALSE], col="purple")
+			#graphics::text(peak_tab_list[[i]][other_clust_idx,paste(hn_name_mat[i,], "_PPM", sep=""),drop=FALSE], labels=peak_tab_list[[i]][other_clust_idx,"CLUSTID"], pos=1, cex=0.6, col="purple")
 		}
 	}
 	
@@ -1870,7 +1914,7 @@ fit_peak_iter <- function(spectra, noise_sigma=NULL, noise_cutoff=15, f_alpha=1e
 	
 		fit_spec_int <- fitnmr::get_spec_int(fit_list[[iter]], "fit")
 		
-		for (i in seq_along(spec_list)) {
+		for (i in seq_along(spectra)) {
 			idx_1 <- dimnames(fit_spec_int[[i]])[[1]]
 			idx_2 <- dimnames(fit_spec_int[[i]])[[2]]
 			not_na_idx <- !is.na(fit_spec_int[[i]])
@@ -1884,10 +1928,10 @@ fit_peak_iter <- function(spectra, noise_sigma=NULL, noise_cutoff=15, f_alpha=1e
 	
 	if (is.character(plot_fit)) {
 	
-		pdf(plot_fit)
-		par(mar=c(2.9, 2.9, 1.5, 1), mgp=c(1.7, 0.6, 0))
+		grDevices::pdf(plot_fit)
+		graphics::par(mar=c(2.9, 2.9, 1.5, 1), mgp=c(1.7, 0.6, 0))
 		plot_fit <- TRUE
-		on.exit(dev.off())
+		on.exit(grDevices::dev.off())
 	
 	} else {
 	
@@ -1920,7 +1964,7 @@ fit_peak_iter <- function(spectra, noise_sigma=NULL, noise_cutoff=15, f_alpha=1e
 	
 			fit_spec_int <- fitnmr::get_spec_int(fit_output, "fit")
 	
-			for (i in seq_along(spec_list)) {
+			for (i in seq_along(spectra)) {
 				idx_1 <- dimnames(fit_spec_int[[i]])[[1]]
 				idx_2 <- dimnames(fit_spec_int[[i]])[[2]]
 				not_na_idx <- !is.na(fit_spec_int[[i]])
@@ -1936,7 +1980,7 @@ fit_peak_iter <- function(spectra, noise_sigma=NULL, noise_cutoff=15, f_alpha=1e
 				fit_output <- list(fit_output)
 			}
 			
-			for (i in seq_along(spec_list)) {
+			for (i in seq_along(spectra)) {
 				idx_1 <- dimnames(fit_output[[i]])[[1]]
 				idx_2 <- dimnames(fit_output[[i]])[[2]]
 				not_na_idx <- !is.na(fit_output[[i]])
@@ -2031,7 +2075,7 @@ param_list_to_peak_df <- function(param_list, spec_names=NULL) {
 #' Convert a peak data frame to a parameter list
 #'
 #' @export
-peak_df_to_param_list <- function(peak_df) {
+peak_df_to_param_list <- function(peak_df, spectra) {
 
 	omega0_cols <- grep("^omega0_ppm_", colnames(peak_df), value=TRUE)
 	sc_cols <- grep("^sc_hz_", colnames(peak_df), value=TRUE)
@@ -2042,7 +2086,7 @@ peak_df_to_param_list <- function(peak_df) {
 	sc_means <- colMeans(peak_df[sc_cols])
 	sc_start <- sc_means[match(paste("sc_hz_", seq_along(omega0_cols), sep=""), sc_cols)]
 
-	param_list <- fitnmr:::make_param_list(spec_list, as.matrix(peak_df[,omega0_cols]), sc_start=sc_start)
+	param_list <- fitnmr::make_param_list(spectra, as.matrix(peak_df[,omega0_cols]), sc_start=sc_start)
 
 	param_list$start_list$r2[] <- t(matrix(rep(as.vector(as.matrix(peak_df[,c("r2_hz_1", "r2_hz_2")])), each=2^sum(!is.na(sc_start))), ncol=2))
 	param_list$start_list$m0[] <- rep(as.vector(as.matrix(peak_df[,m0_cols])/2^sum(!is.na(sc_start))), each=2^sum(!is.na(sc_start)))
@@ -2069,9 +2113,9 @@ plot_peak_df <- function(peak_df, spectra, noise_sigma=NULL) {
 		noise_sigma <- sapply(spectra, function(x) fitnmr::noise_estimate(x$int, plot_distributions=FALSE))["sigma",]
 	}
 
-	param_list <- peak_df_to_param_list(peak_df)
+	param_list <- peak_df_to_param_list(peak_df, spectra)
 
-	fit_input <- do.call(fitnmr::make_fit_input, c(list(spec_list, omega0_plus=c(0.075, 0.75)*2), fitnmr:::param_list_to_arg_list(param_list)))
+	fit_input <- do.call(fitnmr::make_fit_input, c(list(spectra, omega0_plus=c(0.075, 0.75)*2), param_list_to_arg_list(param_list)))
 
 	int_input <- fitnmr::get_spec_int(fit_input, "input")
 	int_start <- fitnmr::get_spec_int(fit_input, "start")
@@ -2083,11 +2127,11 @@ plot_peak_df <- function(peak_df, spectra, noise_sigma=NULL) {
 
 	for (spec_i in seq_along(int_input)) {
 
-		low_frac <- noise_sigma[spec_i]/max(spec_list[[spec_i]]$int)*4
-		fitnmr::contour_pipe(spec_list[[spec_i]]$int, zlim=zlim_mat[,spec_i], col_pos="black", col_neg="gray", low_frac=low_frac)
+		low_frac <- noise_sigma[spec_i]/max(spectra[[spec_i]]$int)*4
+		fitnmr::contour_pipe(spectra[[spec_i]]$int, zlim=zlim_mat[,spec_i], col_pos="black", col_neg="gray", low_frac=low_frac)
 		fitnmr::contour_pipe(int_start[[spec_i]], zlim=zlim_mat[,spec_i], col_pos="red", col_neg="pink", low_frac=low_frac, add=TRUE)
 		m0_vec <- fit_input$start_list$m0[,spec_i]
-		points(t(fit_input$start_list$omega0[,,spec_i]), col=rgb(0, 0, 1, 0.5), pch=16, cex=sqrt(m0_vec/max(m0_vec)))
+		graphics::points(t(fit_input$start_list$omega0[,,spec_i]), col=grDevices::rgb(0, 0, 1, 0.5), pch=16, cex=sqrt(m0_vec/max(m0_vec)))
 	
 		lab_coord <- matrix(nrow=length(omega_comb_ids_unique), ncol=2)
 		for (j in seq_along(omega_comb_ids_unique)) {
@@ -2096,18 +2140,20 @@ plot_peak_df <- function(peak_df, spectra, noise_sigma=NULL) {
 				mean(fit_input$start_list$omega0[1,id==omega_comb_ids[,spec_i],spec_i]),
 				max(fit_input$start_list$omega0[2,id==omega_comb_ids[,spec_i],spec_i])
 			)
-			points(t(fit_input$start_list$omega0[,id==omega_comb_ids[,spec_i],spec_i]), type="l", col="blue", lwd=0.25)
+			graphics::points(t(fit_input$start_list$omega0[,id==omega_comb_ids[,spec_i],spec_i]), type="l", col="blue", lwd=0.25)
 		}
-		#text(lab_coord, labels=sprintf("%s-%s\np: %.0e", peak_df$fit, peak_df$peak, peak_df$f_pvalue), pos=1, offset=0.1, cex=0.2)
-		text(lab_coord, labels=sprintf("%s-%s", peak_df$fit, peak_df$peak), pos=1, offset=0.1, cex=0.2)
+		#graphics::text(lab_coord, labels=sprintf("%s-%s\np: %.0e", peak_df$fit, peak_df$peak, peak_df$f_pvalue), pos=1, offset=0.1, cex=0.2)
+		graphics::text(lab_coord, labels=sprintf("%s-%s", peak_df$fit, peak_df$peak), pos=1, offset=0.1, cex=0.2)
 		if ("f_pvalue" %in% names(peak_df)) {
-			text(lab_coord, labels=sprintf("%.0e", peak_df$f_pvalue), pos=1, offset=0.25, cex=0.2)
+			graphics::text(lab_coord, labels=sprintf("%.0e", peak_df$f_pvalue), pos=1, offset=0.25, cex=0.2)
 		}
 	}
 }
 
+#' Simulate an FID using the NMRPipe SimTimeND function
+#'
 #' @export
-sim_time_nd <- function(peak_tab, fheader, rms=0, iseed=runif(1,max=.Machine$integer.max), file_path=NULL, verbose=FALSE) {
+sim_time_nd <- function(peak_tab, fheader, rms=0, iseed=stats::runif(1,max=.Machine$integer.max), file_path=NULL, verbose=FALSE) {
 
 	tab_path <- tempfile(fileext=".tab")
 	write_nmrdraw_peak_tab(peak_tab, tab_path)
@@ -2155,6 +2201,8 @@ sim_time_nd <- function(peak_tab, fheader, rms=0, iseed=runif(1,max=.Machine$int
 	system2("SimTimeND", cmd_args)
 }
 
+#' Process an FID with NMRPipe
+#'
 #' @export
 nmr_pipe <- function(in_path, out_path, ndim=1, apod=NULL, sp=rbind(off=0.5, end=1.0, pow=1, c=0.5), zf=rbind(auto=""), ps=rbind(p0=0, p1=0, di=""), ext=NULL) {
 
@@ -2201,6 +2249,8 @@ nmr_pipe <- function(in_path, out_path, ndim=1, apod=NULL, sp=rbind(off=0.5, end
 	system(paste(commands, collapse=" | "))
 }
 
+#' Estimate the noise in a spectrum
+#'
 #' @export
 noise_estimate <- function(x, height=TRUE, thresh=10, plot_distributions=TRUE, peak_intensities=NULL, absolute=FALSE) {
 
@@ -2215,7 +2265,7 @@ noise_estimate <- function(x, height=TRUE, thresh=10, plot_distributions=TRUE, p
 	colnames(itermat) <- c("mean", "sd")
 	
 	itermat[1,"mean"] <- mean(x)
-	itermat[1,"sd"] <- sd(as.vector(x))
+	itermat[1,"sd"] <- stats::sd(as.vector(x))
 	
 	for (i in 2:nrow(itermat)) {
 	
@@ -2225,10 +2275,10 @@ noise_estimate <- function(x, height=TRUE, thresh=10, plot_distributions=TRUE, p
 		
 		x_sub <- x[idx]
 		itermat[i,"mean"] <- mean(x_sub)
-		itermat[i,"sd"] <- sd(x_sub)
+		itermat[i,"sd"] <- stats::sd(x_sub)
 	}
 	
-	xhist <- hist(x[idx], breaks=512, plot=FALSE)
+	xhist <- graphics::hist(x[idx], breaks=512, plot=FALSE)
 	
 	normdist_height_formula <- y ~ h * exp(-(x-mu)^2/(2*sigma^2))
 	normdist_formula <- y ~ 1 / (sigma*sqrt(2*pi)) * exp(-(x-mu)^2/(2*sigma^2))
@@ -2237,9 +2287,9 @@ noise_estimate <- function(x, height=TRUE, thresh=10, plot_distributions=TRUE, p
 	fit_start <- c(mu=unname(itermat[i,"mean"]), sigma=unname(itermat[i,"sd"]), h=max(xhist$density))
 	
 	if (height) {
-		fit <- nls(normdist_height_formula, fit_data, fit_start)
+		fit <- stats::nls(normdist_height_formula, fit_data, fit_start)
 	} else {
-		fit <- nls(normdist_formula, fit_data, fit_start[1:2])
+		fit <- stats::nls(normdist_formula, fit_data, fit_start[1:2])
 	}
 	
 	if (plot_distributions) {
@@ -2250,16 +2300,16 @@ noise_estimate <- function(x, height=TRUE, thresh=10, plot_distributions=TRUE, p
 		
 		origname <- gsub("/[^/]+$", "", origname)
 	
-		plot(xhist$mids, xhist$density, type="n", xlim=xlim, ylim=ylim, col="black", main=origname, xlab="Signal Intensity", ylab="", yaxt="n")
-		abline(h=0, col="gray")
-		points(xhist$mids, xhist$density, type="l", lwd=0.75)
-		points(fit_data$x, fit_pred, type="l", col="blue", lwd=0.75)
+		graphics::plot(xhist$mids, xhist$density, type="n", xlim=xlim, ylim=ylim, col="black", main=origname, xlab="Signal Intensity", ylab="", yaxt="n")
+		graphics::abline(h=0, col="gray")
+		graphics::points(xhist$mids, xhist$density, type="l", lwd=0.75)
+		graphics::points(fit_data$x, fit_pred, type="l", col="blue", lwd=0.75)
 		
 		legtext <- as.expression(c(
 			expression(""),
 			substitute(sigma: ~ sigmaval, list(sigmaval=round(fit$m$getPars()["sigma"]))),
 			substitute(mu: ~ muval, list(muval=signif(fit$m$getPars()["mu"]))),
-			substitute(SD: ~ sdval, list(sdval=signif(sd(x[idx])))),
+			substitute(SD: ~ sdval, list(sdval=signif(stats::sd(x[idx])))),
 			substitute(mean: ~ meanval, list(meanval=round(mean(x[idx]))))
 		))
 		
@@ -2273,17 +2323,17 @@ noise_estimate <- function(x, height=TRUE, thresh=10, plot_distributions=TRUE, p
 			substitute("S/N:" ~ snval, list(snval=snval)),
 			substitute(sigma: ~ sigmaval, list(sigmaval=signif(abs(fit$m$getPars()["sigma"])))),
 			substitute(mu: ~ muval, list(muval=signif(fit$m$getPars()["mu"])))#,
-			#substitute(SD: ~ sdval, list(sdval=round(sd(x[idx])))),
+			#substitute(SD: ~ sdval, list(sdval=round(stats::sd(x[idx])))),
 			#substitute(mean: ~ meanval, list(meanval=round(mean(x[idx]))))
 		))
 		
-		usr <- par("usr")
-		pin <- par("pin")
+		usr <- graphics::par("usr")
+		pin <- graphics::par("pin")
 		topright <- c(usr[2]-diff(usr[1:2])/pin[1]*0.05, usr[4]-diff(usr[3:4])/pin[2]*0.05)
-		textwidth <- strwidth(legtext)
-		textheight <- max(strheight(legtext))*1.3
+		textwidth <- graphics::strwidth(legtext)
+		textheight <- max(graphics::strheight(legtext))*1.3
 		
-		text(topright[1] - textwidth/2, topright[2]-seq(0, by=textheight, length.out=length(legtext)), legtext, pos=1, offset=0, col="blue")
+		graphics::text(topright[1] - textwidth/2, topright[2]-seq(0, by=textheight, length.out=length(legtext)), legtext, pos=1, offset=0, col="blue")
 		
 	}
 	
