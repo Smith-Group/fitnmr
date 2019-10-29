@@ -467,6 +467,7 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 	peak_idx <- peak_dimnames <- array(list(), dim=dim(omega0_start)[2:3])
 	
 	spec_data <- vector("list", length(spectra))
+	names(spec_data) <- names(spectra)
 	
 	spec_offset <- 0
 	
@@ -880,7 +881,7 @@ get_spec_int <- function(fit_data, spec_type=c("input", "start", "fit"), spec_id
 	
 	if (spec_type == "input") {
 	
-		int <- fit_data$spec_data[[1]]$spec_int
+		int <- do.call(c, lapply(fit_data$spec_data, function(x) x$spec_int))
 		
 		stopifnot(all(all_peak_idx %in% peak_idx))
 	
@@ -899,6 +900,8 @@ get_spec_int <- function(fit_data, spec_type=c("input", "start", "fit"), spec_id
 		
 		#print(str(param_list))
 		
+		# make sure all m0 values are independent so they can be turned off
+		fit_data$group_list$m0[] <- seq_along(fit_data$group_list$m0)
 		params <- pack_fit_params(param_list, fit_data$group_list)
 		
 		int <- fit_fn(params, fit_data, FALSE)
@@ -997,7 +1000,7 @@ plot_fit_2d <- function(fit_output, spec_ord, plot_start=FALSE, main=NULL) {
 		fitnmr::contour_pipe(aperm(input_spec_int[[i]], spec_ord), zlim=zlim, col_pos="black", col_neg="gray")
 		title(main)
 		if (plot_start) {
-			fitnmr::contour_pipe(aperm(input_spec_int[[i]], spec_ord), zlim=zlim, col_pos="blue", col_neg="lightblue", add=TRUE)
+			fitnmr::contour_pipe(aperm(start_spec_int[[i]], spec_ord), zlim=zlim, col_pos="blue", col_neg="lightblue", add=TRUE)
 			points(t(fit_output$start_list$omega0[spec_ord,,i]), pch=16, col="blue")
 			segments(fit_output$start_list$omega0[spec_ord[1],,i], start_r2_ppm_low[spec_ord[2],,i], fit_output$start_list$omega0[spec_ord[1],,i], start_r2_ppm_high[spec_ord[2],,i], col="blue")
 			segments(start_r2_ppm_low[spec_ord[1],,i], fit_output$start_list$omega0[spec_ord[2],,i], start_r2_ppm_high[spec_ord[1],,i], fit_output$start_list$omega0[spec_ord[2],,i], col="blue")
@@ -1186,17 +1189,26 @@ fit_footprint <- function(fit, frac=0.12) {
 
 	fit_spec_int <- fitnmr::get_spec_int(fit, "fit")
 	
-	sort_int <- sort(abs(fit_spec_int[[1]]))
-	cum_int <- cumsum(sort_int)
-	cum_frac_int <- cum_int/tail(cum_int, 1)
+	fit_footprints <- lapply(seq_along(fit_spec_int), function(i) {
 	
-	thresh <- sort_int[which(cum_frac_int > frac)[1]]
+		sort_int <- sort(abs(fit_spec_int[[i]]))
+		cum_int <- cumsum(sort_int)
+		cum_frac_int <- cum_int/tail(cum_int, 1)
 	
-	fit_spec_int[[1]][is.na(fit_spec_int[[1]])] <- 0
+		thresh <- sort_int[which(cum_frac_int > frac)[1]]
 	
-	abs(fit_spec_int[[1]]) > thresh
+		fit_spec_int[[i]][is.na(fit_spec_int[[i]])] <- 0
 	
-	#abs(fit_spec_int[[1]]) > max(abs(fit_spec_int[[1]]))*.025
+		abs(fit_spec_int[[i]]) > thresh
+		
+		#abs(fit_spec_int[[1]]) > max(abs(fit_spec_int[[1]]))*.025
+	})
+	
+	if (length(fit_footprints) == 1) {
+		fit_footprints <- fit_footprints[[i]]
+	}
+	
+	fit_footprints
 }
 
 #' Add upper/lower limits based on the r2 value
@@ -1270,9 +1282,9 @@ spec_overlap_mat <- function(peak_int_list) {
 }
 
 #' Fit peaks from a table of chemical shifts
-fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plus=c(0.075, 0.75), r2_start=c(5,5), sc_start=NULL, sc_bounds=c(0, Inf), positive_only=TRUE) {
+fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plus=c(0.075, 0.75), r2_start=5, r2_bounds=c(0.5, 20), sc_start=NULL, sc_bounds=c(0, Inf), positive_only=TRUE) {
 	
-	plot=FALSE
+	plot <- FALSE
 	
 	if (FALSE) {
 	sc_start <- NULL
@@ -1290,6 +1302,10 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 	if (is.null(sc_start) || all(is.na(sc_start))) {
 		sc_bounds <- c(-Inf, Inf)
 	}
+	}
+	
+	if (length(r2_start) < length(spec_ord)) {
+		r2_start <- rep(r2_start, length(spec_ord))
 	}
 	
 	param_list_orig <- make_param_list(spec_list, cs_mat[,spec_ord,drop=FALSE], fit_prev=fit_prev, r2_start=r2_start[spec_ord], sc_start=sc_start[spec_ord], same_r2=TRUE, same_coupling=TRUE) 
@@ -1311,6 +1327,9 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 	fit_output <- fitnmr::perform_fit(fit_input)
 	param_list <- fit_output[c("fit_list", "group_list", "comb_list")]
 	names(param_list)[1] <- "start_list"
+	#print(lapply(param_list_orig, "[[", "omega0"))
+	#print(lapply(param_list_orig, "[[", "omega0_comb"))
+	#print(lapply(param_list_orig, "[[", "m0"))
 	
 	if (plot) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Fit Parameters: m0")
 	
@@ -1323,8 +1342,8 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 	if (positive_only) {
 		fit_input$lower_list$m0[] <- 0
 	}
-	fit_input$lower_list$r2[] <- 0
-	fit_input$upper_list$r2[] <- 20
+	fit_input$lower_list$r2[] <- r2_bounds[1]
+	fit_input$upper_list$r2[] <- r2_bounds[2]
 	param_values(fit_input$lower_list, coupling_idx) <- sc_bounds[1]
 	param_values(fit_input$upper_list, coupling_idx) <- sc_bounds[2]
 	fit_output <- fitnmr::perform_fit(fit_input)
@@ -1340,8 +1359,8 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 	if (positive_only) {
 		fit_input$lower_list$m0[] <- 0
 	}
-	fit_input$lower_list$r2[] <- 0
-	fit_input$upper_list$r2[] <- 20
+	fit_input$lower_list$r2[] <- r2_bounds[1]
+	fit_input$upper_list$r2[] <- r2_bounds[2]
 	param_values(fit_input$lower_list, coupling_idx) <- sc_bounds[1]
 	param_values(fit_input$upper_list, coupling_idx) <- sc_bounds[2]
 	fit_input <- limit_omega0_by_r2(fit_input)
@@ -1361,8 +1380,8 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 			fit_input$lower_list$m0[] <- 0
 		}
 		fit_input <- limit_omega0_by_r2(fit_input)
-		fit_input$lower_list$r2[] <- 0
-		fit_input$upper_list$r2[] <- 20
+		fit_input$lower_list$r2[] <- r2_bounds[1]
+		fit_input$upper_list$r2[] <- r2_bounds[2]
 		param_values(fit_input$lower_list, coupling_idx) <- sc_bounds[1]
 		param_values(fit_input$upper_list, coupling_idx) <- sc_bounds[2]
 		fit_output <- fitnmr::perform_fit(fit_input)
@@ -1379,14 +1398,14 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 		if (positive_only) {
 			fit_input$lower_list$m0[] <- 0
 		}
-		fit_input$lower_list$r2[] <- 0
-		fit_input$upper_list$r2[] <- 20
+		fit_input$lower_list$r2[] <- r2_bounds[1]
+		fit_input$upper_list$r2[] <- r2_bounds[2]
 		param_values(fit_input$lower_list, coupling_idx) <- sc_bounds[1]
 		param_values(fit_input$upper_list, coupling_idx) <- sc_bounds[2]
 		fit_input <- limit_omega0_by_r2(fit_input)
 		fit_output <- fitnmr::perform_fit(fit_input)
 		
-		if (plot) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Fit Parameters: m0, r2, omega0 (Refit 1)")
+		if (plot) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Fit Parameters: m0, r2, omega0 (Refit 2)")
 	}
 	
 	if (any(omega0_bound_distance(fit_output) < refit_thresh)) {
@@ -1398,14 +1417,14 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 		if (positive_only) {
 			fit_input$lower_list$m0[] <- 0
 		}
-		fit_input$lower_list$r2[] <- 0
-		fit_input$upper_list$r2[] <- 20
+		fit_input$lower_list$r2[] <- r2_bounds[1]
+		fit_input$upper_list$r2[] <- r2_bounds[2]
 		param_values(fit_input$lower_list, coupling_idx) <- sc_bounds[1]
 		param_values(fit_input$upper_list, coupling_idx) <- sc_bounds[2]
 		fit_input <- limit_omega0_by_r2(fit_input)
 		fit_output <- fitnmr::perform_fit(fit_input)
 		
-		if (plot) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Fit Parameters: m0, r2, omega0 (Refit 1)")
+		if (plot) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Fit Parameters: m0, r2, omega0 (Refit 3)")
 	}
 	
 	fit_output
@@ -1456,7 +1475,7 @@ make_param_list <- function(spec_list, cs_mat, fit_prev=NULL, r2_start=5, m0_sta
 			r2_vec <- seq_len(num_dim)
 		}
 		r2_group <- r2_group_offset+matrix(r2_vec, nrow=num_dim, ncol=nrow(cs_mat))[rep(seq_len(num_dim), num_peaks),,drop=FALSE]
-		m0_group <- m0_group_offset+rep(seq_len(nrow(cs_mat)), each=num_peaks)
+		m0_group <- m0_group_offset+rep(seq_len(nrow(cs_mat)*length(spec_list)), each=num_peaks)
 		
 		comb_spacing <- num_dim+sum(!is.na(sc_start))
 		comb_grid_params <- c(lapply(seq_along(sc_start), function(i) if (is.na(sc_start[i])) 0 else c(-0.5, 0.5)/spec_list[[1]]$fheader["OBS",i]), list(seq(comb_idx_offset, by=comb_spacing, length.out=nrow(cs_mat))))
@@ -1536,8 +1555,10 @@ make_param_list <- function(spec_list, cs_mat, fit_prev=NULL, r2_start=5, m0_sta
 		
 		# abind::abind doesn't work for arrays of lists...
 		#param_list[["comb"]][["omega0"]] <- abind::(list(fit_prev[["comb_list"]][["omega0"]], param_list[["comb"]][["omega0"]]), rev.along=2)
-		stopifnot(dim(param_list[["comb"]][["omega0"]])[3] == 1)
-		param_list[["comb_list"]][["omega0"]] <- array(c(fit_prev[["comb_list"]][["omega0"]], param_list[["comb_list"]][["omega0"]]), dim=dim(fit_prev[["comb_list"]][["omega0"]])+c(0, dim(param_list[["comb_list"]][["omega0"]])[2], 0))
+		idx_array_1 <- array(seq_along(fit_prev[["comb_list"]][["omega0"]]), dim(fit_prev[["comb_list"]][["omega0"]]))
+		idx_array_2 <- array(seq_along(param_list[["comb_list"]][["omega0"]])+length(fit_prev[["comb_list"]][["omega0"]]), dim(param_list[["comb_list"]][["omega0"]]))
+		idx_array_bind <- abind::abind(idx_array_1, idx_array_2, rev.along=2)
+		param_list[["comb_list"]][["omega0"]] <- array(c(fit_prev[["comb_list"]][["omega0"]], param_list[["comb_list"]][["omega0"]])[as.vector(idx_array_bind)], dim=dim(fit_prev[["comb_list"]][["omega0"]])+c(0, dim(param_list[["comb_list"]][["omega0"]])[2], 0))
 	}
 	
 	param_list
@@ -1630,16 +1651,15 @@ param_list_to_arg_list <- function(param_list) {
 #' Fit a cluster nearby peaks starting from a seed table of chemical shifts
 #'
 #' @export
-fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001, sc_start=NULL, sc_bounds=c(0, Inf)) {
-
-	stopifnot(length(spec_list) == 1)
+fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001, r2_start=5, r2_bounds=c(0.5, 20), sc_start=NULL, sc_bounds=c(0, Inf), plot_main_prefix=NULL, peak_num_offset=0) {
 
 	cs_new <- cs_start
 	fit_output <- NULL
 	fit_residuals <- NULL
 	footprint <- NULL
-	ndf <- 0
+	num_params <- 0
 	f_alpha <- 0
+	f_p_trace <- numeric()
 	
 	while (f_alpha < f_alpha_thresh) {
 	
@@ -1649,14 +1669,22 @@ fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001
 		# get new data from trial fit
 		trial_input_spec_int <- fitnmr::get_spec_int(trial_fit_output, "input")
 		trial_fit_spec_int <- fitnmr::get_spec_int(trial_fit_output, "fit")
-		trial_fit_residuals <- trial_input_spec_int[[1]]-trial_fit_spec_int[[1]]
+		if (length(spec_list) > 1) {
+			trial_fit_residuals <- lapply(seq_along(spec_list), function(i) trial_input_spec_int[[i]]-trial_fit_spec_int[[i]])
+		} else {
+			trial_fit_residuals <- trial_input_spec_int[[1]]-trial_fit_spec_int[[1]]
+		}
 		trial_footprint <- fit_footprint(trial_fit_output)
 		
-		# terminate search if any peak had zero volume
-		if (any(trial_fit_output$fit_list$m0 == 0)) {
-			cat("Terminating search because fit produced zero volume", sep="\n")
+		# terminate search if any peak had zero volume in every spectrum
+		if (any(rowSums(trial_fit_output$fit_list$m0) == 0)) {
+			cat(" Terminating search because fit produced zero volume", sep="\n")
 			if (is.null(fit_output)) {
-				fit_output <- trial_input_spec_int[[1]]
+				if (length(spec_list) > 1) {
+					fit_output <- trial_input_spec_int
+				} else {
+					fit_output <- trial_input_spec_int[[1]]
+				}
 			}
 			break
 		}
@@ -1665,40 +1693,78 @@ fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001
 		if (is.null(footprint)) {
 			common_footprint <- trial_footprint
 		} else {
-			common_rows <- intersect(dimnames(fit_spec_int[[1]])[[1]], dimnames(trial_fit_spec_int[[1]])[[1]])
-			common_cols <- intersect(dimnames(fit_spec_int[[1]])[[2]], dimnames(trial_fit_spec_int[[1]])[[2]])
-			common_footprint <- footprint[common_rows,common_cols] | trial_footprint[common_rows,common_cols]
+			if (length(spec_list) > 1) {
+				for (i in seq_along(common_footprint)) {
+					common_rows <- intersect(dimnames(fit_spec_int[[i]])[[1]], dimnames(trial_fit_spec_int[[i]])[[1]])
+					common_cols <- intersect(dimnames(fit_spec_int[[i]])[[2]], dimnames(trial_fit_spec_int[[i]])[[2]])
+					common_footprint[[i]] <- footprint[[i]][common_rows,common_cols] | trial_footprint[[i]][common_rows,common_cols]
+				}
+			} else {
+				common_rows <- intersect(dimnames(fit_spec_int[[1]])[[1]], dimnames(trial_fit_spec_int[[1]])[[1]])
+				common_cols <- intersect(dimnames(fit_spec_int[[1]])[[2]], dimnames(trial_fit_spec_int[[1]])[[2]])
+				common_footprint <- footprint[common_rows,common_cols] | trial_footprint[common_rows,common_cols]
+			}
 		}
 		
-		common_footprint_idx <- which(common_footprint, arr.ind=TRUE)
-		common_footprint_idx <- cbind(dimnames(common_footprint)[[1]][common_footprint_idx[,1]], dimnames(common_footprint)[[2]][common_footprint_idx[,2]])
+		if (length(spec_list) > 1) {
+			common_footprint_idx <- lapply(common_footprint, which, arr.ind=TRUE)
+			common_footprint_idx <- lapply(seq_along(common_footprint), function(i) {
+				cbind(dimnames(common_footprint[[i]])[[1]][common_footprint_idx[[i]][,1]], dimnames(common_footprint[[i]])[[2]][common_footprint_idx[[i]][,2]])
+			})
+		} else {
+			common_footprint_idx <- which(common_footprint, arr.ind=TRUE)
+			common_footprint_idx <- cbind(dimnames(common_footprint)[[1]][common_footprint_idx[,1]], dimnames(common_footprint)[[2]][common_footprint_idx[,2]])
+		}
 		
 		if (is.null(fit_residuals)) {
 		
 			# initial model is having no peak (residuals = input)
-			fit_residuals <- trial_input_spec_int[[1]]
+			if (length(spec_list) > 1) {
+				fit_residuals <- trial_input_spec_int
+			} else {
+				fit_residuals <- trial_input_spec_int[[1]]
+			}
 			
 		} else {
 		
 			# remove footprint locations where residuals are undefined
-			common_footprint_idx <- common_footprint_idx[!is.na(fit_residuals[common_footprint_idx]) & !is.na(trial_fit_residuals[common_footprint_idx]),,drop=FALSE]
+			if (length(spec_list) > 1) {
+				for (i in seq_along(common_footprint_idx)) {
+					common_footprint_idx[[i]] <- common_footprint_idx[[i]][!is.na(fit_residuals[[i]][common_footprint_idx[[i]]]) & !is.na(trial_fit_residuals[[i]][common_footprint_idx[[i]]]),,drop=FALSE]
+				}
+			} else {
+				common_footprint_idx <- common_footprint_idx[!is.na(fit_residuals[common_footprint_idx]) & !is.na(trial_fit_residuals[common_footprint_idx]),,drop=FALSE]
+			}
 		}
 		
 		# calculate residual sum of squares for both models
-		rss <- sum(fit_residuals[common_footprint_idx]^2)
-		trial_rss <- sum(trial_fit_residuals[common_footprint_idx]^2)
+		if (length(spec_list) > 1) {
+			rss <- sum(sapply(seq_along(spec_list), function(i) sum(fit_residuals[[i]][common_footprint_idx[[i]]]^2)))
+			trial_rss <- sum(sapply(seq_along(spec_list), function(i) sum(trial_fit_residuals[[i]][common_footprint_idx[[i]]]^2)))
+		} else {
+			rss <- sum(fit_residuals[common_footprint_idx]^2)
+			trial_rss <- sum(trial_fit_residuals[common_footprint_idx]^2)
+		}
 		
 		# calculate new degrees of freedom
-		trial_ndf <- sum(sapply(trial_fit_output$group_list, function(x) length(unique(x[x!=0]))))
+		trial_num_params <- sum(sapply(trial_fit_output$group_list, function(x) length(unique(x[x!=0]))))
 		
 		# scale the number of points to account for zero-filling
-		num_pts <- nrow(common_footprint_idx)*prod(spec_list[[1]]$fheader["TDSIZE",]/(spec_list[[1]]$fheader["FTSIZE",]/2))
+		if (length(spec_list) > 1) {
+			num_pts <- sum(sapply(seq_along(spec_list), function(i) {
+				nrow(common_footprint_idx[[i]])*prod(spec_list[[i]]$fheader["TDSIZE",]/(spec_list[[i]]$fheader["FTSIZE",]/2))
+			}))
+		} else {
+			num_pts <- nrow(common_footprint_idx)*prod(spec_list[[1]]$fheader["TDSIZE",]/(spec_list[[1]]$fheader["FTSIZE",]/2))
+		}
 		
 		# calculate value of F statistic and corresponding P-value
-		f_val <- ((rss-trial_rss)/(trial_ndf-ndf))/(trial_rss/(num_pts-trial_ndf))
-		f_alpha <- 1-pf(f_val, trial_ndf-ndf, num_pts-trial_ndf)
+		f_val <- ((rss-trial_rss)/(trial_num_params-num_params))/(trial_rss/(num_pts-trial_num_params))
+		f_alpha <- 1-pf(f_val, trial_num_params-num_params, num_pts-trial_num_params)
+		f_alpha <- -expm1(pf(f_val, trial_num_params-num_params, num_pts-trial_num_params, log.p=TRUE))
+		f_p_trace <- c(f_p_trace, f_alpha)
 		
-		cat(sprintf("%2i -> %2i degrees of freedom: F = %0.1f (p = %g)", ndf, trial_ndf, f_val, f_alpha), sep="\n")
+		cat(sprintf(" %2i -> %2i fit parameters: F = %0.1f (p = %g)", num_params, trial_num_params, f_val, f_alpha), sep="\n")
 		
 		if (f_alpha < f_alpha_thresh)  {
 		
@@ -1707,46 +1773,337 @@ fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001
 			fit_spec_int <- trial_fit_spec_int
 			fit_residuals <- trial_fit_residuals
 			footprint <- trial_footprint
-			ndf <- trial_ndf
+			num_params <- trial_num_params
 			
-			resid_max_idx <- which(fit_residuals == max(fit_residuals[footprint]), arr.ind=TRUE)
-		
-			cs_new <- matrix(as.numeric(c(dimnames(footprint)[[1]][resid_max_idx[1]], dimnames(footprint)[[2]][resid_max_idx[2]])), nrow=1)[,spec_ord,drop=FALSE]
+			if (length(spec_list) > 1) {
+				norm_max_resid <- sapply(seq_along(spec_list), function(i) max(abs(fit_residuals[[i]][footprint[[i]]]))/max(abs(spec_list[[i]]$int)))
+				max_spec_i <- which.max(norm_max_resid)
+				resid_max_idx <- which(fit_residuals[[max_spec_i]] == max(fit_residuals[[max_spec_i]][footprint[[max_spec_i]]]), arr.ind=TRUE)
+				cs_new <- matrix(as.numeric(c(dimnames(footprint[[max_spec_i]])[[1]][resid_max_idx[1]], dimnames(footprint[[max_spec_i]])[[2]][resid_max_idx[2]])), nrow=1)[,spec_ord,drop=FALSE]
+			} else {
+				resid_max_idx <- which(fit_residuals == max(fit_residuals[footprint]), arr.ind=TRUE)
+				cs_new <- matrix(as.numeric(c(dimnames(footprint)[[1]][resid_max_idx[1]], dimnames(footprint)[[2]][resid_max_idx[2]])), nrow=1)[,spec_ord,drop=FALSE]
+			}
 		
 		} else {
 		
-			cat(sprintf("Terminating search because F-test p-value < %g", f_alpha_thresh), sep="\n")
+			cat(sprintf(" Terminating search because F-test p-value < %g", f_alpha_thresh), sep="\n")
 			if (is.null(fit_output)) {
-				fit_output <- trial_fit_spec_int[[1]]
+				if (length(spec_list) > 1) {
+					fit_output <- trial_fit_spec_int
+				} else {
+					fit_output <- trial_fit_spec_int[[1]]
+				}
 			}
 		}
 	}
 	
-	if (is.list(fit_output))  {
+	if (is.list(fit_output)) {
+		fit_output$fit_fptrace <- f_p_trace
+	}
+	
+	if (!is.null(plot_main_prefix) && "fit_list" %in% names(fit_output))  {
 		
-		zlim <- range(input_spec_int[[1]], na.rm=TRUE)
+		omega_comb_ids <- apply(array(sapply(fit_output$comb_list$omega0, "[[", 1, 1), dim=dim(fit_output$comb_list$omega0)), c(2:3), paste, collapse="-")
+		omega_comb_ids_unique <- unique(as.vector(omega_comb_ids))
+		
+		for (i in seq_along(spec_list)) {
+		
+			zlim <- range(input_spec_int[[i]], na.rm=TRUE)
 	
-		fitnmr::contour_pipe(aperm(input_spec_int[[1]], spec_ord), zlim=zlim, col_pos="black", col_neg="gray")
-		#title(paste("Cluster", j))
-		fitnmr::contour_pipe(aperm(fit_spec_int[[1]], spec_ord), zlim=zlim, col_pos="red", col_neg="pink", add=TRUE)
-		#fitnmr::contour_pipe(aperm(trial_fit_spec_int[[1]], spec_ord), zlim=zlim, col_pos="purple", col_neg="plum", add=TRUE)
+			fitnmr::contour_pipe(aperm(input_spec_int[[i]], spec_ord), zlim=zlim, col_pos="black", col_neg="gray")
+			main <- paste(plot_main_prefix, "Spectrum", i)
+			if (length(fit_output$fit_fptrace) > length(omega_comb_ids_unique)) {
+				main <- paste(main, " (next p: ", sprintf("%.1e", fit_output$fit_fptrace[length(omega_comb_ids_unique)+1]), ")", sep="")
+			} else {
+				main <- paste(main, " (next 0 volume)", sep="")
+			}
+			title(main)
+			#title(paste("Cluster", j))
+			fitnmr::contour_pipe(aperm(fit_spec_int[[i]], spec_ord), zlim=zlim, col_pos="red", col_neg="pink", add=TRUE)
+			#fitnmr::contour_pipe(aperm(trial_fit_spec_int[[1]], spec_ord), zlim=zlim, col_pos="purple", col_neg="plum", add=TRUE)
 	
-		#points(common_footprint_idx[,spec_ord], col="gray")
+			points(cs_start, col="green")
 	
-		rect(fit_output$upper_list$omega0[spec_ord[1],,1], fit_output$upper_list$omega0[spec_ord[2],,1], fit_output$lower_list$omega0[spec_ord[1],,1], fit_output$lower_list$omega0[spec_ord[2],,1], border="gray")
+			#points(common_footprint_idx[,spec_ord], col="gray")
 	
-		points(t(fit_output$fit_list$omega0[spec_ord,,1]), pch=16)
-		lab_text <- sprintf("%s: %.0f%%", seq_len(dim(fit_output$fit_list$omega0)[2]), 100*fit_output$fit_list$m0/sum(abs(fit_output$fit_list$m0)))
-		text(t(fit_output$fit_list$omega0[spec_ord,,1]), labels=lab_text, pos=3, cex=0.6)
+			#rect(fit_output$upper_list$omega0[spec_ord[1],,1], fit_output$upper_list$omega0[spec_ord[2],,1], fit_output$lower_list$omega0[spec_ord[1],,1], fit_output$lower_list$omega0[spec_ord[2],,1], border="gray")
 	
-		#other_clust_idx <- peak_tab_list[[i]][,"TYPE"] == 1 & peak_tab_list[[i]][,"CLUSTID"] != j
-		#points(peak_tab_list[[i]][other_clust_idx,paste(hn_name_mat[i,], "_PPM", sep=""),drop=FALSE], col="purple")
-		#text(peak_tab_list[[i]][other_clust_idx,paste(hn_name_mat[i,], "_PPM", sep=""),drop=FALSE], labels=peak_tab_list[[i]][other_clust_idx,"CLUSTID"], pos=1, cex=0.6, col="purple")
+			lab_coord <- matrix(nrow=length(omega_comb_ids_unique), ncol=2)
+			for (j in seq_along(omega_comb_ids_unique)) {
+				id <- omega_comb_ids_unique[j]
+				lab_coord[j,] <- c(
+					mean(fit_output$fit_list$omega0[spec_ord[1],id==omega_comb_ids[,i],i]),
+					max(fit_output$fit_list$omega0[spec_ord[2],id==omega_comb_ids[,i],i])
+				)
+				points(t(fit_output$fit_list$omega0[spec_ord,id==omega_comb_ids[,i],i]), type="l", col="blue")
+			}
+			frac <- tapply(fit_output$fit_list$m0[,i], match(omega_comb_ids[,i], omega_comb_ids_unique), sum)
+			points(t(fit_output$fit_list$omega0[spec_ord,,i]), pch=16, col="blue")
+			text(lab_coord, labels=sprintf("%s: %.0f%%\np: %.0e", seq_along(frac)+peak_num_offset, 100*frac/sum(frac), fit_output$fit_fptrace[seq_along(frac)]), pos=1, cex=0.6)
 	
-		points(cs_start, col="green")
+			#other_clust_idx <- peak_tab_list[[i]][,"TYPE"] == 1 & peak_tab_list[[i]][,"CLUSTID"] != j
+			#points(peak_tab_list[[i]][other_clust_idx,paste(hn_name_mat[i,], "_PPM", sep=""),drop=FALSE], col="purple")
+			#text(peak_tab_list[[i]][other_clust_idx,paste(hn_name_mat[i,], "_PPM", sep=""),drop=FALSE], labels=peak_tab_list[[i]][other_clust_idx,"CLUSTID"], pos=1, cex=0.6, col="purple")
+		}
 	}
 	
 	fit_output
+}
+
+#' Iteratively fit peaks for whole spectra
+#'
+#' @export
+fit_peak_iter <- function(spectra, noise_sigma=NULL, noise_cutoff=15, f_alpha=1e-10, iter_max=100, omega0_plus=c(0.075, 0.75), r2_start=5, r2_bounds=c(0.5, 20), sc_start=c(6, NA), sc_bounds=c(2, 12), fit_list=list(), plot_fit=FALSE) {
+
+	if (is.null(noise_sigma)) {
+		noise_sigma <- sapply(spectra, function(x) fitnmr::noise_estimate(x$int, plot_distributions=FALSE))["sigma",]
+	}
+
+	spec_sub_list <- spectra
+	
+	fit_num <- 1
+	peak_num_offset <- 0
+	
+	# subtract out the intensities from any inputs given
+	for (iter in seq_along(fit_list)) {
+	
+		fit_spec_int <- fitnmr::get_spec_int(fit_list[[iter]], "fit")
+		
+		for (i in seq_along(spec_list)) {
+			idx_1 <- dimnames(fit_spec_int[[i]])[[1]]
+			idx_2 <- dimnames(fit_spec_int[[i]])[[2]]
+			not_na_idx <- !is.na(fit_spec_int[[i]])
+			
+			spec_sub_list[[i]]$int[idx_1,idx_2][not_na_idx] <- (spec_sub_list[[i]]$int[idx_1,idx_2]-fit_spec_int[[i]])[not_na_idx]
+		}
+		
+		fit_num <- fit_num + length(unique(fit_list[[iter]]$group_list$r2[1,,]))
+		peak_num_offset <- peak_num_offset + length(unique(fit_list[[iter]]$group_list$m0[,1]))
+	}
+	
+	if (is.character(plot_fit)) {
+	
+		pdf(plot_fit)
+		par(mar=c(2.9, 2.9, 1.5, 1), mgp=c(1.7, 0.6, 0))
+		plot_fit <- TRUE
+		on.exit(dev.off())
+	
+	} else {
+	
+		plot_main_prefix <- NULL
+	}
+	
+	for (iter in seq_len(iter_max)) {
+	
+		# check if 
+		spec_max_val <- sapply(spec_sub_list, function(x) max(x$int))
+		if (all(spec_max_val < noise_sigma*noise_cutoff)) {
+			break
+		}
+	
+		cat(paste("Fit iteration ", iter, ":", sep=""), sep="\n")
+		
+		spec_max_idx <- which.max(spec_max_val)
+		max_idx <- which(spec_sub_list[[spec_max_idx]]$int == spec_max_val[spec_max_idx], arr.ind=TRUE)[1,,drop=FALSE]
+		max_cs <- matrix(sapply(seq_along(max_idx), function(i) spec_sub_list[[spec_max_idx]]$ppm[[i]][max_idx[i]]), nrow=1)
+		
+		if (plot_fit) {
+			plot_main_prefix <- paste("Fit", fit_num)
+		}
+		fit_output <- fitnmr::fit_peak_cluster(spec_sub_list, max_cs, spec_ord=1:2, f_alpha_thresh=f_alpha, r2_start=r2_start, r2_bounds=r2_bounds, sc_start=sc_start, sc_bounds=sc_bounds, plot_main_prefix=plot_main_prefix, peak_num_offset=peak_num_offset)
+		
+		if ("fit_list" %in% names(fit_output)) {
+
+			fit_list[[length(fit_list)+1]] <- fit_output
+			peak_num_offset <- peak_num_offset+dim(fit_output$fit_list$omega0)[2]/2^sum(!is.na(sc_start))
+	
+			fit_spec_int <- fitnmr::get_spec_int(fit_output, "fit")
+	
+			for (i in seq_along(spec_list)) {
+				idx_1 <- dimnames(fit_spec_int[[i]])[[1]]
+				idx_2 <- dimnames(fit_spec_int[[i]])[[2]]
+				not_na_idx <- !is.na(fit_spec_int[[i]])
+				
+				spec_sub_list[[i]]$int[idx_1,idx_2][not_na_idx] <- (spec_sub_list[[i]]$int[idx_1,idx_2]-fit_spec_int[[i]])[not_na_idx]
+			}
+			
+			fit_num <- fit_num+1
+	
+		} else if (is.matrix(fit_output[[1]]) || is.matrix(fit_output)) {
+	
+			if (is.matrix(fit_output)) {
+				fit_output <- list(fit_output)
+			}
+			
+			for (i in seq_along(spec_list)) {
+				idx_1 <- dimnames(fit_output[[i]])[[1]]
+				idx_2 <- dimnames(fit_output[[i]])[[2]]
+				not_na_idx <- !is.na(fit_output[[i]])
+		
+				spec_sub_list[[i]]$int[idx_1,idx_2][not_na_idx] <- (spec_sub_list[[i]]$int[idx_1,idx_2]-fit_output[[i]])[not_na_idx]
+			}
+		}
+	}
+	
+	fit_list
+}
+
+#' Convert a parameter list to a peak data frame
+#'
+#' @export
+param_list_to_peak_df <- function(param_list, spec_names=NULL) {
+
+	if ("group_list" %in% names(param_list)) {
+	
+		list_name <- "fit_list"
+		if (!list_name %in% names(param_list)) {
+			list_name <- "start_list"
+		}
+		stopifnot(list_name %in% names(param_list))
+		
+		comb_omega0_null <- sapply(param_list$comb_list$omega0, is.null)
+		stopifnot(all(comb_omega0_null) || all(!comb_omega0_null))
+	
+		if (all(comb_omega0_null)) {
+		
+			stop("No scalar couplings detected")
+		
+		} else {
+	
+			# determine which column of omega0_comb determines each omega0 value
+			omega0_comb_idx <- array(sapply(param_list$comb_list$omega0, function(x) {
+				if (is.null(x)) {
+					NA
+				} else {
+					col_idx <- unique((x[,1]-1) %/% nrow(param_list[[list_name]]$omega0_comb) + 1)
+					stopifnot(length(col_idx) == 1)
+					col_idx
+				}
+			}), dim=dim(param_list$comb_list$omega0))
+		
+			stopifnot(apply(omega0_comb_idx, 2, function(x) all(x==x[1])))
+			
+			r2_mat <- param_list[[list_name]]$r2[,!duplicated(omega0_comb_idx[1,,1]),1]
+			r2_mat <- t(matrix(r2_mat, nrow=dim(param_list[[list_name]]$r2)[1]))
+			colnames(r2_mat) <- paste("r2_hz_", seq_len(ncol(r2_mat)), sep="")
+			
+			m0_mat <- simplify2array(tapply(seq_len(nrow(param_list[[list_name]]$m0)), omega0_comb_idx[1,,1], function(idx) {
+				colSums(param_list[[list_name]]$m0[idx,,drop=FALSE])
+			}))
+			m0_mat <- t(matrix(m0_mat, nrow=ncol(param_list[[list_name]]$m0)))
+			if (is.null(spec_names)) {
+				colnames(m0_mat) <- names(param_list$spec_data)
+			} else {
+				colnames(m0_mat) <- spec_names
+			}
+			
+			peak_df <- data.frame(
+				"peak"=seq_len(ncol(param_list$group_list$omega0_comb)),
+				"fit"=match(param_list$group_list$omega0_comb[3,], unique(param_list$group_list$omega0_comb[3,]))
+			)
+			
+			if ("fit_fptrace" %in% names(param_list)) {
+				peak_df <- cbind(peak_df, f_pvalue=param_list$fit_fptrace[seq_len(nrow(peak_df))])
+			}
+			
+			peak_df <- cbind(peak_df, t(param_list[[list_name]]$omega0_comb), r2_mat, m0_mat)
+			
+			peak_df
+		}
+	
+	} else {
+	
+		peak_df_list <- lapply(param_list, param_list_to_peak_df, spec_names=spec_names)
+		
+		cum_peaks <- cumsum(sapply(peak_df_list, function(x) length(unique(x[,"peak"]))))
+		cum_fits <- cumsum(sapply(peak_df_list, function(x) length(unique(x[,"fit"]))))
+		
+		for (i in seq_along(peak_df_list)[-1]) {
+			peak_df_list[[i]][,"peak"] <- peak_df_list[[i]][,"peak"] + cum_peaks[i-1]
+			peak_df_list[[i]][,"fit"] <- peak_df_list[[i]][,"fit"] + cum_fits[i-1]
+		}
+		
+		do.call(rbind, peak_df_list)
+	}
+}
+
+#' Convert a peak data frame to a parameter list
+#'
+#' @export
+peak_df_to_param_list <- function(peak_df) {
+
+	omega0_cols <- grep("^omega0_ppm_", colnames(peak_df), value=TRUE)
+	sc_cols <- grep("^sc_hz_", colnames(peak_df), value=TRUE)
+	r2_cols <- grep("^r2_hz_", colnames(peak_df), value=TRUE)
+	other_cols <- intersect(c("peak", "fit", "f_pvalue"), colnames(peak_df))
+	m0_cols <- setdiff(colnames(peak_df), c(other_cols, omega0_cols, sc_cols, r2_cols))
+	
+	sc_means <- colMeans(peak_df[sc_cols])
+	sc_start <- sc_means[match(paste("sc_hz_", seq_along(omega0_cols), sep=""), sc_cols)]
+
+	param_list <- fitnmr:::make_param_list(spec_list, as.matrix(peak_df[,omega0_cols]), sc_start=sc_start)
+
+	param_list$start_list$r2[] <- t(matrix(rep(as.vector(as.matrix(peak_df[,c("r2_hz_1", "r2_hz_2")])), each=2^sum(!is.na(sc_start))), ncol=2))
+	param_list$start_list$m0[] <- rep(as.vector(as.matrix(peak_df[,m0_cols])/2^sum(!is.na(sc_start))), each=2^sum(!is.na(sc_start)))
+	param_list$start_list$omega0_comb["sc_hz_1",] <- peak_df[,"sc_hz_1"]
+
+	fit_vec <- match(peak_df[,"fit"], unique(peak_df[,"fit"]))
+
+	all_unique_group_mat <- matrix(seq_len(length(unique(peak_df[,"fit"]))*2), nrow=2)
+
+	param_list$group_list$r2[] <- all_unique_group_mat[,rep(fit_vec,each=2^sum(!is.na(sc_start)))]
+	param_list$group_list$m0[] <- rep(seq_len(length(param_list$group_list$m0)/2^sum(!is.na(sc_start))),each=2^sum(!is.na(sc_start)))
+	#param_list$group_list$omega0_comb[] <- matrix(seq_len(length(unique(peak_df[,"fit"]))*3), nrow=3)[,fit_vec]
+	param_list$group_list$omega0_comb[] <- rbind(matrix(seq_len(length(fit_vec)*2),nrow=2),fit_vec+length(fit_vec)*2)
+	
+	param_list
+}
+
+#' Plot a fits for series of spectra with parameters from a peak data frame
+#'
+#' @export
+plot_peak_df <- function(peak_df, spectra, noise_sigma=NULL) {
+
+	if (is.null(noise_sigma)) {
+		noise_sigma <- sapply(spectra, function(x) fitnmr::noise_estimate(x$int, plot_distributions=FALSE))["sigma",]
+	}
+
+	param_list <- peak_df_to_param_list(peak_df)
+
+	fit_input <- do.call(fitnmr::make_fit_input, c(list(spec_list, omega0_plus=c(0.075, 0.75)*2), fitnmr:::param_list_to_arg_list(param_list)))
+
+	int_input <- fitnmr::get_spec_int(fit_input, "input")
+	int_start <- fitnmr::get_spec_int(fit_input, "start")
+
+	zlim_mat <- sapply(int_input, range, na.rm=TRUE)
+
+	omega_comb_ids <- apply(array(sapply(fit_input$comb_list$omega0, "[[", 1, 1), dim=dim(fit_input$comb_list$omega0)), c(2:3), paste, collapse="-")
+	omega_comb_ids_unique <- unique(as.vector(omega_comb_ids))
+
+	for (spec_i in seq_along(int_input)) {
+
+		low_frac <- noise_sigma[spec_i]/max(spec_list[[spec_i]]$int)*4
+		fitnmr::contour_pipe(spec_list[[spec_i]]$int, zlim=zlim_mat[,spec_i], col_pos="black", col_neg="gray", low_frac=low_frac)
+		fitnmr::contour_pipe(int_start[[spec_i]], zlim=zlim_mat[,spec_i], col_pos="red", col_neg="pink", low_frac=low_frac, add=TRUE)
+		m0_vec <- fit_input$start_list$m0[,spec_i]
+		points(t(fit_input$start_list$omega0[,,spec_i]), col=rgb(0, 0, 1, 0.5), pch=16, cex=sqrt(m0_vec/max(m0_vec)))
+	
+		lab_coord <- matrix(nrow=length(omega_comb_ids_unique), ncol=2)
+		for (j in seq_along(omega_comb_ids_unique)) {
+			id <- omega_comb_ids_unique[j]
+			lab_coord[j,] <- c(
+				mean(fit_input$start_list$omega0[1,id==omega_comb_ids[,spec_i],spec_i]),
+				max(fit_input$start_list$omega0[2,id==omega_comb_ids[,spec_i],spec_i])
+			)
+			points(t(fit_input$start_list$omega0[,id==omega_comb_ids[,spec_i],spec_i]), type="l", col="blue", lwd=0.25)
+		}
+		#text(lab_coord, labels=sprintf("%s-%s\np: %.0e", peak_df$fit, peak_df$peak, peak_df$f_pvalue), pos=1, offset=0.1, cex=0.2)
+		text(lab_coord, labels=sprintf("%s-%s", peak_df$fit, peak_df$peak), pos=1, offset=0.1, cex=0.2)
+		if ("f_pvalue" %in% names(peak_df)) {
+			text(lab_coord, labels=sprintf("%.0e", peak_df$f_pvalue), pos=1, offset=0.25, cex=0.2)
+		}
+	}
 }
 
 #' @export
