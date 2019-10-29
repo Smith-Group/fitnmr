@@ -985,7 +985,7 @@ plot_fit_1d <- function(fit_data, always_show_start=FALSE) {
 #' Plot a two dimensional peak fit
 #'
 #' @export
-plot_fit_2d <- function(fit_output, spec_ord, plot_start=FALSE, main=NULL) {
+plot_fit_2d <- function(fit_output, spec_ord=seq_len(dim(fit_output$start_list$omega0)[1]), plot_start=FALSE, main=NULL) {
 
 	input_spec_int <- fitnmr::get_spec_int(fit_output, "input")
 	fit_spec_int <- fitnmr::get_spec_int(fit_output, "fit")
@@ -1017,10 +1017,12 @@ plot_fit_2d <- function(fit_output, spec_ord, plot_start=FALSE, main=NULL) {
 			graphics::segments(start_r2_ppm_low[spec_ord[1],,i], fit_output$start_list$omega0[spec_ord[2],,i], start_r2_ppm_high[spec_ord[1],,i], fit_output$start_list$omega0[spec_ord[2],,i], col="blue")
 		}
 		fitnmr::contour_pipe(aperm(fit_spec_int[[i]], spec_ord), zlim=zlim, col_pos="red", col_neg="pink", add=TRUE)
-		graphics::rect(fit_output$upper_list$omega0[spec_ord[1],,i], fit_output$upper_list$omega0[spec_ord[2],,i], fit_output$lower_list$omega0[spec_ord[1],,i], fit_output$lower_list$omega0[spec_ord[2],,i], border="gray")
+		omega0_1_idx <- fitnmr::omega0_param_idx(fit_output, spec_ord[1], specs=i)
+		omega0_2_idx <- fitnmr::omega0_param_idx(fit_output, spec_ord[2], specs=i)
 		graphics::points(t(fit_output$fit_list$omega0[spec_ord,,i]), pch=16, col="red")
 		graphics::segments(fit_output$fit_list$omega0[spec_ord[1],,i], fit_r2_ppm_low[spec_ord[2],,i], fit_output$fit_list$omega0[spec_ord[1],,i], fit_r2_ppm_high[spec_ord[2],,i], col="red")
 		graphics::segments(fit_r2_ppm_low[spec_ord[1],,i], fit_output$fit_list$omega0[spec_ord[2],,i], fit_r2_ppm_high[spec_ord[1],,i], fit_output$fit_list$omega0[spec_ord[2],,i], col="red")
+		graphics::rect(param_values(fit_output$upper_list, omega0_1_idx), param_values(fit_output$upper_list, omega0_2_idx), param_values(fit_output$lower_list, omega0_1_idx), param_values(fit_output$lower_list, omega0_2_idx), border="gray")
 	}
 }
 
@@ -1593,14 +1595,17 @@ make_param_list <- function(spec_list, cs_mat, fit_prev=NULL, r2_start=5, m0_sta
 #' Get a list of logical arrays indicating which parameters correspond to peak positions
 #'
 #' @export
-omega0_param_idx <- function(param_list) {
+omega0_param_idx <- function(param_list, dims=seq_len(dim(param_list[["group_list"]][["omega0"]])[1]), peaks=seq_len(dim(param_list[["group_list"]][["omega0"]])[2]), specs=seq_len(dim(param_list[["group_list"]][["omega0"]])[3])) {
 	
 	idx_list <- lapply(param_list[["group_list"]], function(x) if (is.array(x)) array(FALSE, dim(x)) else logical(length(x)))
 	names(idx_list) <- names(param_list[["group_list"]])
 	
-	idx_list[["omega0"]] <- sapply(param_list[["comb_list"]][["omega0"]], is.null)
+	subset_idx <- idx_list[["omega0"]]
+	subset_idx[dims, peaks, specs] <- TRUE
 	
-	for (i in which(!idx_list[["omega0"]] )) {
+	idx_list[["omega0"]][subset_idx] <- sapply(param_list[["comb_list"]][["omega0"]][subset_idx], is.null)
+	
+	for (i in which(!idx_list[["omega0"]] & subset_idx)) {
 		unity_idx <- param_list[["comb_list"]][["omega0"]][[i]][,2] == 1
 		idx_list[["omega0_comb"]][ param_list[["comb_list"]][["omega0"]][[i]][unity_idx,1] ] <- TRUE
 	}
@@ -1635,13 +1640,16 @@ omega0_comb_source_idx <- function(param_list, omega0_idx=omega0_param_idx(param
 	# first get the index of omega0 values not generated through linear combination
 	comb_null_idx <- sapply(param_list[["comb_list"]][["omega0"]], is.null)
 	
-	omega0_source_idx <- which(comb_null_idx)
+	omega0_source_idx <- which(omega0_idx[["omega0"]])
 	source_idx[seq_along(omega0_source_idx)] <- omega0_source_idx
 	
 	for (i in which(!comb_null_idx)) {
 		unity_idx <- param_list[["comb_list"]][["omega0"]][[i]][,2] == 1
-		idx <- param_list[["comb_list"]][["omega0"]][[i]][unity_idx,1]+length(omega0_source_idx)
-		source_idx[is.na(source_idx[idx])] <- param_list[["comb_list"]][["omega0"]][[i]][unity_idx,1][is.na(source_idx[idx])]
+		comb_idx <- param_list[["comb_list"]][["omega0"]][[i]][unity_idx,1]
+		if (omega0_idx[["omega0_comb"]][comb_idx]) {
+			idx <- match(comb_idx, which(omega0_idx[["omega0_comb"]]))+length(omega0_source_idx)
+			source_idx[idx] <- i
+		}
 	}
 	
 	source_idx
