@@ -1258,6 +1258,29 @@ limit_omega0_by_r2 <- function(fit_input, factor=1.5) {
 	fit_input
 }
 
+#' Update bounds on fitting parameters
+#'
+#' @export
+update_fit_bounds <- function(fit_input, omega0_r2_factor=NULL, r2_bounds=NULL, sc_bounds=NULL) {
+
+	if (!is.null(omega0_r2_factor)) {
+		fit_input <- limit_omega0_by_r2(fit_input, omega0_r2_factor)
+	}
+	
+	if (!is.null(r2_bounds)) {
+		fit_input$lower_list$r2[] <- r2_bounds[1]
+		fit_input$upper_list$r2[] <- r2_bounds[2]
+	}
+	
+	if (!is.null(sc_bounds)) {
+		coupling_idx <- coupling_param_idx(fit_input)
+		param_values(fit_input$lower_list, coupling_idx) <- sc_bounds[1]
+		param_values(fit_input$upper_list, coupling_idx) <- sc_bounds[2]
+	}
+	
+	fit_input
+}
+
 omega0_bound_distance <- function(fit_output) {
 
 	omega0_idx <- omega0_param_idx(fit_output)
