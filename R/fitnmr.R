@@ -1307,9 +1307,7 @@ spec_overlap_mat <- function(peak_int_list) {
 #' Fit peaks from a table of chemical shifts
 #'
 #' @export
-fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plus=c(0.075, 0.75), r2_start=5, r2_bounds=c(0.5, 20), sc_start=NULL, sc_bounds=c(0, Inf), positive_only=TRUE) {
-	
-	plot <- FALSE
+fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plus=c(0.075, 0.75), r2_start=5, r2_bounds=c(0.5, 20), sc_start=NULL, sc_bounds=c(0, Inf), positive_only=TRUE, plot_fit_stages=TRUE) {
 	
 	if (FALSE) {
 	sc_start <- NULL
@@ -1356,7 +1354,7 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 	#print(lapply(param_list_orig, "[[", "omega0_comb"))
 	#print(lapply(param_list_orig, "[[", "m0"))
 	
-	if (plot) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Fit Parameters: m0")
+	if (plot_fit_stages) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Unfixed: m0")
 	
 	# unfix r2 values
 	param_list$group_list$r2[] <- param_list_orig$group_list$r2[]
@@ -1375,7 +1373,7 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 	param_list <- fit_output[c("fit_list", "group_list", "comb_list")]
 	names(param_list)[1] <- "start_list"
 	
-	if (plot) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Fit Parameters: m0, r2")
+	if (plot_fit_stages) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Unfixed: m0, r2, sc")
 	
 	# unfix omega0 values
 	param_values(param_list$group_list, omega0_idx) <- param_values(param_list_orig$group_list, omega0_idx)
@@ -1391,7 +1389,7 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 	fit_input <- limit_omega0_by_r2(fit_input)
 	fit_output <- fitnmr::perform_fit(fit_input)
 	
-	if (plot) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Fit Parameters: m0, r2, omega0")
+	if (plot_fit_stages) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Unfixed: m0, r2, sc, omega0")
 	
 	refit_thresh <- c(1e-3, 1e-2)[spec_ord]*2
 	
@@ -1411,7 +1409,7 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 		param_values(fit_input$upper_list, coupling_idx) <- sc_bounds[2]
 		fit_output <- fitnmr::perform_fit(fit_input)
 		
-		if (plot) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Fit Parameters: m0, r2, omega0 (Refit 1)")
+		if (plot_fit_stages) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Unfixed: m0, r2, sc, omega0 (Refit 1)")
 	}
 	
 	if (any(omega0_bound_distance(fit_output) < refit_thresh)) {
@@ -1430,7 +1428,7 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 		fit_input <- limit_omega0_by_r2(fit_input)
 		fit_output <- fitnmr::perform_fit(fit_input)
 		
-		if (plot) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Fit Parameters: m0, r2, omega0 (Refit 2)")
+		if (plot_fit_stages) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Unfixed: m0, r2, sc, omega0 (Refit 2)")
 	}
 	
 	if (any(omega0_bound_distance(fit_output) < refit_thresh)) {
@@ -1449,7 +1447,7 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 		fit_input <- limit_omega0_by_r2(fit_input)
 		fit_output <- fitnmr::perform_fit(fit_input)
 		
-		if (plot) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Fit Parameters: m0, r2, omega0 (Refit 3)")
+		if (plot_fit_stages) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Unfixed: m0, r2, sc, omega0 (Refit 3)")
 	}
 	
 	fit_output
@@ -1703,7 +1701,7 @@ param_list_to_arg_list <- function(param_list) {
 #' Fit a cluster nearby peaks starting from a seed table of chemical shifts
 #'
 #' @export
-fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001, r2_start=5, r2_bounds=c(0.5, 20), sc_start=NULL, sc_bounds=c(0, Inf), plot_main_prefix=NULL, peak_num_offset=0) {
+fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001, r2_start=5, r2_bounds=c(0.5, 20), sc_start=NULL, sc_bounds=c(0, Inf), plot_main_prefix=NULL, peak_num_offset=0, plot_fit_stages=FALSE) {
 
 	cs_new <- cs_start
 	fit_output <- NULL
@@ -1716,7 +1714,7 @@ fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001
 	while (f_alpha < f_alpha_thresh) {
 	
 		# perform trial fit
-		trial_fit_output <- fit_peaks(spec_list, cs_new, fit_output, spec_ord=spec_ord, sc_start=sc_start, sc_bounds=sc_bounds, positive_only=TRUE)
+		trial_fit_output <- fit_peaks(spec_list, cs_new, fit_output, spec_ord=spec_ord, sc_start=sc_start, sc_bounds=sc_bounds, positive_only=TRUE, plot_fit_stages=plot_fit_stages)
 		
 		# get new data from trial fit
 		trial_input_spec_int <- fitnmr::get_spec_int(trial_fit_output, "input")
@@ -1906,7 +1904,7 @@ fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001
 #' Iteratively fit peaks for whole spectra
 #'
 #' @export
-fit_peak_iter <- function(spectra, noise_sigma=NULL, noise_cutoff=15, f_alpha=1e-10, iter_max=100, omega0_plus=c(0.075, 0.75), r2_start=5, r2_bounds=c(0.5, 20), sc_start=c(6, NA), sc_bounds=c(2, 12), fit_list=list(), plot_fit=FALSE) {
+fit_peak_iter <- function(spectra, noise_sigma=NULL, noise_cutoff=15, f_alpha=1e-10, iter_max=100, omega0_plus=c(0.075, 0.75), r2_start=5, r2_bounds=c(0.5, 20), sc_start=c(6, NA), sc_bounds=c(2, 12), fit_list=list(), plot_fit=FALSE, plot_fit_stages=FALSE) {
 
 	if (is.null(noise_sigma)) {
 		noise_sigma <- sapply(spectra, function(x) fitnmr::noise_estimate(x$int, plot_distributions=FALSE))["sigma",]
@@ -1963,7 +1961,7 @@ fit_peak_iter <- function(spectra, noise_sigma=NULL, noise_cutoff=15, f_alpha=1e
 		if (plot_fit) {
 			plot_main_prefix <- paste("Fit", fit_num)
 		}
-		fit_output <- fitnmr::fit_peak_cluster(spec_sub_list, max_cs, spec_ord=1:2, f_alpha_thresh=f_alpha, r2_start=r2_start, r2_bounds=r2_bounds, sc_start=sc_start, sc_bounds=sc_bounds, plot_main_prefix=plot_main_prefix, peak_num_offset=peak_num_offset)
+		fit_output <- fitnmr::fit_peak_cluster(spec_sub_list, max_cs, spec_ord=1:2, f_alpha_thresh=f_alpha, r2_start=r2_start, r2_bounds=r2_bounds, sc_start=sc_start, sc_bounds=sc_bounds, plot_main_prefix=plot_main_prefix, peak_num_offset=peak_num_offset, plot_fit_stages=plot_fit_stages)
 		
 		if ("fit_list" %in% names(fit_output)) {
 
@@ -2115,7 +2113,7 @@ peak_df_to_param_list <- function(peak_df, spectra) {
 #' Plot a fits for series of spectra with parameters from a peak data frame
 #'
 #' @export
-plot_peak_df <- function(peak_df, spectra, noise_sigma=NULL) {
+plot_peak_df <- function(peak_df, spectra, noise_sigma=NULL, cex=0.2) {
 
 	if (is.null(noise_sigma)) {
 		noise_sigma <- sapply(spectra, function(x) fitnmr::noise_estimate(x$int, plot_distributions=FALSE))["sigma",]
@@ -2139,7 +2137,7 @@ plot_peak_df <- function(peak_df, spectra, noise_sigma=NULL) {
 		fitnmr::contour_pipe(spectra[[spec_i]]$int, zlim=zlim_mat[,spec_i], col_pos="black", col_neg="gray", low_frac=low_frac)
 		fitnmr::contour_pipe(int_start[[spec_i]], zlim=zlim_mat[,spec_i], col_pos="red", col_neg="pink", low_frac=low_frac, add=TRUE)
 		m0_vec <- fit_input$start_list$m0[,spec_i]
-		graphics::points(t(fit_input$start_list$omega0[,,spec_i]), col=grDevices::rgb(0, 0, 1, 0.5), pch=16, cex=sqrt(m0_vec/max(m0_vec)))
+		graphics::points(t(fit_input$start_list$omega0[,,spec_i]), col=grDevices::rgb(0, 0, 1, 0.5), pch=16, cex=sqrt(m0_vec/max(m0_vec))*5*cex)
 	
 		lab_coord <- matrix(nrow=length(omega_comb_ids_unique), ncol=2)
 		for (j in seq_along(omega_comb_ids_unique)) {
@@ -2148,12 +2146,12 @@ plot_peak_df <- function(peak_df, spectra, noise_sigma=NULL) {
 				mean(fit_input$start_list$omega0[1,id==omega_comb_ids[,spec_i],spec_i]),
 				max(fit_input$start_list$omega0[2,id==omega_comb_ids[,spec_i],spec_i])
 			)
-			graphics::points(t(fit_input$start_list$omega0[,id==omega_comb_ids[,spec_i],spec_i]), type="l", col="blue", lwd=0.25)
+			graphics::points(t(fit_input$start_list$omega0[,id==omega_comb_ids[,spec_i],spec_i]), type="l", col="blue", lwd=cex*1.25)
 		}
 		#graphics::text(lab_coord, labels=sprintf("%s-%s\np: %.0e", peak_df$fit, peak_df$peak, peak_df$f_pvalue), pos=1, offset=0.1, cex=0.2)
-		graphics::text(lab_coord, labels=sprintf("%s-%s", peak_df$fit, peak_df$peak), pos=1, offset=0.1, cex=0.2)
+		graphics::text(lab_coord, labels=sprintf("%s-%s", peak_df$fit, peak_df$peak), pos=1, offset=cex*0.5, cex=cex)
 		if ("f_pvalue" %in% names(peak_df)) {
-			graphics::text(lab_coord, labels=sprintf("%.0e", peak_df$f_pvalue), pos=1, offset=0.25, cex=0.2)
+			graphics::text(lab_coord, labels=sprintf("%.0e", peak_df$f_pvalue), pos=1, offset=cex*1.25, cex=cex)
 		}
 	}
 }

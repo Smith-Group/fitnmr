@@ -6,7 +6,8 @@
 \usage{
 fit_peaks(spec_list, cs_mat, fit_prev = NULL, spec_ord = 1:2,
   omega0_plus = c(0.075, 0.75), r2_start = 5, r2_bounds = c(0.5, 20),
-  sc_start = NULL, sc_bounds = c(0, Inf), positive_only = TRUE)
+  sc_start = NULL, sc_bounds = c(0, Inf), positive_only = TRUE,
+  plot_fit_stages = TRUE)
 }
 \description{
 Fit peaks from a table of chemical shifts
