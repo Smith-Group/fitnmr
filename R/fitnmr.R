@@ -2303,49 +2303,32 @@ noise_estimate <- function(x, height=TRUE, thresh=10, plot_distributions=TRUE, p
 	if (plot_distributions) {
 		
 		fit_pred <- fit$m$predict(data.frame(x=fit_data$x))
-		xlim <- c(minthresh, maxthresh)
+		xlim <- c(-thresh, thresh)*fit$m$getPars()["sigma"]
 		ylim <- range(xhist$density, fit_pred)
-		
-		origname <- gsub("/[^/]+$", "", origname)
 	
-		graphics::plot(xhist$mids, xhist$density, type="n", xlim=xlim, ylim=ylim, col="black", main=origname, xlab="Signal Intensity", ylab="", yaxt="n")
-		graphics::abline(h=0, col="gray")
+		graphics::plot(xhist$mids, xhist$density, type="n", xlim=xlim, ylim=ylim, col="black", xlab="Signal Intensity", ylab="", yaxt="n")
+		graphics::abline(h=0, v=0, col="gray")
 		graphics::points(xhist$mids, xhist$density, type="l", lwd=0.75)
 		graphics::points(fit_data$x, fit_pred, type="l", col="blue", lwd=0.75)
-		
-		legtext <- as.expression(c(
-			expression(""),
-			substitute(sigma: ~ sigmaval, list(sigmaval=round(fit$m$getPars()["sigma"]))),
-			substitute(mu: ~ muval, list(muval=signif(fit$m$getPars()["mu"]))),
-			substitute(SD: ~ sdval, list(sdval=signif(stats::sd(x[idx])))),
-			substitute(mean: ~ meanval, list(meanval=round(mean(x[idx]))))
-		))
+		graphics::abline(v=fit$m$getPars()["mu"], col="blue")
+		graphics::abline(v=fit$m$getPars()["mu"]+c(-1,1)*fit$m$getPars()["sigma"], col="blue", lty="dashed")
 		
 		if (is.null(peak_intensities)) {
-			snval <- signif(max_data["max"]/abs(fit$m$getPars()["sigma"]), 2)
+			snval <- signif(max_data["max"]/abs(fit$m$getPars()["sigma"]), 3)
 		} else {
 			snval <- paste(round(min(peak_intensities)/abs(fit$m$getPars()["sigma"])), "-", round(max(peak_intensities)/abs(fit$m$getPars()["sigma"])))
 		}
 		
 		legtext <- as.expression(c(
-			substitute("S/N:" ~ snval, list(snval=snval)),
-			substitute(sigma: ~ sigmaval, list(sigmaval=signif(abs(fit$m$getPars()["sigma"])))),
-			substitute(mu: ~ muval, list(muval=signif(fit$m$getPars()["mu"])))#,
-			#substitute(SD: ~ sdval, list(sdval=round(stats::sd(x[idx])))),
-			#substitute(mean: ~ meanval, list(meanval=round(mean(x[idx]))))
+			substitute(sigma: ~ sigmaval, list(sigmaval=signif(abs(fit$m$getPars()["sigma"]), 3))),
+			substitute(mu: ~ muval, list(muval=signif(fit$m$getPars()["mu"], 3)))
 		))
 		
-		usr <- graphics::par("usr")
-		pin <- graphics::par("pin")
-		topright <- c(usr[2]-diff(usr[1:2])/pin[1]*0.05, usr[4]-diff(usr[3:4])/pin[2]*0.05)
-		textwidth <- graphics::strwidth(legtext)
-		textheight <- max(graphics::strheight(legtext))*1.3
-		
-		graphics::text(topright[1] - textwidth/2, topright[2]-seq(0, by=textheight, length.out=length(legtext)), legtext, pos=1, offset=0, col="blue")
-		
+		legend("topleft", legend=legtext, lwd=c(1, 1), lty=c("dashed", "solid"), col="blue", bty="n", x.intersp=0.5)
+		legend("topright", legend=paste("S/N:", snval), bty="n")
 	}
 	
-	c(fit$m$getPars(), max_data)
+	c(fit$m$getPars()[1:2], max_data)
 }
 
 #' Calculate mapping from assigned peak list onto an unknown peak list
