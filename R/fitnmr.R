@@ -1728,7 +1728,7 @@ fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001
 		
 		# terminate search if any peak had zero volume in every spectrum
 		if (any(rowSums(trial_fit_output$fit_list$m0) == 0)) {
-			cat(" Terminating search because fit produced zero volume", sep="\n")
+			message(" Terminating search because fit produced zero volume")
 			if (is.null(fit_output)) {
 				if (length(spec_list) > 1) {
 					fit_output <- trial_input_spec_int
@@ -1814,7 +1814,7 @@ fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001
 		f_alpha <- -expm1(stats::pf(f_val, trial_num_params-num_params, num_pts-trial_num_params, log.p=TRUE))
 		f_p_trace <- c(f_p_trace, f_alpha)
 		
-		cat(sprintf(" %2i -> %2i fit parameters: F = %0.1f (p = %g)", num_params, trial_num_params, f_val, f_alpha), sep="\n")
+		message(sprintf(" %2i -> %2i fit parameters: F = %0.1f (p = %g)", num_params, trial_num_params, f_val, f_alpha))
 		
 		if (f_alpha < f_alpha_thresh)  {
 		
@@ -1837,7 +1837,7 @@ fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001
 		
 		} else {
 		
-			cat(sprintf(" Terminating search because F-test p-value < %g", f_alpha_thresh), sep="\n")
+			message(sprintf(" Terminating search because F-test p-value < %g", f_alpha_thresh))
 			if (is.null(fit_output)) {
 				if (length(spec_list) > 1) {
 					fit_output <- trial_fit_spec_int
@@ -1952,7 +1952,7 @@ fit_peak_iter <- function(spectra, noise_sigma=NULL, noise_cutoff=15, f_alpha=1e
 			break
 		}
 	
-		cat(paste("Fit iteration ", iter, ":", sep=""), sep="\n")
+		message(paste("Fit iteration ", iter, ":", sep=""))
 		
 		spec_max_idx <- which.max(spec_max_val)
 		max_idx <- which(spec_sub_list[[spec_max_idx]]$int == spec_max_val[spec_max_idx], arr.ind=TRUE)[1,,drop=FALSE]
