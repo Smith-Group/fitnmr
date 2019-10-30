@@ -2050,7 +2050,7 @@ param_list_to_peak_df <- function(param_list, spec_names=NULL) {
 			
 			peak_df <- data.frame(
 				"peak"=seq_len(ncol(param_list$group_list$omega0_comb)),
-				"fit"=match(param_list$group_list$omega0_comb[3,], unique(param_list$group_list$omega0_comb[3,]))
+				"fit"=match(param_list$group_list$r2[1,!duplicated(omega0_comb_idx[1,,1]),1], unique(param_list$group_list$r2[1,!duplicated(omega0_comb_idx[1,,1]),1]))
 			)
 			
 			if ("fit_fptrace" %in% names(param_list)) {
@@ -2096,7 +2096,9 @@ peak_df_to_param_list <- function(peak_df, spectra) {
 
 	param_list$start_list$r2[] <- t(matrix(rep(as.vector(as.matrix(peak_df[,c("r2_hz_1", "r2_hz_2")])), each=2^sum(!is.na(sc_start))), ncol=2))
 	param_list$start_list$m0[] <- rep(as.vector(as.matrix(peak_df[,m0_cols])/2^sum(!is.na(sc_start))), each=2^sum(!is.na(sc_start)))
-	param_list$start_list$omega0_comb["sc_hz_1",] <- peak_df[,"sc_hz_1"]
+	for (sc_col in intersect(c("sc_hz_1", "sc_hz_1"), colnames(peak_df))) {
+		param_list$start_list$omega0_comb[sc_col,] <- peak_df[,sc_col]
+	}
 
 	fit_vec <- match(peak_df[,"fit"], unique(peak_df[,"fit"]))
 
@@ -2105,7 +2107,10 @@ peak_df_to_param_list <- function(peak_df, spectra) {
 	param_list$group_list$r2[] <- all_unique_group_mat[,rep(fit_vec,each=2^sum(!is.na(sc_start)))]
 	param_list$group_list$m0[] <- rep(seq_len(length(param_list$group_list$m0)/2^sum(!is.na(sc_start))),each=2^sum(!is.na(sc_start)))
 	#param_list$group_list$omega0_comb[] <- matrix(seq_len(length(unique(peak_df[,"fit"]))*3), nrow=3)[,fit_vec]
-	param_list$group_list$omega0_comb[] <- rbind(matrix(seq_len(length(fit_vec)*2),nrow=2),fit_vec+length(fit_vec)*2)
+	param_list$group_list$omega0_comb[1:2,] <- matrix(seq_len(length(fit_vec)*2),nrow=2)
+	for (i in seq_len(nrow(param_list$group_list$omega0_comb))[-(1:2)]) {
+		param_list$group_list$omega0_comb[i,] <- fit_vec+length(fit_vec)*(i-1)
+	}
 	
 	param_list
 }
