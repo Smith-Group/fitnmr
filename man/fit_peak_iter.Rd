@@ -5,7 +5,7 @@
 \title{Iteratively fit peaks for whole spectra}
 \usage{
 fit_peak_iter(spectra, noise_sigma = NULL, noise_cutoff = 15,
-  f_alpha = 1e-10, iter_max = 100, omega0_plus = c(0.075, 0.75),
+  f_alpha = 0.001, iter_max = 100, omega0_plus = c(0.075, 0.75),
   r2_start = 5, r2_bounds = c(0.5, 20), sc_start = c(6, NA),
   sc_bounds = c(2, 12), fit_list = list(), plot_fit = FALSE,
   plot_fit_stages = FALSE)

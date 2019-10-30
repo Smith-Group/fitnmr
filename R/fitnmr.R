@@ -1904,7 +1904,7 @@ fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001
 #' Iteratively fit peaks for whole spectra
 #'
 #' @export
-fit_peak_iter <- function(spectra, noise_sigma=NULL, noise_cutoff=15, f_alpha=1e-10, iter_max=100, omega0_plus=c(0.075, 0.75), r2_start=5, r2_bounds=c(0.5, 20), sc_start=c(6, NA), sc_bounds=c(2, 12), fit_list=list(), plot_fit=FALSE, plot_fit_stages=FALSE) {
+fit_peak_iter <- function(spectra, noise_sigma=NULL, noise_cutoff=15, f_alpha=1e-3, iter_max=100, omega0_plus=c(0.075, 0.75), r2_start=5, r2_bounds=c(0.5, 20), sc_start=c(6, NA), sc_bounds=c(2, 12), fit_list=list(), plot_fit=FALSE, plot_fit_stages=FALSE) {
 
 	if (is.null(noise_sigma)) {
 		noise_sigma <- sapply(spectra, function(x) fitnmr::noise_estimate(x$int, plot_distributions=FALSE))["sigma",]
