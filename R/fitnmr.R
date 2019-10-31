@@ -2187,7 +2187,7 @@ plot_peak_df <- function(peak_df, spectra, noise_sigma=NULL, cex=0.2) {
 			graphics::points(t(fit_input$start_list$omega0[,id==omega_comb_ids[,spec_i],spec_i]), type="l", col="blue", lwd=cex*1.25)
 		}
 		#graphics::text(lab_coord, labels=sprintf("%s-%s\np: %.0e", peak_df$fit, peak_df$peak, peak_df$f_pvalue), pos=1, offset=0.1, cex=0.2)
-		graphics::text(lab_coord, labels=sprintf("%s-%s", peak_df$fit, peak_df$peak), pos=1, offset=cex*0.5, cex=cex)
+		graphics::text(lab_coord, labels=sprintf("%s:%s", peak_df$peak, peak_df$fit), pos=1, offset=cex*0.5, cex=cex)
 		if ("f_pvalue" %in% names(peak_df)) {
 			graphics::text(lab_coord, labels=sprintf("%.0e", peak_df$f_pvalue), pos=1, offset=cex*1.25, cex=cex)
 		}
