@@ -1751,7 +1751,7 @@ fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001
 		
 		# terminate search if any peak had zero volume in every spectrum
 		if (any(rowSums(trial_fit_output$fit_list$m0) == 0)) {
-			message(" Terminating search because fit produced zero volume")
+			cat(" Terminating search because fit produced zero volume", sep="\n")
 			if (is.null(fit_output)) {
 				if (length(spec_list) > 1) {
 					fit_output <- trial_input_spec_int
@@ -1837,7 +1837,7 @@ fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001
 		f_alpha <- -expm1(stats::pf(f_val, trial_num_params-num_params, num_pts-trial_num_params, log.p=TRUE))
 		f_p_trace <- c(f_p_trace, f_alpha)
 		
-		message(sprintf(" %2i -> %2i fit parameters: F = %0.1f (p = %g)", num_params, trial_num_params, f_val, f_alpha))
+		cat(sprintf(" %2i -> %2i fit parameters: F = %0.1f (p = %g)", num_params, trial_num_params, f_val, f_alpha), sep="\n")
 		
 		if (f_alpha < f_alpha_thresh)  {
 		
@@ -1860,7 +1860,7 @@ fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001
 		
 		} else {
 		
-			message(sprintf(" Terminating search because F-test p-value < %g", f_alpha_thresh))
+			cat(sprintf(" Terminating search because F-test p-value < %g", f_alpha_thresh), sep="\n")
 			if (is.null(fit_output)) {
 				if (length(spec_list) > 1) {
 					fit_output <- trial_fit_spec_int
@@ -1975,7 +1975,7 @@ fit_peak_iter <- function(spectra, noise_sigma=NULL, noise_cutoff=15, f_alpha=1e
 			break
 		}
 	
-		message(paste("Fit iteration ", iter, ":", sep=""))
+		cat(paste("Fit iteration ", iter, ":", sep=""), sep="\n")
 		
 		spec_max_idx <- which.max(spec_max_val)
 		max_idx <- which(spec_sub_list[[spec_max_idx]]$int == spec_max_val[spec_max_idx], arr.ind=TRUE)[1,,drop=FALSE]
@@ -2136,6 +2136,16 @@ peak_df_to_param_list <- function(peak_df, spectra) {
 	}
 	
 	param_list
+}
+
+#' Convert a peak data frame to fit input
+#'
+#' @export
+peak_df_to_fit_input <- function(peak_df, spectra, ...) {
+
+	param_list <- peak_df_to_param_list(peak_df, spectra)
+	arg_list <- param_list_to_arg_list(param_list)
+	do.call(fitnmr::make_fit_input, c(list(spectra, ...), arg_list))
 }
 
 #' Plot a fits for series of spectra with parameters from a peak data frame
