@@ -1,0 +1,259 @@
+---
+title: "Automated 2D Peak Fitting"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Automated 2D Peak Fitting}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_knit$set(
+  global.par = TRUE
+)
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  cache = TRUE,
+  fig.retina = 2,
+  optipng = "-o7 -strip all"
+)
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+options(digits=5, width=90)
+```
+
+FitNMR enables fully automated peak fitting of 2D NMR spectra. The following tutorial will assume you have loaded the FitNMR package.
+
+```{r setup}
+library(fitnmr)
+```
+
+## Sample Data
+
+The first step in peak picking is to load one or more spectra. There are a number of example spectra that come with the FitNMR package. For this tutorial, we will be using spectra from a T~1~ measurement of a small *de novo* designed mini-protein. The directory containing that data and the spectrum filenames can be determined with the following commands:
+
+```{r}
+t1_dir <- system.file("extdata", "t1", package="fitnmr")
+t1_ft2_filenames <- list.files(t1_dir, pattern=".ft2")
+t1_ft2_filenames
+```
+
+## Reading Spectra
+
+The `read_nmrpipe` function is used to read NMRPipe-formatted spectra.
+
+To read both files, we will use the `lapply` function in R. It builds a list data structure by iterating over the items in the first argument and applying the function given in the second argument to each. Any subsequent arguments are passed to the function when it is called. The `file.path` function joins the directory where the files are located to the file names.
+
+The `dim_order="hx"` argument tells `read_nmrpipe` to reorder the dimensions of the spectra so that the ^1^H dimension is first. This is important as most default NMRPipe processing scripts will leave the ^1^H as the second dimension. After reading a list of spectra, we will assign names to the list of spectra using the original filenames. 
+
+```{r}
+spec_list <- lapply(file.path(t1_dir, t1_ft2_filenames), read_nmrpipe, dim_order="hx")
+names(spec_list) <- t1_ft2_filenames
+```
+
+The underlying data structures used to store the two spectra can be shown with the `str` function:
+
+```{r}
+str(spec_list)
+```
+
+This shows that there is a list of two spectra. Each spectrum is itself a list with four named components:
+
+1. `int`: A multidimensional array with the intensities of the spectrum, which in this case it is just a 2D matrix. The chemical shifts are stored in character format in the dimension names (`dimnames`) of the array.
+2. `ppm`: A list of chemical shifts for each dimension stored in numeric format.
+3. `fheader`: A matrix of header values associated each dimension.
+4. `header`: The raw data from the 512-value NMRPipe header.
+
+## Displaying Spectra
+
+We can produce a contour plot first spectrum using the `contour_pipe` function. It takes a matrix as input, so we must extract the `int` matrix of the first spectrum with the syntax shown.
+
+```{r, include = FALSE}
+par(mar=c(3, 3, 1, 1), mgp=c(2, 0.8, 0))
+```
+```{r, fig.height = 7, fig.width = 7, fig.align = "left"}
+contour_pipe(spec_list[[1]]$int)
+```
+
+As you can see above, the spectrum has a number of overlapped peaks with possible shoulders.
+
+## Estimating Noise
+
+The automated peak fitting procedure uses the noise level of each spectrum to determine a cutoff below which peaks will no longer be added. FitNMR includes a function, `noise_estimate`, for determining the noise level by fitting a Gaussian function to a histogram of the signal intensities.
+
+The `sapply` function below is similar to the `lapply` function used above, but it attempts to simplify the output of each function into a matrix. In this case, because a vector of three numerical values is returned each time `noise_estimate` is called, a 3xN matrix of results is created. Also, because the `noise_estimate` function just takes numerical intensities, the code below defines a short inline function to extract those from each spectrum.
+
+```{r, include = FALSE}
+par(mar=c(3, 1, 1, 1), mgp=c(2, 0.8, 0))
+```
+```{r noise, fig.height = 2, fig.width = 3, fig.show = "hide"}
+noise_mat <- sapply(spec_list, function(x) noise_estimate(x$int))
+noise_mat
+```
+
+The resulting matrix above gives the mean value the noise is centered on (`mu`), the standard deviation of the noise (`sigma`), and the maximum intensity in the spectrum (`max`). 
+
+The `noise_estimate` function can create plots showing the histogram of the intensity values (black) and the fit Gaussian function (blue). S/N is defined as `max/sigma`.
+
+```{r, echo = FALSE, hold = TRUE}
+knitr::include_graphics(sprintf("%snoise-%i.png", knitr::opts_current$get("fig.path"), c(1,2)))
+```
+
+To identify an initial set of peaks, better results will probably be obtained using the spectrum with the highest signal-to-noise ratio, which in this case is the first spectrum. 
+
+## Fitting Peaks
+
+### Fitting a Few Peak Clusters
+
+We will start by running three iterations of the iterative peak fitting method. It takes a list of spectra, which we previously read. In this case, we will only do the fitting on the first spectrum. To get a list of just one spectrum, use single square brackets, `[ ]`, which return another list. (By contrast double square brackets, `[[ ]]`, return individual items from the list that are not enclosed in a list data structure.) The `iter_max` argument specifies the number of iterations to perform.
+
+FitNMR outputs text describing what the peak fitting algorithm is doing. Adding the first peak involves addition of 6 parameters to the model (2 `omega0`, 2 `r2`, 1 `m0`, and 1 scalar coupling). The probability of the observed improvement to the fit happening at random (according to an F-test) is given by the p-value. For the first peak added, this is very low, indicating that having a peak at that position is much better than assuming otherwise. Adding the second peak involves addition of just 3 parameters (2 `omega0` and 1 `m0`), because several of the parameters are shared with the first peak (2 `r2` and 1 scalar coupling). For the first iteration, the search is terminated after the third peak fails to fall below the p-value cutoff, which is specified by `f_alpha` and defaults to `0.001`.
+
+The `fit_peak_iter` function returns a list of fits, one for each iteration. To convert that into a more user-friendly table, use the `param_list_to_peak_df` function. The first couple columns of that table give the peak number and fit iteration at which the peak was added. If applicable the F-test p-value will be given next. The next several columns give the peak position (in ppm), the scalar coupling (in Hz), and the R~2~ (in Hz), with the integer suffix indicating the dimension for each parameter. The remaining columns give the peak volumes from each spectrum.
+
+```{r, include = FALSE}
+par(mar=c(3, 3, 1, 1), mgp=c(2, 0.8, 0))
+```
+```{r, fig.height = 7, fig.width = 7, fig.align = "left"}
+peak_fits <- fit_peak_iter(spec_list[1], iter_max=3)
+peak_df <- param_list_to_peak_df(peak_fits)
+peak_df
+plot_peak_df(peak_df, spec_list[1], cex=0.6)
+```
+
+A plot of the resulting peak fits can be produced with the `plot_peak_df` function, which requires a peak table and list of spectra. It plots the peaks with contours down to 4 times the standard deviation of the noise present in the spectra. The modeled peaks are shown with red contours and the peak centers are indicated with blue dots, with the area of the blue dot proportional to the volume of the peak. Below each set of dots, the peaks are numbered with the syntax, `<peak>:<fit>`. All peaks in a given fit will share scalar coupling and R~2~ parameters. If contained in the input table, the F-test p-value will be given below the peak number. This can be helpful in optimizing the the `f_alpha` parameter to avoid false negatives while minimizing the number of false positives.
+
+### A Peek Inside the Algorithm
+
+To take a more detailed look inside a single iteration of the algorithm, the `fit_peak_iter` function can be called again, providing the output of the first time it was run using the `fit_list` parameter. By setting the `plot_fit_stages` parameter to `TRUE`, FitNMR will produce a series of plots illustrating the progress of the algorithm.
+
+A given iteration starts with placing a peak at the highest point in the spectrum, after all previously modeled peaks have been subtracted out. It first optimizes `m0`, leaving the `omega0`, `r2`, and `sc` parameters at their default values. The resulting peak is shown in the first plot, with red dots at the peak centers and lines `±r2` for each dimension. 
+
+After obtaining an initial volume, the peak shape is allowed to change by unfixing the `r2` and `sc` parameters. Subsequent plots are shown with blue contours showing peaks modeled with the input parameters in blue, and the fit parameters in red. Finally, the peak is allowed to move by unfixing the `omega0` parameters, with the center of each  multiplet constrained to `±1.5*r2`, as indicated by the gray square.
+
+```{r, include = FALSE}
+par(mar=c(3, 3, 2, 1), mgp=c(2, 0.8, 0))
+```
+```{r, fig.height = 3, fig.width = 4, fig.align = "left"}
+peak_fits <- fit_peak_iter(spec_list[1], iter_max=1, fit_list=peak_fits, plot_fit_stages=TRUE)
+```
+
+In this case, the last peak added was too close to the first and when all parameters were unfixed, one of the peaks had zero volume, which resulted in termination of this iteration. In this fit, the shoulder peak is present, but is less than 10% of the volume of the major peak. (See fit 4 in the peak lists below.) The newly added peak cluster is outlined in green in the spectrum below.
+
+```{r, include = FALSE}
+par(mar=c(3, 3, 1, 1), mgp=c(2, 0.8, 0))
+```
+```{r, fig.height = 6, fig.width = 6, fig.align = "left"}
+plot_peak_df(param_list_to_peak_df(peak_fits), spec_list[1], cex=0.6)
+rect(8.41, 120.6, 8.31, 119.2, border="green")
+text(8.31, 119.9, "New Cluster", pos=4, col="green")
+```
+
+### Fitting the Remainder of the Peaks
+
+To fit the remainder of the peaks, call the `fit_peak_iter` function again, this time leaving out the `iter_max` parameter so that the default value (100) is used.
+
+```{r, fig.height = 7, fig.width = 7, fig.align = "left"}
+peak_fits <- fit_peak_iter(spec_list[1], fit_list=peak_fits)
+peak_df <- param_list_to_peak_df(peak_fits)
+peak_df
+plot_peak_df(peak_df, spec_list[1], cex=0.6)
+```
+
+## Fitting Peaks without Scalar Couplings
+
+Scalar couplings are only fit for specified dimensions. The only type of splitting pattern currently supported is a doublet. The particular dimensions for which scalar couplings are fit is specified with the `sc_start` parameter, which should be a two-element numeric vector. The first element of that vector gives the starting value of the scalar coupling in the first dimension, and likewise for the second dimension. If a given dimension is set to `NA`, then it will not have a doublet generated. If `sc_start` is left at the default value of `c(6, NA)`, then there will just be a doublet fit in the first dimension, with only a single peak fit in the second dimension. To disable scalar couplings altogether, set `sc_start` to `c(NA, NA)`.
+
+```{r, fig.height = 7, fig.width = 7, results = "hide"}
+peak_fits_no_sc <- fit_peak_iter(spec_list[1], sc_start=c(NA, NA))
+plot_peak_df(param_list_to_peak_df(peak_fits_no_sc), spec_list[1], cex=0.6)
+rect(8.55, 122.8, 8.43, 122.1, border="green")
+text(8.43, 122.5, "Coupling\nDetected\nde novo", pos=4, col="green")
+```
+
+Many of the peaks in the above plot can be fit reasonably well without scalar couplings, but the contours do not necessarily match up as well. For one peak boxed in green above, a scalar coupling is detected *de novo* by the fitting algorithm, with two adjacent peaks having roughly the same volume. 
+
+## Editing Fit Clusters
+
+### Separating Fit Clusters
+
+After performing an initial fit, there may be large clusters of peaks that can be separated into different clusters and refit to allow the peak shapes to take on different values. For instance, peaks 5 and 7 shown in "Splitting the Reminder of Peaks" above are sufficiently separated from peaks 6 and 8 in both the vertical and horizontal dimensions, such that it should be possible to fit different peak shape parameters. To separate them out into their own cluster, reassign them a new "fit" cluster that is greater than any other fit group.
+
+```{r separate}
+edited_peak_df <- peak_df
+edited_peak_df[c(5,7),"fit"] <- max(edited_peak_df[,"fit"])+1
+```
+
+### Deleting Peaks
+
+Furthermore, you may find that the algorithm has been overzealous and detected peaks that are do not appear to be real after visual inspection, for instance peaks 4, 14, and 16. To remove them, simply remove their rows from the peak table. In this case we use the the feature of R that removes elements using a negative subscript:
+
+```{r delete}
+edited_peak_df <- edited_peak_df[-c(4,14,16),]
+```
+
+Even if you don't separate groups or delete peaks, it may be helpful to perform a simultaneous fit of all peaks together to remove bias that may have accumulated because of overlap between groups of peaks that were originally fit separately. To do so, you need to convert the peak table back to fit input. That is done with the `peak_df_to_fit_input` function, which requires the peak table, the set of spectra, and the size of the region of interest around each peak where fitting will be done.
+
+Also, you will need to manually update the lower and upper bounds for parameters, which is done automatically with `fit_peak_iter`. Here we use `update_fit_bounds` to constrain omega0 within 1.5 times `r2` of the starting value, `r2` to be in the range 0.5-20 Hz, and the scalar coupling to be in the range 2-12 Hz. Finally, we do the fit using the `perform_fit` function.
+
+```{r, include = FALSE}
+par(mar=c(3, 3, 1, 1), mgp=c(2, 0.8, 0))
+```
+```{r refine, fig.height = 7, fig.width = 7, fig.align = "left"}
+refined_fit_input <- peak_df_to_fit_input(edited_peak_df, spec_list[1], omega0_plus=c(0.075, 0.75))
+refined_fit_input <- update_fit_bounds(refined_fit_input, omega0_r2_factor=1.5, r2_bounds=c(0.5, 20), sc_bounds=c(2, 12))
+refined_fit_output <- perform_fit(refined_fit_input)
+refined_peak_df <- param_list_to_peak_df(refined_fit_output)
+refined_peak_df
+plot_peak_df(refined_peak_df, spec_list[1], cex=0.6)
+```
+
+## Extending the Fit to Other Spectra
+
+If you have a series of spectra with similar peak shapes, as in this case, you can then extend the fit to more than one spectrum in a manner similar to how we produced the refined peak table above, but instead giving a list of multiple spectra to `peak_df_to_fit_input`. 
+
+```{r}
+extended_fit_input <- peak_df_to_fit_input(refined_peak_df, spec_list, omega0_plus=c(0.075, 0.75))
+```
+
+We can take a peek at the parameters that show the starting volumes for the refined and extended fits as shown below. Note that the starting volumes for the second spectrum is a second column in the `m0` matrix. Which has inherited the volumes from the first spectrum. After performing the fit, the second spectrum has much lower volumes.
+
+```{r, include = FALSE}
+par(mar=c(3, 3, 1, 1), mgp=c(2, 0.8, 0))
+```
+```{r extend, fig.height = 7, fig.width = 7, fig.show = "hide"}
+head(refined_fit_output$fit_list$m0)
+head(extended_fit_input$start_list$m0)
+extended_fit_input <- update_fit_bounds(extended_fit_input, omega0_r2_factor=1.5, r2_bounds=c(0.5, 20), sc_bounds=c(2, 12))
+extended_fit_output <- perform_fit(extended_fit_input)
+extended_peak_df <- param_list_to_peak_df(extended_fit_output)
+extended_peak_df
+plot_peak_df(extended_peak_df, spec_list, cex=0.6)
+```
+
+This is the fit for `1.ft2`.
+
+```{r, echo = FALSE, fig.show = "hold"}
+knitr::include_graphics(sprintf("%sextend-1.png", knitr::opts_current$get("fig.path")))
+```
+
+The fit for `2.ft2` looks nearly identical but the peaks are about fourfold less intense than `1.ft2`. You can tell this because the lowest contour level in the plot below is slightly narrower  than in the plot above. (Remember that the lowest contour level is drawn at 4x the noise level for all plots drawn by `plot_peak_df`.)
+
+```{r, echo = FALSE, fig.show = "hold"}
+knitr::include_graphics(sprintf("%sextend-2.png", knitr::opts_current$get("fig.path")))
+```
+
+The peak volumes between the two spectra are highly correlated and have similar relative ratios, indicating that the T~1~ values are for the peaks are relatively similar.
+
+```{r, include = FALSE, cache=FALSE}
+par(mar=c(3, 3, 1, 1), mgp=c(2, 0.8, 0))
+```
+```{r, fig.height = 4, fig.width = 4}
+xlim <- range(0, extended_peak_df[,"1.ft2"])
+ylim <- range(0, extended_peak_df[,"2.ft2"])
+plot(extended_peak_df[,c("1.ft2", "2.ft2")], xlim=xlim, ylim=ylim)
+abline(lsfit(extended_peak_df[,"1.ft2"], extended_peak_df[,"2.ft2"]), col="red")
+plot(extended_peak_df[,"2.ft2"]/extended_peak_df[,"1.ft2"], xlab="Peak Number", ylab="Spectrum 2 Volume/Spectrum 1 Volume")
+```
+
+
