@@ -544,7 +544,12 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 		fheader <- spectra[[i]][["fheader"]]
 		
 		p1_frac <- lapply(seq_along(omega_eval), function(j) {
-			( omega_eval[[j]] - min(spec_ppm[[j]]) ) / (fheader["SW",j] / fheader["OBS",j] )
+			frac <- seq(0, 1, length.out=fheader["FTSIZE",j]+1)
+			frac <- frac[-length(frac)]
+			if (all(fheader[c("X1","XN"),j] != 0)) {
+				frac <- frac[seq(fheader["X1",j], fheader["XN",j])]
+			}
+			frac[omega_eval_idx[[j]]]
 		})
 		
 		aq_time <- aq_times(fheader)
@@ -660,7 +665,7 @@ eval_peak_1d <- function(func_list, func_data, ref_mhz, omega, omega0, r2, p0=0,
 	func <- eval(func_list$func, func_data)
 	#func <- eval(lineshapes_simplified_func$none, func_data)
 	
-	pvec <- exp(1i*(p0-p1*p1_frac))
+	pvec <- exp(1i*(p0+p1*p1_frac))
 	
 	Re(func*pvec)
 }
@@ -690,13 +695,13 @@ eval_peak_1d_deriv <- function(func_list, func_data, ref_mhz, omega, omega0, r2,
 		dfunc_dr2 <- eval_vec[[3]]
 	}
 	
-	#pvec <-          exp(1i*(p0 - p1*p1_frac))
-	#dpvec_dp0 <-  1i*exp(1i*(p0 - p1*p1_frac))
-	#dpvec_dp1 <- -1i*exp(1i*(p0 - p1*p1_frac))*p1_frac
+	#pvec <-          exp(1i*(p0 + p1*p1_frac))
+	#dpvec_dp0 <-  1i*exp(1i*(p0 + p1*p1_frac))
+	#dpvec_dp1 <- -1i*exp(1i*(p0 + p1*p1_frac))*p1_frac
 	
-	pvec <- exp(1i*(p0 - p1*p1_frac))
+	pvec <- exp(1i*(p0 + p1*p1_frac))
 	dpvec_dp0 <- 1i*pvec
-	dpvec_dp1 <- -dpvec_dp0*p1_frac
+	dpvec_dp1 <- dpvec_dp0*p1_frac
 	
 	func_re <- Re(func*pvec)
 	dfunc_domega0_re <- Re(dfunc_domega0*pvec)*ref_mhz*2*pi # convert rad/s back to ppm
