@@ -2342,11 +2342,14 @@ noise_estimate <- function(x, height=TRUE, thresh=10, plot_distributions=TRUE, p
 
 	fit_data <- data.frame(y=xhist$density, x=xhist$mids)
 	fit_start <- c(mu=unname(itermat[i,"mean"]), sigma=unname(itermat[i,"sd"]), h=max(xhist$density))
+	fit_lower <- fit_start
+	fit_lower[] <- -Inf
+	fit_lower[2] <- 0
 	
 	if (height) {
-		fit <- stats::nls(normdist_height_formula, fit_data, fit_start)
+		fit <- stats::nls(normdist_height_formula, fit_data, fit_start, algorithm="port", lower=fit_lower)
 	} else {
-		fit <- stats::nls(normdist_formula, fit_data, fit_start[1:2])
+		fit <- stats::nls(normdist_formula, fit_data, fit_start[1:2], algorithm="port", lower=fit_lower[1:2])
 	}
 	
 	if (plot_distributions) {
