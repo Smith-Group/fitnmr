@@ -2156,7 +2156,7 @@ peak_df_to_fit_input <- function(peak_df, spectra, ...) {
 #' Plot a fits for series of spectra with parameters from a peak data frame
 #'
 #' @export
-plot_peak_df <- function(peak_df, spectra, noise_sigma=NULL, cex=0.2) {
+plot_peak_df <- function(peak_df, spectra, noise_sigma=NULL, noise_cutoff=4, cex=0.2, lwd=0.25, label=TRUE, p0=NULL, p1=NULL, add=FALSE) {
 
 	if (is.null(noise_sigma)) {
 		noise_sigma <- sapply(spectra, function(x) fitnmr::noise_estimate(x$int, plot_distributions=FALSE))["sigma",]
@@ -2165,6 +2165,12 @@ plot_peak_df <- function(peak_df, spectra, noise_sigma=NULL, cex=0.2) {
 	param_list <- peak_df_to_param_list(peak_df, spectra)
 
 	fit_input <- do.call(fitnmr::make_fit_input, c(list(spectra, omega0_plus=c(0.075, 0.75)*2), param_list_to_arg_list(param_list)))
+	if (!is.null(p0)) {
+		fit_input$start_list$p0[] <- p0
+	}
+	if (!is.null(p1)) {
+		fit_input$start_list$p1[] <- p1
+	}
 
 	int_input <- fitnmr::get_spec_int(fit_input, "input")
 	int_start <- fitnmr::get_spec_int(fit_input, "start")
@@ -2176,25 +2182,27 @@ plot_peak_df <- function(peak_df, spectra, noise_sigma=NULL, cex=0.2) {
 
 	for (spec_i in seq_along(int_input)) {
 
-		low_frac <- noise_sigma[spec_i]/max(spectra[[spec_i]]$int)*4
-		fitnmr::contour_pipe(spectra[[spec_i]]$int, zlim=zlim_mat[,spec_i], col_pos="black", col_neg="gray", low_frac=low_frac)
-		fitnmr::contour_pipe(int_start[[spec_i]], zlim=zlim_mat[,spec_i], col_pos="red", col_neg="pink", low_frac=low_frac, add=TRUE)
+		low_frac <- noise_sigma[spec_i]/max(spectra[[spec_i]]$int)*noise_cutoff
+		fitnmr::contour_pipe(spectra[[spec_i]]$int, zlim=zlim_mat[,spec_i], col_pos="black", col_neg="gray", low_frac=low_frac, lwd=lwd, add=add)
+		fitnmr::contour_pipe(int_start[[spec_i]], zlim=zlim_mat[,spec_i], col_pos="red", col_neg="pink", low_frac=low_frac, lwd=lwd, add=TRUE)
 		m0_vec <- fit_input$start_list$m0[,spec_i]
 		graphics::points(t(fit_input$start_list$omega0[,,spec_i]), col=grDevices::rgb(0, 0, 1, 0.5), pch=16, cex=sqrt(m0_vec/max(m0_vec))*5*cex)
 	
-		lab_coord <- matrix(nrow=length(omega_comb_ids_unique), ncol=2)
-		for (j in seq_along(omega_comb_ids_unique)) {
-			id <- omega_comb_ids_unique[j]
-			lab_coord[j,] <- c(
-				mean(fit_input$start_list$omega0[1,id==omega_comb_ids[,spec_i],spec_i]),
-				max(fit_input$start_list$omega0[2,id==omega_comb_ids[,spec_i],spec_i])
-			)
-			graphics::points(t(fit_input$start_list$omega0[,id==omega_comb_ids[,spec_i],spec_i]), type="l", col="blue", lwd=cex*1.25)
-		}
-		#graphics::text(lab_coord, labels=sprintf("%s-%s\np: %.0e", peak_df$fit, peak_df$peak, peak_df$f_pvalue), pos=1, offset=0.1, cex=0.2)
-		graphics::text(lab_coord, labels=sprintf("%s:%s", peak_df$peak, peak_df$fit), pos=1, offset=cex*0.5, cex=cex)
-		if ("f_pvalue" %in% names(peak_df)) {
-			graphics::text(lab_coord, labels=sprintf("%.0e", peak_df$f_pvalue), pos=1, offset=cex*1.25, cex=cex)
+		if (label) {
+			lab_coord <- matrix(nrow=length(omega_comb_ids_unique), ncol=2)
+			for (j in seq_along(omega_comb_ids_unique)) {
+				id <- omega_comb_ids_unique[j]
+				lab_coord[j,] <- c(
+					mean(fit_input$start_list$omega0[1,id==omega_comb_ids[,spec_i],spec_i]),
+					max(fit_input$start_list$omega0[2,id==omega_comb_ids[,spec_i],spec_i])
+				)
+				graphics::points(t(fit_input$start_list$omega0[,id==omega_comb_ids[,spec_i],spec_i]), type="l", col="blue", lwd=cex*1.25)
+			}
+			#graphics::text(lab_coord, labels=sprintf("%s-%s\np: %.0e", peak_df$fit, peak_df$peak, peak_df$f_pvalue), pos=1, offset=0.1, cex=0.2)
+			graphics::text(lab_coord, labels=sprintf("%s:%s", peak_df$peak, peak_df$fit), pos=1, offset=cex*0.5, cex=cex)
+			if ("f_pvalue" %in% names(peak_df)) {
+				graphics::text(lab_coord, labels=sprintf("%.0e", peak_df$f_pvalue), pos=1, offset=cex*1.25, cex=cex)
+			}
 		}
 	}
 }
