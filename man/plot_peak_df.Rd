@@ -4,7 +4,14 @@
 \alias{plot_peak_df}
 \title{Plot a fits for series of spectra with parameters from a peak data frame}
 \usage{
-plot_peak_df(peak_df, spectra, noise_sigma = NULL, cex = 0.2)
+plot_peak_df(
+  peak_df,
+  spectra,
+  noise_sigma = NULL,
+  cex = 0.2,
+  p0 = NULL,
+  p1 = NULL
+)
 }
 \description{
 Plot a fits for series of spectra with parameters from a peak data frame

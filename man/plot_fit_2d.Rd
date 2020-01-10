@@ -4,9 +4,12 @@
 \alias{plot_fit_2d}
 \title{Plot a two dimensional peak fit}
 \usage{
-plot_fit_2d(fit_output,
+plot_fit_2d(
+  fit_output,
   spec_ord = seq_len(dim(fit_output$start_list$omega0)[1]),
-  plot_start = FALSE, main = NULL)
+  plot_start = FALSE,
+  main = NULL
+)
 }
 \description{
 Plot a two dimensional peak fit

@@ -4,10 +4,12 @@
 \alias{omega0_param_idx}
 \title{Get a list of logical arrays indicating which parameters correspond to peak positions}
 \usage{
-omega0_param_idx(param_list,
+omega0_param_idx(
+  param_list,
   dims = seq_len(dim(param_list[["group_list"]][["omega0"]])[1]),
   peaks = seq_len(dim(param_list[["group_list"]][["omega0"]])[2]),
-  specs = seq_len(dim(param_list[["group_list"]][["omega0"]])[3]))
+  specs = seq_len(dim(param_list[["group_list"]][["omega0"]])[3])
+)
 }
 \description{
 Get a list of logical arrays indicating which parameters correspond to peak positions

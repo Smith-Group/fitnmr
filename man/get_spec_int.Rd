@@ -4,9 +4,12 @@
 \alias{get_spec_int}
 \title{Get arrays of spectral intensities for input, starting parameters, and fit peaks}
 \usage{
-get_spec_int(fit_data, spec_type = c("input", "start", "fit"),
+get_spec_int(
+  fit_data,
+  spec_type = c("input", "start", "fit"),
   spec_idx = seq_along(fit_data$spec_data),
-  peak_idx = seq_len(dim(fit_data$start_list$omega0)[2]))
+  peak_idx = seq_len(dim(fit_data$start_list$omega0)[2])
+)
 }
 \description{
 Get arrays of spectral intensities for input, starting parameters, and fit peaks

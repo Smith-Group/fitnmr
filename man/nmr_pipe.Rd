@@ -4,9 +4,16 @@
 \alias{nmr_pipe}
 \title{Process an FID with NMRPipe}
 \usage{
-nmr_pipe(in_path, out_path, ndim = 1, apod = NULL, sp = rbind(off =
-  0.5, end = 1, pow = 1, c = 0.5), zf = rbind(auto = ""), ps = rbind(p0
-  = 0, p1 = 0, di = ""), ext = NULL)
+nmr_pipe(
+  in_path,
+  out_path,
+  ndim = 1,
+  apod = NULL,
+  sp = rbind(off = 0.5, end = 1, pow = 1, c = 0.5),
+  zf = rbind(auto = ""),
+  ps = rbind(p0 = 0, p1 = 0, di = ""),
+  ext = NULL
+)
 }
 \description{
 Process an FID with NMRPipe

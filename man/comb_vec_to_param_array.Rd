@@ -4,8 +4,12 @@
 \alias{comb_vec_to_param_array}
 \title{Determine array of destination parameters from a source vector}
 \usage{
-comb_vec_to_param_array(comb_vec, comb_array, param_array = NULL,
-  na_only = FALSE)
+comb_vec_to_param_array(
+  comb_vec,
+  comb_array,
+  param_array = NULL,
+  na_only = FALSE
+)
 }
 \arguments{
 \item{comb_array}{array of 2xN data frames with mapping between vector and array}

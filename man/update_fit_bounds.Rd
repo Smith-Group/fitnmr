@@ -4,8 +4,12 @@
 \alias{update_fit_bounds}
 \title{Update bounds on fitting parameters}
 \usage{
-update_fit_bounds(fit_input, omega0_r2_factor = NULL, r2_bounds = NULL,
-  sc_bounds = NULL)
+update_fit_bounds(
+  fit_input,
+  omega0_r2_factor = NULL,
+  r2_bounds = NULL,
+  sc_bounds = NULL
+)
 }
 \description{
 Update bounds on fitting parameters

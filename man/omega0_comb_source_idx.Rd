@@ -4,8 +4,7 @@
 \alias{omega0_comb_source_idx}
 \title{Get the first index in the omega0 array corresponding to each TRUE value in omega0_idx}
 \usage{
-omega0_comb_source_idx(param_list,
-  omega0_idx = omega0_param_idx(param_list))
+omega0_comb_source_idx(param_list, omega0_idx = omega0_param_idx(param_list))
 }
 \description{
 Get the first index in the omega0 array corresponding to each TRUE value in omega0_idx

@@ -4,9 +4,14 @@
 \alias{noise_estimate}
 \title{Estimate the noise in a spectrum}
 \usage{
-noise_estimate(x, height = TRUE, thresh = 10,
-  plot_distributions = TRUE, peak_intensities = NULL,
-  absolute = FALSE)
+noise_estimate(
+  x,
+  height = TRUE,
+  thresh = 10,
+  plot_distributions = TRUE,
+  peak_intensities = NULL,
+  absolute = FALSE
+)
 }
 \description{
 Estimate the noise in a spectrum

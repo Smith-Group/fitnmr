@@ -4,8 +4,12 @@
 \alias{param_array_to_comb_vec}
 \title{Determine vector of source parameters from destination array via least squares}
 \usage{
-param_array_to_comb_vec(param_array, comb_array, group_vec = NULL,
-  resid_thresh = 1e-08)
+param_array_to_comb_vec(
+  param_array,
+  comb_array,
+  group_vec = NULL,
+  resid_thresh = 1e-08
+)
 }
 \arguments{
 \item{param_array}{array of destination parameters}

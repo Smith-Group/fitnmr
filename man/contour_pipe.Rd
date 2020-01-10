@@ -4,10 +4,20 @@
 \alias{contour_pipe}
 \title{Plot a two dimensional contour plot}
 \usage{
-contour_pipe(data_mat, nlevels = 10, zlim = range(data_mat, na.rm =
-  TRUE), low_frac = 0.05, lwd = 0.25, main = NA, col_pos = "black",
-  col_neg = grDevices::rgb(t(grDevices::col2rgb(col_pos))/255 * 0.25 +
-  0.75), add = FALSE, xlab = NULL, ylab = NULL, frame.plot = TRUE)
+contour_pipe(
+  data_mat,
+  nlevels = 10,
+  zlim = range(data_mat, na.rm = TRUE),
+  low_frac = 0.05,
+  lwd = 0.25,
+  main = NA,
+  col_pos = "black",
+  col_neg = grDevices::rgb(t(grDevices::col2rgb(col_pos))/255 * 0.25 + 0.75),
+  add = FALSE,
+  xlab = NULL,
+  ylab = NULL,
+  frame.plot = TRUE
+)
 }
 \description{
 Plot a two dimensional contour plot

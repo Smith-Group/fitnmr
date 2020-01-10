@@ -4,8 +4,14 @@
 \alias{sim_time_nd}
 \title{Simulate an FID using the NMRPipe SimTimeND function}
 \usage{
-sim_time_nd(peak_tab, fheader, rms = 0, iseed = stats::runif(1, max =
-  .Machine$integer.max), file_path = NULL, verbose = FALSE)
+sim_time_nd(
+  peak_tab,
+  fheader,
+  rms = 0,
+  iseed = stats::runif(1, max = .Machine$integer.max),
+  file_path = NULL,
+  verbose = FALSE
+)
 }
 \description{
 Simulate an FID using the NMRPipe SimTimeND function

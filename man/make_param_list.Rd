@@ -4,9 +4,16 @@
 \alias{make_param_list}
 \title{Make a parameter list for a set of spectra and chemical shifts}
 \usage{
-make_param_list(spec_list, cs_mat, fit_prev = NULL, r2_start = 5,
-  m0_start = 1, sc_start = NULL, same_r2 = FALSE,
-  same_coupling = FALSE)
+make_param_list(
+  spec_list,
+  cs_mat,
+  fit_prev = NULL,
+  r2_start = 5,
+  m0_start = 1,
+  sc_start = NULL,
+  same_r2 = FALSE,
+  same_coupling = FALSE
+)
 }
 \description{
 Make a parameter list for a set of spectra and chemical shifts
