@@ -4,7 +4,7 @@ Title: FitNMR multidimensional spectrum analysis
 Authors@R: c(person("Colin", "Smith", role=c("aut", "cre"),
                     email = "colin.smith@wesleyan.edu"))
 Description: Fit multidimensional peaks in NMR spectra.
-License: GPL
+License: GPL-3
 Imports: minpack.lm, abind
 Encoding: UTF-8
 RoxygenNote: 7.0.2
