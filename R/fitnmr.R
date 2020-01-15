@@ -1,5 +1,24 @@
-#' Read a NMRPipe spectrum
+#' Read NMRPipe spectrum
 #'
+#' This function reads 1D-4D spectra stored in the NMRPipe format.
+#'
+#' For three and four dimensional datasets, the spectral data is often spread across multiple files. To read those, inFormat should be a \code{\link[base]{sprintf}}-style string that describes how the files are named. For instance, if the files are named 001.ft3, 002.ft3, etc., then \code{inFormat} should be \code{"\%03i.ft3"}. If there is no zero-padding, as in this case, 0 should be omitted from the format. If there are fewer digits, then the first 3 should be changed accordingly.
+#'
+#' The default 2D NMRPipe scripts only have a single transpose ("TP") command, leaving the the indirect dimension as the first dimension in the resulting array. The 2D plotting functions in \code{fitnmr} usually plot this first dimension along the x-axis, which will make for generally non-standard contour plots. Furthermore, when peak fitting is employed, this will also be the first dimension. To fix this, you can change the spectral order with the \code{dim_order} parameter. The order of the dimensions should be specified in the same way that would be done for \code{\link[base]{aperm}}. Alternatively, you can specify a character argument to have \code{fitnmr} attempt to automatically detect and correct the array order. The only currently supported type is \code{"hx"}, which will put the dimension with the greatest observe frequency first.
+#'
+#' This function is partly based on the pipe2rnmr function from rNMR.
+#'
+#' @param inFormat character with file name or format for multiple files
+#' @param dim_order integer vector used to reorder dimensions or character specifying
+#' @param complex_data logical value indicating whether complex data should be read
+#' @return a named list with four elements:
+#'  \describe{
+#'   \item{int}{multidimensional array with spectrum intensities (ppm values are given in the dimnames)}
+#'   \item{ppm}{list of numeric vectors giving the ppm values associated with each int array dimension}
+#'   \item{fheader}{matrix with dimension-specific header information}
+#'   \item{header}{numeric vector with the complete header contents}
+#' }
+#' 
 #' @export
 read_nmrpipe <- function(inFormat, dim_order=NULL, complex_data=FALSE) {
 	
