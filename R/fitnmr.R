@@ -1050,7 +1050,30 @@ plot_fit_2d <- function(fit_output, spec_ord=seq_len(dim(fit_output$start_list$o
 	}
 }
 
+#' Plot Spectra Contours
+#'
 #' Plot a two dimensional contour plot
+#'
+#' The first dimension of \code{data_matrix} is drawn along the x-axis and the second dimension is drawn along the y-axis.
+#'
+#' If \code{low_frac} is specified, then there can actually be up to \code{nlevels} total positive contour levels and/or \code{nlevels} total negative contour levels, whichever has the larger magnitude in \code{zlim}. The other dimension will have the mirror image of those up to the relevant limit in \code{zlim}. Note that the levels do not actually go up to \code{zlim}. There are \code{nlevels+1} log spaced levels calculated from the contour determined by \code{low_frac} up to the maximum absolute \code{zlim}, but the final level is not drawn because it is at the maximum absolute \code{zlim}.
+#'
+#' If \code{low_frac} is set to \code{NA}, then the contour levels are calculated in the same way as \code{\link[graphics]{contour}}, with there being approximately \code{nlevels} linearly spaced levels in a range close to \code{zlim}.
+#'
+#' Note that this function does not directly take the data returned by \code{\link{read_nmrpipe}}. You must pass the \code{int} matrix from the value returned by that function.
+#'
+#' @param data_mat matrix with spectral intensities.
+#' @param nlevels number of contour levels.
+#' @param zlim minimum and maximum values at which to show contours.
+#' @param low_frac minimum absolute value (as a fraction of \code{zlim}) at which to show contours.
+#' @param lwd width of contour lines.
+#' @param main title of the plot.
+#' @param col_pos color of positive contours.
+#' @param col_neg color of negative contours, defaults to lighter version of \code{col_pos}.
+#' @param add logical indicating whether to add to an existing plot (i.e. not start a new one).
+#' @param xlab label for x-axis, defaults to \code{names(dimnames(datamat))[1]}.
+#' @param ylab label for y-axis, defaults to \code{names(dimnames(datamat))[2]}.
+#' @param frame.plot a logical indicating whether a box should be drawn around the plot.
 #'
 #' @export
 contour_pipe <- function(data_mat, nlevels=10, zlim=range(data_mat, na.rm=TRUE), low_frac=0.05, lwd=0.25, main=NA, col_pos="black", col_neg=grDevices::rgb(t(grDevices::col2rgb(col_pos))/255*0.25+0.75), add=FALSE, xlab=NULL, ylab=NULL, frame.plot=TRUE) {

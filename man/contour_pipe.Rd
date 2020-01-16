@@ -2,7 +2,7 @@
 % Please edit documentation in R/fitnmr.R
 \name{contour_pipe}
 \alias{contour_pipe}
-\title{Plot a two dimensional contour plot}
+\title{Plot Spectra Contours}
 \usage{
 contour_pipe(
   data_mat,
@@ -19,6 +19,40 @@ contour_pipe(
   frame.plot = TRUE
 )
 }
+\arguments{
+\item{data_mat}{matrix with spectral intensities.}
+
+\item{nlevels}{number of contour levels.}
+
+\item{zlim}{minimum and maximum values at which to show contours.}
+
+\item{low_frac}{minimum absolute value (as a fraction of \code{zlim}) at which to show contours.}
+
+\item{lwd}{width of contour lines.}
+
+\item{main}{title of the plot.}
+
+\item{col_pos}{color of positive contours.}
+
+\item{col_neg}{color of negative contours, defaults to lighter version of \code{col_pos}.}
+
+\item{add}{logical indicating whether to add to an existing plot (i.e. not start a new one).}
+
+\item{xlab}{label for x-axis, defaults to \code{names(dimnames(datamat))[1]}.}
+
+\item{ylab}{label for y-axis, defaults to \code{names(dimnames(datamat))[2]}.}
+
+\item{frame.plot}{a logical indicating whether a box should be drawn around the plot.}
+}
 \description{
 Plot a two dimensional contour plot
+}
+\details{
+The first dimension of \code{data_matrix} is drawn along the x-axis and the second dimension is drawn along the y-axis.
+
+If \code{low_frac} is specified, then there can actually be up to \code{nlevels} total positive contour levels and/or \code{nlevels} total negative contour levels, whichever has the larger magnitude in \code{zlim}. The other dimension will have the mirror image of those up to the relevant limit in \code{zlim}. Note that the levels do not actually go up to \code{zlim}. There are \code{nlevels+1} log spaced levels calculated from the contour determined by \code{low_frac} up to the maximum absolute \code{zlim}, but the final level is not drawn because it is at the maximum absolute \code{zlim}.
+
+If \code{low_frac} is set to \code{NA}, then the contour levels are calculated in the same way as \code{\link[graphics]{contour}}, with there being approximately \code{nlevels} levels in a range close to \code{zlim}.
+
+Note that this function does not directly take the data returned by \code{\link{read_nmrpipe}}. You must pass the \code{int} matrix from the value returned by that function.
 }
