@@ -2348,10 +2348,29 @@ nmr_pipe <- function(in_path, out_path, ndim=1, apod=NULL, sp=rbind(off=0.5, end
 	system(paste(commands, collapse=" | "))
 }
 
-#' Estimate the noise in a spectrum
+#' Estimate Noise
+#'
+#' Estimate properties of noise by fitting a Gaussian to a histogram of intensities
+#'
+#' This function estimates noise using iterative calculation of the mean and standard deviation, followed by fitting a Gaussian function to a histogram of the values within a range determined at the end of the iterations.
+#'
+#' The iterative algorithm first calculates the mean and standard deviation of the values in \code{x}. In the next iteration, only points within \code{thresh} times the standard deviation of the mean value are used for calculating a new mean and standard deviation. This is repeated 20 times. The fitting is done using the range calculated from the final mean and standard deviation, using a histogram of 512 bins over that range.
+#'
+#' @param x numeric values for which to estimate noise.
+#' @param height logical indicating whether to use Gaussian function that is not fixed at having an area of one because of an additional height scaling factor.
+#' @param thresh numeric value specifying the factor by which to multiply the standard deviation to determine the threshold away from the mean value within which to include values for the next iteration and final histogram for fitting.
+#' @param plot_distributions logical indicating whether to plot the distribution and Gaussian fit used to estimate the noise.
+#' @param peak_intensities numeric values of peak intensities to determine the signal to noise.
+#' @value a named numeric vector with values:
+#'  \describe{
+#'   \item{mean}{mean value from the Gaussian fit)}
+#'   \item{mu}{standard deviation from the Gaussian fit}
+#'   \item{h}{height of Gaussian fit (optional depending on value of \code{height} parameter)}
+#'   \item{max}{maximum value of \{x}}
+#'  }
 #'
 #' @export
-noise_estimate <- function(x, height=TRUE, thresh=10, plot_distributions=TRUE, peak_intensities=NULL, absolute=FALSE) {
+noise_estimate <- function(x, height=TRUE, thresh=10, plot_distributions=TRUE, peak_intensities=NULL) {
 
 	x <- x[!is.na(x)]
 

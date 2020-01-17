@@ -2,17 +2,32 @@
 % Please edit documentation in R/fitnmr.R
 \name{noise_estimate}
 \alias{noise_estimate}
-\title{Estimate the noise in a spectrum}
+\title{Estimate Noise}
 \usage{
 noise_estimate(
   x,
   height = TRUE,
   thresh = 10,
   plot_distributions = TRUE,
-  peak_intensities = NULL,
-  absolute = FALSE
+  peak_intensities = NULL
 )
 }
+\arguments{
+\item{x}{numeric values for which to estimate noise.}
+
+\item{height}{logical indicating whether to use Gaussian function that is not fixed at having an area of one because of an additional height scaling factor.}
+
+\item{thresh}{numeric value specifying the factor by which to multiply the standard deviation to determine the threshold away from the mean value within which to include values for the next iteration and final histogram for fitting.}
+
+\item{plot_distributions}{logical indicating whether to plot the distribution and Gaussian fit used to estimate the noise.}
+
+\item{peak_intensities}{numeric values of peak intensities to determine the signal to noise.}
+}
 \description{
-Estimate the noise in a spectrum
+Estimate properties noise by fitting a Gaussian to a histogram of intensities
+}
+\details{
+This function estimates noise using iterative calculation of the mean and standard deviation, followed by fitting a Gaussian function to a histogram of the values within a range determined at the end of the iterations.
+
+The iterative algorithm first calculates the mean and standard deviation of the values in \code{x}. In the next iteration, only points within \code{thresh} times the standard deviation of the mean value are used for calculating a new mean and standard deviation. This is repeated 20 times. The fitting is done using the range calculated from the final mean and standard deviation, using a histogram of 512 bins over that range.
 }

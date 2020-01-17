@@ -52,7 +52,7 @@ The first dimension of \code{data_matrix} is drawn along the x-axis and the seco
 
 If \code{low_frac} is specified, then there can actually be up to \code{nlevels} total positive contour levels and/or \code{nlevels} total negative contour levels, whichever has the larger magnitude in \code{zlim}. The other dimension will have the mirror image of those up to the relevant limit in \code{zlim}. Note that the levels do not actually go up to \code{zlim}. There are \code{nlevels+1} log spaced levels calculated from the contour determined by \code{low_frac} up to the maximum absolute \code{zlim}, but the final level is not drawn because it is at the maximum absolute \code{zlim}.
 
-If \code{low_frac} is set to \code{NA}, then the contour levels are calculated in the same way as \code{\link[graphics]{contour}}, with there being approximately \code{nlevels} levels in a range close to \code{zlim}.
+If \code{low_frac} is set to \code{NA}, then the contour levels are calculated in the same way as \code{\link[graphics]{contour}}, with there being approximately \code{nlevels} linearly spaced levels in a range close to \code{zlim}.
 
 Note that this function does not directly take the data returned by \code{\link{read_nmrpipe}}. You must pass the \code{int} matrix from the value returned by that function.
 }
