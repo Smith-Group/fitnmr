@@ -1971,7 +1971,30 @@ fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001
 	fit_output
 }
 
+#' Iterative Peak Fitting
+#'
 #' Iteratively fit peaks for whole spectra
+#'
+#' This function uses an iterative algorithm to fit all the peaks in a given list of spectra, assuming identical peak positions and shapes across the spectra. Each iteration starts by identifying the maximum value across all spectra, using that position to fit a cluster of overlapping peaks with the \code{\link{fit_peak_cluster}} function. After the cluster of peaks is fit, the modeled intensity is subtracted from all spectra and another iteration is performed. Iterations are terminated if \code{max_iter} is reached or the residual intensity in all spectra falls below \code{noise_sigma*noise_cutoff}.
+#'
+#' This function currently only supports fitting of 2D spectra, but will be generalized to work with spectra of any dimensionality in the near future. To reduce the number of false positives/negatives, the most important parameters to adjust are \code{noise_cutoff}, \code{f_alpha}, and \code{iter_max}. If \code{iter_max} is reached before all peaks have been identified, then you can call this function again, setting the \code{fit_list} parameter to the return value of the previous invocation. In that case, \code{iter_max} new iterations will be performed and appended to \code{fit_list}.
+#'
+#' For visualizing the iterative algorithm as it progresses, you can enable either the \code{plot_fit} or \code{plot_fit_stages} parameters.
+#'
+#' @param spectra list of spectrum objects read by \code{\link{read_nmrpipe}}.
+#' @param noise_sigma numeric vector of noise levels associated with each spectrum. If \code{NULL}, it is calculated with \code{\link{noise_estimate}}.
+#' @param noise_cutoff numeric value multiplied by \code{noise_sigma} to determine cutoffs for each spectrum. Peak fitting will terminate if the maximum residuals for all spectra fall below these cutoffs.
+#' @param f_alpha numeric value giving a F-test p-value threshold above which a peak will not be accepted.
+#' @param iter_max integer maximum number of iterations to apply.
+#' @param omega0_plus numeric vector giving the window size (ppm plus or minus the starting \code{omega0} values) around which to use points from the spectra for fitting.
+#' @param r2_start numeric vector giving the starting \code{r2} value(s) for the fit (in Hz).
+#' @param r2_bounds numeric vector of length two giving the lower and upper bounds for  \code{r2}.
+#' @param sc_start numeric vector giving the starting scalar coupling values for doublets. It should be the same length as the number of dimensions in the spectrum. Set the value to \code{NA} for a given dimension to make it a singlet.
+#' @param sc_bounds numeric vector of length two giving the lower and upper bounds for  scalar couplings.
+#' @param fit_list list of previous fits to which the new fits should be appended.
+#' @param plot_fit logical indicating whether produce a fit cluster plot for each iteration.
+#' @param plot_fit_stages logical indicating whether to plot each stage of fitting within the iterations.
+#' @return List of fit objects returned by \code{\link{fit_peak_cluster}}, one for each iteration. They are appended to \code{fit_list} if supplied.
 #'
 #' @export
 fit_peak_iter <- function(spectra, noise_sigma=NULL, noise_cutoff=15, f_alpha=1e-3, iter_max=100, omega0_plus=c(0.075, 0.75), r2_start=5, r2_bounds=c(0.5, 20), sc_start=c(6, NA), sc_bounds=c(2, 12), fit_list=list(), plot_fit=FALSE, plot_fit_stages=FALSE) {
@@ -2354,19 +2377,19 @@ nmr_pipe <- function(in_path, out_path, ndim=1, apod=NULL, sp=rbind(off=0.5, end
 #'
 #' This function estimates noise using iterative calculation of the mean and standard deviation, followed by fitting a Gaussian function to a histogram of the values within a range determined at the end of the iterations.
 #'
-#' The iterative algorithm first calculates the mean and standard deviation of the values in \code{x}. In the next iteration, only points within \code{thresh} times the standard deviation of the mean value are used for calculating a new mean and standard deviation. This is repeated 20 times. The fitting is done using the range calculated from the final mean and standard deviation, using a histogram of 512 bins over that range.
+#' The iterative algorithm first calculates the mean and standard deviation of the values in \code{x}. In the next iteration, only points within \code{thresh} times the standard deviation of the mean value are used for calculating a new mean and standard deviation. This is repeated 20 times. A histogram with 512 bins is then computed within a range determined from the final mean and standard deviation. The returned parameters are based on a Gaussian fit to this histogram.
 #'
 #' @param x numeric values for which to estimate noise.
-#' @param height logical indicating whether to use Gaussian function that is not fixed at having an area of one because of an additional height scaling factor.
+#' @param height logical indicating whether to use Gaussian function whose area is not fixed at one because of an additional height scaling factor.
 #' @param thresh numeric value specifying the factor by which to multiply the standard deviation to determine the threshold away from the mean value within which to include values for the next iteration and final histogram for fitting.
 #' @param plot_distributions logical indicating whether to plot the distribution and Gaussian fit used to estimate the noise.
 #' @param peak_intensities numeric values of peak intensities to determine the signal to noise.
-#' @value a named numeric vector with values:
+#' @return a named numeric vector with values:
 #'  \describe{
-#'   \item{mean}{mean value from the Gaussian fit)}
+#'   \item{mean}{mean value from the Gaussian fit}
 #'   \item{mu}{standard deviation from the Gaussian fit}
 #'   \item{h}{height of Gaussian fit (optional depending on value of \code{height} parameter)}
-#'   \item{max}{maximum value of \{x}}
+#'   \item{max}{maximum value of \code{x}}
 #'  }
 #'
 #' @export

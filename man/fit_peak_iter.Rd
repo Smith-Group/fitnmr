@@ -2,7 +2,7 @@
 % Please edit documentation in R/fitnmr.R
 \name{fit_peak_iter}
 \alias{fit_peak_iter}
-\title{Iteratively fit peaks for whole spectra}
+\title{Iterative Peak Fitting}
 \usage{
 fit_peak_iter(
   spectra,
@@ -20,6 +20,43 @@ fit_peak_iter(
   plot_fit_stages = FALSE
 )
 }
+\arguments{
+\item{spectra}{list of spectrum objects read by \code{\link{read_nmrpipe}}.}
+
+\item{noise_sigma}{numeric vector of noise levels associated with each spectrum. If \code{NULL}, it is calculated with \code{\link{noise_estimate}}.}
+
+\item{noise_cutoff}{numeric value multiplied by \code{noise_sigma} to determine cutoffs for each spectrum. Peak fitting will terminate if the maximum residuals for all spectra fall below these cutoffs.}
+
+\item{f_alpha}{numeric value giving a F-test p-value threshold above which a peak will not be accepted.}
+
+\item{iter_max}{integer maximum number of iterations to apply.}
+
+\item{omega0_plus}{numeric vector giving the window size (ppm plus or minus the starting \code{omega0} values) around which to use points from the spectra for fitting.}
+
+\item{r2_start}{numeric vector giving the starting \code{r2} value(s) for the fit (in Hz).}
+
+\item{r2_bounds}{numeric vector of length two giving the lower and upper bounds for  \code{r2}.}
+
+\item{sc_start}{numeric vector giving the starting scalar coupling values for doublets. It should be the same length as the number of dimensions in the spectrum. Set the value to \code{NA} for a given dimension to make it a singlet.}
+
+\item{sc_bounds}{numeric vector of length two giving the lower and upper bounds for  scalar couplings.}
+
+\item{fit_list}{list of previous fits to which the new fits should be appended.}
+
+\item{plot_fit}{logical indicating whether produce a fit cluster plot for each iteration.}
+
+\item{plot_fit_stages}{logical indicating whether to plot each stage of fitting within the iterations.}
+}
+\value{
+List of fit objects returned by \code{\link{fit_peak_cluster}}, one for each iteration. They are appended to \code{fit_list} if supplied.
+}
 \description{
 Iteratively fit peaks for whole spectra
+}
+\details{
+This function uses an iterative algorithm to fit all the peaks in a given list of spectra, assuming identical peak positions and shapes across the spectra. Each iteration starts by identifying the maximum value across all spectra, using that position to fit a cluster of overlapping peaks with the \code{\link{fit_peak_cluster}} function. After the cluster of peaks is fit, the modeled intensity is subtracted from all spectra and another iteration is performed. Iterations are terminated if \code{max_iter} is reached or the residual intensity in all spectra falls below \code{noise_sigma*noise_cutoff}.
+
+This function currently only supports fitting of 2D spectra, but will be generalized to work with spectra of any dimensionality in the near future. To reduce the number of false positives/negatives, the most important parameters to adjust are \code{noise_cutoff}, \code{f_alpha}, and \code{iter_max}. If \code{iter_max} is reached before all peaks have been identified, then you can call this function again, setting the \code{fit_list} parameter to the return value of the previous invocation. In that case, \code{iter_max} new iterations will be performed and appended to \code{fit_list}.
+
+For visualizing the iterative algorithm as it progresses, you can enable either the \code{plot_fit} or \code{plot_fit_stages} parameters.
 }
