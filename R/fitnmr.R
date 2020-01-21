@@ -2247,7 +2247,22 @@ peak_df_to_fit_input <- function(peak_df, spectra, ...) {
 	do.call(fitnmr::make_fit_input, c(list(spectra, ...), arg_list))
 }
 
-#' Plot a fits for series of spectra with parameters from a peak data frame
+#' Plot Peaks from a Peak Table
+#'
+#' Plot fits for series of spectra with parameters from a peak data frame
+#'
+#' The raw spectral data is shown in black contours and the modeled peak intensity is shown in red. The centers of peaks are shown with semi-transparent blue dots, with the area of the dot proportional to the volume of the peak (\code{m0}). Blue lines connect peaks from modeled doublets. Singlets or doublets are labeled with the syntax <peak>:<fit>. If an F-test p-value column is present (\code{f_pvalue}), that will be given below the peak label.
+#'
+#' @param peak_df data frame with peak data as produced by \code{\link{param_list_to_peak_df}}.
+#' @param spectra list of spectra corresponding to the volumes found in \code{peak_df}.
+#' @param noise_sigma numeric vector of noise levels associated with each spectrum. If \code{NULL}, it is calculated with \code{\link{noise_estimate}}.
+#' @param noise_cutoff numeric value used to calculate the lowest contour level according to \code{noise_sigma*noise_cutoff}.
+#' @param cex numeric value by which to scale blue points and labels.
+#' @param lwd numeric value giving width of contour lines.
+#' @param label logical indicating whether to draw text labels and connecting lines.
+#' @param p0 zero order phase for plotting modeled peaks.
+#' @param p1 first order phase for plotting modeled peaks.
+#' @param add logical indicating whether to suppress generation of a new plot and add to an existing plot.
 #'
 #' @export
 plot_peak_df <- function(peak_df, spectra, noise_sigma=NULL, noise_cutoff=4, cex=0.2, lwd=0.25, label=TRUE, p0=NULL, p1=NULL, add=FALSE) {

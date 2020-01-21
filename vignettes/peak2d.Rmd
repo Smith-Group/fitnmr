@@ -186,7 +186,7 @@ edited_peak_df[c(5,7),"fit"] <- max(edited_peak_df[,"fit"])+1
 
 ### Deleting Peaks
 
-Furthermore, you may find that the algorithm has been overzealous and detected peaks that are do not appear to be real after visual inspection, for instance peaks 4, 14, and 16. To remove them, simply remove their rows from the peak table. In this case we use the the feature of R that removes elements using a negative subscript:
+Furthermore, you may find that the algorithm has been overzealous and detected peaks that do not appear to be real after visual inspection, for instance peaks 4, 14, and 16. To remove them, simply remove their rows from the peak table. In this case we use the the feature of R that removes elements using a negative subscript:
 
 ```{r delete}
 edited_peak_df <- edited_peak_df[-c(4,14,16),]
