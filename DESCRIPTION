@@ -1,5 +1,5 @@
 Package: fitnmr
-Version: 0.1
+Version: 0.2
 Title: FitNMR multidimensional spectrum analysis
 Authors@R: c(person("Colin", "Smith", role=c("aut", "cre"),
                     email = "colin.smith@wesleyan.edu"))
