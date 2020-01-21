@@ -1,3 +1,44 @@
+#' fitnmr Package Overview
+#'
+#' The fitnmr package provides several categories of important functions:
+#' 
+#' @section Spectrum reading, plotting, and analysis:
+#' Spectra in the NMRPipe file format can be read with the \code{\link{read_nmrpipe}}. Those spectra can be plotted with \code{\link{contour_pipe}}. The noise level within a spectrum (or any numeric vector) can be calculated with \code{\link{noise_estimate}}.
+#' 
+#' @section Low-level fitting and plotting:
+#' The core fitting procedure consists of a two-step process: First, the fit input is created with \code{\link{make_fit_input}}. Second, the fit is executed with \code{\link{perform_fit}}. Prior to running the fit, constraint can be added to the fit with either \code{\link{update_fit_bounds}} or \code{\link{limit_omega0_by_r2}}.
+#'
+#' Before or after the fits have been performed, you can extract the raw, starting, or fit spectral intensities with \code{\link{get_spec_int}}. Furthermore, there are convenience plotting functions for plotting 1D (\code{\link{plot_fit_1d}}) or 2D (\code{\link{plot_fit_2d}}) fits.
+#'
+#' The \code{\link{make_fit_input}} function takes many different parameters. To make new fit from an existing fit, possibly with a different set of spectra or otherwise modified fitting structure, \code{\link{param_list_to_arg_list}} can be helpful in generating a list of parameters for \code{\link{make_fit_input}}.
+#'
+#' @section Modifying parameter lists for fits:
+#' \code{\link{omega0_param_idx}}, \code{\link{coupling_param_idx}}, \code{\link{param_values}}
+#'
+#' @section High-level fitting and plotting:
+#' \code{\link{fit_peak_iter}}
+#'
+#' \code{\link{param_list_to_peak_df}}, \code{\link{plot_peak_df}}, \code{\link{peak_df_to_param_list}}, \code{\link{peak_df_to_fit_input}}
+#'
+#' \code{\link{fit_peak_cluster}}, \code{\link{fit_footprint}}
+#'
+#' \code{\link{fit_peaks}}, \code{\link{make_param_list}}
+#'
+#' \code{\link{spec_overlap_mat}}
+#'
+#' @section NMRPipe simulation and processing:
+#' \code{\link{ppm_to_pts}}, \code{\link{whz_to_pts}}, \code{\link{write_nmrdraw_peak_tab}}, \code{\link{sim_time_nd}}, \code{\link{nmr_pipe}}
+#'
+#' @section High-level analysis:
+#' \code{\link{read_nmrdraw_peak_tab}}, \code{\link{height_assign}}
+#'
+#' @section Deprecated:
+#' \code{\link{extract_params}}, \code{\link{get_spec_peak_int}}
+#'
+#' @docType package
+#' @name fitnmr
+NULL
+
 #' Read NMRPipe spectrum
 #'
 #' This function reads 1D-4D spectra stored in the NMRPipe format.
