@@ -1,19 +1,19 @@
 #' fitnmr Package Overview
 #'
-#' The fitnmr package provides several categories of important functions:
+#' The functionality provided by the fitnmr package can be divided into several categories:
 #' 
 #' @section Spectrum reading, plotting, and analysis:
-#' Spectra in the NMRPipe file format can be read with the \code{\link{read_nmrpipe}}. Those spectra can be plotted with \code{\link{contour_pipe}}. The noise level within a spectrum (or any numeric vector) can be calculated with \code{\link{noise_estimate}}.
+#' Spectra in the NMRPipe file format can be read with \code{\link{read_nmrpipe}}. Those spectra can be plotted with \code{\link{contour_pipe}}. The noise level within a spectrum (or any numeric vector) can be calculated with \code{\link{noise_estimate}}.
 #' 
 #' @section Low-level fitting and plotting:
-#' The core fitting procedure consists of a two-step process: First, the fit input is created with \code{\link{make_fit_input}}. Second, the fit is executed with \code{\link{perform_fit}}. Prior to running the fit, constraint can be added to the fit with either \code{\link{update_fit_bounds}} or \code{\link{limit_omega0_by_r2}}.
+#' The core fitting procedure consists of a two-step process: First, the fit input is created with \code{\link{make_fit_input}}. Second, the fit is executed with \code{\link{perform_fit}}. Prior to running the fit, constraints can be added to the fit with either \code{\link{update_fit_bounds}} or \code{\link{limit_omega0_by_r2}}.
 #'
-#' Before or after the fits have been performed, you can extract the raw, starting, or fit spectral intensities with \code{\link{get_spec_int}}. Furthermore, there are convenience plotting functions for plotting 1D (\code{\link{plot_fit_1d}}) or 2D (\code{\link{plot_fit_2d}}) fits.
+#' Before or after a fit has been performed, you can extract the raw, starting, or fit spectral intensities with \code{\link{get_spec_int}}. Furthermore, there are convenience plotting functions for plotting 1D (\code{\link{plot_fit_1d}}) or 2D (\code{\link{plot_fit_2d}}) fits.
 #'
-#' The \code{\link{make_fit_input}} function takes many different parameters. To make new fit from an existing fit, possibly with a different set of spectra or otherwise modified fitting structure, \code{\link{param_list_to_arg_list}} can be helpful in generating a list of parameters for \code{\link{make_fit_input}}.
+#' The \code{\link{make_fit_input}} function takes many different parameters. To make new fit from an existing fit, possibly with a different set of spectra or otherwise modified fitting parameters, \code{\link{param_list_to_arg_list}} can be helpful in generating a list of parameters for \code{\link{make_fit_input}}.
 #'
 #' @section Modifying parameter lists for fits:
-#' \code{\link{omega0_param_idx}}, \code{\link{coupling_param_idx}}, \code{\link{param_values}}
+#' In fitnmr, a "parameter list" is a named list data structure that has all the information necessary to describe a set of peaks and interdependencies between the parameters for those peaks. It containins three elements: \code{start_list} (or also \code{fit_list} after a fit has been performed), \code{group_list}, and \code{comb_list}. Fitting constraints can also be stored in \code{lower_list} and \code{upper_list}. Each of those is itself a named list of arrays corresponding to different parameters, namely \code{omega0}, \code{r2}, \code{m0}, \code{p0}, \code{p1}, and \code{omega0_comb}. To help manage the values stored in those lists (particularly \code{omega0} and \code{omega0_comb}), there are several convenience functions to select particular subsets, including \code{\link{omega0_param_idx}} and \code{\link{coupling_param_idx}}. Once a subset is made, the parameters can be read or changed using \code{\link{param_values}}.
 #'
 #' @section High-level fitting and plotting:
 #' \code{\link{fit_peak_iter}}
