@@ -1,0 +1,61 @@
+destination: ../smith-group.github.io/fitnmr
+url: https://smith-group.github.io/fitnmr/
+authors:
+  Colin Smith:
+    href: http://smithlab.wesleyan.edu
+reference:
+- title: Package overview
+  contents:
+  - fitnmr
+- title: Spectrum reading, plotting, and analysis
+  contents:
+  - read_nmrpipe
+  - contour_pipe
+  - noise_estimate
+- title: Low-level fitting and plotting
+  contents:
+  - make_fit_input
+  - perform_fit
+  - update_fit_bounds
+  - limit_omega0_by_r2
+  - get_spec_int
+  - plot_fit_1d
+  - plot_fit_2d
+  - param_list_to_arg_list
+- title: Modifying parameter lists for fits
+  contents:
+  - omega0_param_idx
+  - coupling_param_idx
+  - param_values
+- title: High-level fitting and plotting
+  contents:
+  - fit_peak_iter
+  - param_list_to_peak_df
+  - plot_peak_df
+  - peak_df_to_param_list
+  - peak_df_to_fit_input
+  - fit_peak_cluster
+  - fit_footprint
+  - fit_peaks
+  - make_param_list
+  - spec_overlap_mat
+- title: NMRPipe simulation and processing
+  contents:
+  - ppm_to_pts
+  - whz_to_pts
+  - write_nmrdraw_peak_tab
+  - sim_time_nd
+  - nmr_pipe
+- title: Postprocessing and assignment
+  contents:
+  - height_assign
+  - read_nmrdraw_peak_tab
+- title: Deprecated
+  contents:
+  - extract_params
+  - get_spec_peak_int
+- title: Internal
+  contents:
+  - comb_vec_to_param_array
+  - param_array_to_comb_vec
+  - omega0_comb_source_idx

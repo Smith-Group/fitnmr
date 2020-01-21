@@ -15,10 +15,10 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
   cache = TRUE,
-  fig.retina = 2,
-  optipng = "-o7 -strip all"
+  fig.retina = 2
 )
-knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+#knitr::opts_chunk$set(optipng = "-o7 -strip all")
+#knitr::knit_hooks$set(optipng = knitr::hook_optipng)
 options(digits=5, width=90)
 ```
 

@@ -29,8 +29,8 @@
 #' @section NMRPipe simulation and processing:
 #' \code{\link{ppm_to_pts}}, \code{\link{whz_to_pts}}, \code{\link{write_nmrdraw_peak_tab}}, \code{\link{sim_time_nd}}, \code{\link{nmr_pipe}}
 #'
-#' @section High-level analysis:
-#' \code{\link{read_nmrdraw_peak_tab}}, \code{\link{height_assign}}
+#' @section Postprocessing and assignment:
+#' \code{\link{height_assign}}, \code{\link{read_nmrdraw_peak_tab}}
 #'
 #' @section Deprecated:
 #' \code{\link{extract_params}}, \code{\link{get_spec_peak_int}}

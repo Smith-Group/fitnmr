@@ -44,9 +44,9 @@ In fitnmr, a "parameter list" is a named list data structure that has all the in
 \code{\link{ppm_to_pts}}, \code{\link{whz_to_pts}}, \code{\link{write_nmrdraw_peak_tab}}, \code{\link{sim_time_nd}}, \code{\link{nmr_pipe}}
 }
 
-\section{High-level analysis}{
+\section{Postprocessing and assignment}{
 
-\code{\link{read_nmrdraw_peak_tab}}, \code{\link{height_assign}}
+\code{\link{height_assign}}, \code{\link{read_nmrdraw_peak_tab}}
 }
 
 \section{Deprecated}{

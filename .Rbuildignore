@@ -3,3 +3,6 @@
 ^Meta$
 ^vignettes/.+_cache$
 ^vignettes/.+_files$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$

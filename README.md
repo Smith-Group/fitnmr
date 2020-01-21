@@ -12,9 +12,11 @@ Installing `fitnmr` in this way will not include the vignettes. To read those, y
 
 ## Usage
 
-An example of how to use FitNMR for 2D peak fitting can be found in the [Automated 2D Peak Fitting](https://smith-group.github.io/fitnmr/peak2d.html) vignette. If you are not comfortable with using R at the command line, we plan to very soon add a set of prewritten scripts that handle 2D peak identification and refitting across multiple spectra. All you will need to do is adjust a few settings in each script to do automatic fitting of 2D spectra.
+An example of how to use FitNMR for 2D peak fitting can be found in the [Automated 2D Peak Fitting](https://smith-group.github.io/fitnmr/articles/peak2d.html) vignette. If you are not comfortable with using R at the command line, we plan to very soon add a set of prewritten scripts that handle 2D peak identification and refitting across multiple spectra. All you will need to do is adjust a few settings in each script to do automatic fitting of 2D spectra.
 
-To get documentation for individual functions, you can use the following commands:
+For a roadmap describing the different categories of functions available, see the [FitNMR Package Overview](https://smith-group.github.io/fitnmr/reference/fitnmr.html).
+
+To get documentation for individual functions from within R, use the following commands:
 
 ```
 library(fitnmr)
