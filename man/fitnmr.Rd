@@ -18,7 +18,7 @@ The core fitting procedure consists of a two-step process: First, the fit input 
 
 Before or after a fit has been performed, you can extract the raw, starting, or fit spectral intensities with \code{\link{get_spec_int}}. Furthermore, there are convenience plotting functions for plotting 1D (\code{\link{plot_fit_1d}}) or 2D (\code{\link{plot_fit_2d}}) fits.
 
-The \code{\link{make_fit_input}} function takes many different parameters. To make new fit from an existing fit, possibly with a different set of spectra or otherwise modified fitting parameters, \code{\link{param_list_to_arg_list}} can be helpful in generating a list of parameters for \code{\link{make_fit_input}}.
+The \code{\link{make_fit_input}} function takes many different parameters. To make a new fit from an existing fit, possibly with a different set of spectra or otherwise modified fitting parameters, \code{\link{param_list_to_arg_list}} can be helpful in generating a list of parameters for \code{\link{make_fit_input}}.
 }
 
 \section{Modifying parameter lists for fits}{

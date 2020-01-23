@@ -10,7 +10,7 @@
 #'
 #' Before or after a fit has been performed, you can extract the raw, starting, or fit spectral intensities with \code{\link{get_spec_int}}. Furthermore, there are convenience plotting functions for plotting 1D (\code{\link{plot_fit_1d}}) or 2D (\code{\link{plot_fit_2d}}) fits.
 #'
-#' The \code{\link{make_fit_input}} function takes many different parameters. To make new fit from an existing fit, possibly with a different set of spectra or otherwise modified fitting parameters, \code{\link{param_list_to_arg_list}} can be helpful in generating a list of parameters for \code{\link{make_fit_input}}.
+#' The \code{\link{make_fit_input}} function takes many different parameters. To make a new fit from an existing fit, possibly with a different set of spectra or otherwise modified fitting parameters, \code{\link{param_list_to_arg_list}} can be helpful in generating a list of parameters for \code{\link{make_fit_input}}.
 #'
 #' @section Modifying parameter lists for fits:
 #' In fitnmr, a "parameter list" is a named list data structure that has all the information necessary to describe a set of peaks and interdependencies between the parameters for those peaks. It containins three elements: \code{start_list} (or also \code{fit_list} after a fit has been performed), \code{group_list}, and \code{comb_list}. Fitting constraints can also be stored in \code{lower_list} and \code{upper_list}. Each of those is itself a named list of arrays corresponding to different parameters, namely \code{omega0}, \code{r2}, \code{m0}, \code{p0}, \code{p1}, and \code{omega0_comb}. To help manage the values stored in those lists (particularly \code{omega0} and \code{omega0_comb}), there are several convenience functions to select particular subsets, including \code{\link{omega0_param_idx}} and \code{\link{coupling_param_idx}}. Once a subset is made, the parameters can be read or changed using \code{\link{param_values}}.
@@ -309,6 +309,7 @@ pack_fit_params <- function(start_list, group_list) {
 	stopifnot(all(tapply(start_list[["p0"]][group_list[["p0"]] != 0], group_list[["p0"]][group_list[["p0"]] != 0], function(x) all(x==x[1]))))
 	stopifnot(all(tapply(start_list[["p1"]][group_list[["p1"]] != 0], group_list[["p1"]][group_list[["p1"]] != 0], function(x) all(x==x[1]))))
 	stopifnot(all(tapply(start_list[["omega0_comb"]][group_list[["omega0_comb"]] != 0], group_list[["omega0_comb"]][group_list[["omega0_comb"]] != 0], function(x) all(x==x[1]))))
+	stopifnot(all(tapply(start_list[["field"]][group_list[["field"]] != 0], group_list[["field"]][group_list[["field"]] != 0], function(x) all(x==x[1]))))
 
 	omega0_group_unique <- setdiff(unique(as.vector(group_list[["omega0"]])), 0)
 	omega0_vec <- start_list[["omega0"]][match(omega0_group_unique, group_list[["omega0"]])]
@@ -346,7 +347,13 @@ pack_fit_params <- function(start_list, group_list) {
 		names(omega0_comb_vec) <- paste("omega0_comb", omega0_comb_group_unique, sep="_")
 	}
 	
-	c(omega0_vec, r2_vec, m0_vec, p0_vec, p1_vec, omega0_comb_vec)
+	field_group_unique <- setdiff(unique(as.vector(group_list[["field"]])), 0)
+	field_vec <- start_list[["field"]][match(field_group_unique, group_list[["field"]])]
+	if (length(field_group_unique)) {
+		names(field_vec) <- paste("field", field_group_unique, sep="_")
+	}
+	
+	c(omega0_vec, r2_vec, m0_vec, p0_vec, p1_vec, omega0_comb_vec, field_vec)
 }
 
 unpack_fit_params <- function(start_vec, group_list, comb_list, default_list=group_list) {
@@ -359,6 +366,7 @@ unpack_fit_params <- function(start_vec, group_list, comb_list, default_list=gro
 	unpacked_list[["p0"]][group_list[["p0"]] != 0] <- start_vec[paste("p0", group_list[["p0"]][group_list[["p0"]] != 0], sep="_")]
 	unpacked_list[["p1"]][group_list[["p1"]] != 0] <- start_vec[paste("p1", group_list[["p1"]][group_list[["p1"]] != 0], sep="_")]
 	unpacked_list[["omega0_comb"]][group_list[["omega0_comb"]] != 0] <- start_vec[paste("omega0_comb", group_list[["omega0_comb"]][group_list[["omega0_comb"]] != 0], sep="_")]
+	unpacked_list[["field"]][group_list[["field"]] != 0] <- start_vec[paste("field", group_list[["field"]][group_list[["field"]] != 0], sep="_")]
 	
 	unpacked_list[["omega0"]] <- comb_vec_to_param_array(unpacked_list[["omega0_comb"]], comb_list[["omega0"]], unpacked_list[["omega0"]])
 	
@@ -463,7 +471,7 @@ param_array_to_comb_vec <- function(param_array, comb_array, group_vec=NULL, res
 #' Prepare input data structure for peak fitting
 #'
 #' @export
-make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omega0_plus, r2_start=NULL, m0_start=NULL, m0_region=(omega0_plus+omega0_minus)/2, p0_start=0, p1_start=0, omega0_group=NULL, r2_group=NULL, m0_group=NULL, p0_group=0, p1_group=0, omega0_comb=NULL, omega0_comb_start=NULL, omega0_comb_group=NULL, fheader=NULL) {
+make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omega0_plus, r2_start=NULL, m0_start=NULL, m0_region=(omega0_plus+omega0_minus)/2, p0_start=0, p1_start=0, omega0_group=NULL, r2_group=NULL, m0_group=NULL, p0_group=0, p1_group=0, omega0_comb=NULL, omega0_comb_start=NULL, omega0_comb_group=NULL, field_offsets=numeric(), field_start=numeric(), field_group=0, fheader=NULL) {
 
 	if (is.data.frame(spectra)) {
 		fheader <- fheader
@@ -506,6 +514,13 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 	}
 	
 	omega0_comb_group <- fill_comb_group(omega0_comb_group, omega0_comb)
+	
+	if (!is.matrix(field_offsets)) {
+		field_offsets <- matrix(field_offsets, nrow=length(field_offsets), ncol=n_spectra)
+	}
+	
+	field_start <- fill_array(field_start, dim(field_offsets))
+	field_group <- fill_group(field_group, dim(field_offsets))
 	
 	# make sure group setting for combinations is 0
 	stopifnot(omega0_group[!sapply(omega0_comb, is.null)] == 0)
@@ -671,7 +686,8 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 		m0=m0_start,
 		p0=p0_start,
 		p1=p1_start,
-		omega0_comb=omega0_comb_start
+		omega0_comb=omega0_comb_start,
+		field=field_start
 	)
 	
 	group_list <- list(
@@ -680,7 +696,8 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 		m0=m0_group,
 		p0=p0_group,
 		p1=p1_group,
-		omega0_comb=omega0_comb_group
+		omega0_comb=omega0_comb_group,
+		field=field_group
 	)
 	
 	comb_list <- list(
@@ -697,6 +714,8 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 	lower_list[["omega0"]] <- omega0_start - omega0_minus
 	upper_list[["omega0"]] <- omega0_start + omega0_plus
 	lower_list[["r2"]][] <- 0
+	lower_list[["field"]][] <- 0
+	upper_list[["field"]][] <- 0.5
 	
 	#print(start_list)
 	
@@ -705,6 +724,7 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 		start_list=start_list,
 		group_list=group_list,
 		comb_list=comb_list,
+		field_offsets=field_offsets,
 		lower_list=lower_list,
 		upper_list=upper_list,
 		num_points=spec_offset
@@ -782,7 +802,7 @@ fit_fn <- function(par, fit_data, return_resid=TRUE) {
 
 	func_eval <- numeric(fit_data$num_points)
 
-	param_list <- unpack_fit_params(par, fit_data$group_list, fit_data$comb_list, fit_data$start_list)
+	param_list_orig <- unpack_fit_params(par, fit_data$group_list, fit_data$comb_list, fit_data$start_list)
 
 	for (spec_idx in seq_along(fit_data$spec_data)) {
 	
@@ -790,29 +810,41 @@ fit_fn <- function(par, fit_data, return_resid=TRUE) {
 		
 		spec_eval_idx <- seq_along(spec_data$spec_int)+spec_data$spec_offset
 		
-		for (peak_idx in seq_len(dim(fit_data[["start_list"]][["omega0"]])[2])) {
+		for (field_idx in seq(0, nrow(fit_data$field_offsets))) {
 		
-			func_1d_evals <- lapply(seq_along(spec_data$omega_eval), function(dim_idx) {
-			
-				eval_peak_1d(
-					spec_data$fit_func[[dim_idx]]$formulas,
-					spec_data$fit_func[[dim_idx]]$data,
-					spec_data$ref_freq[dim_idx],
-					spec_data$omega_eval[[dim_idx]],
-					param_list[["omega0"]][dim_idx,peak_idx,spec_idx],
-					param_list[["r2"]][dim_idx,peak_idx,spec_idx],
-					param_list[["p0"]][dim_idx,peak_idx,spec_idx],
-					param_list[["p1"]][dim_idx,peak_idx,spec_idx],
-					spec_data$p1_frac[[dim_idx]]
-				)
-			})
-			
-			func_nd_prod <- func_1d_evals[[1]][spec_data$spec_eval_idx[,1]]*param_list[["m0"]][peak_idx,spec_idx]
-			for (i in seq_len(ncol(spec_data$spec_eval_idx))[-1]) {
-				func_nd_prod <- func_nd_prod*func_1d_evals[[i]][spec_data$spec_eval_idx[,i]]
+			param_list <- param_list_orig
+		
+			if (field_idx == 0) {
+				field_weight <- 1-sum(param_list[["field"]][,spec_idx])
+			} else {
+				field_weight <- param_list[["field"]][field_idx,spec_idx]
+				param_list[["omega0"]] <- param_list[["omega0"]]+fit_data$field_offsets[field_idx,spec_idx]
 			}
+		
+			for (peak_idx in seq_len(dim(fit_data[["start_list"]][["omega0"]])[2])) {
+		
+				func_1d_evals <- lapply(seq_along(spec_data$omega_eval), function(dim_idx) {
 			
-			func_eval[spec_eval_idx] <- func_eval[spec_eval_idx] + func_nd_prod
+					eval_peak_1d(
+						spec_data$fit_func[[dim_idx]]$formulas,
+						spec_data$fit_func[[dim_idx]]$data,
+						spec_data$ref_freq[dim_idx],
+						spec_data$omega_eval[[dim_idx]],
+						param_list[["omega0"]][dim_idx,peak_idx,spec_idx],
+						param_list[["r2"]][dim_idx,peak_idx,spec_idx],
+						param_list[["p0"]][dim_idx,peak_idx,spec_idx],
+						param_list[["p1"]][dim_idx,peak_idx,spec_idx],
+						spec_data$p1_frac[[dim_idx]]
+					)
+				})
+			
+				func_nd_prod <- func_1d_evals[[1]][spec_data$spec_eval_idx[,1]]*param_list[["m0"]][peak_idx,spec_idx]
+				for (i in seq_len(ncol(spec_data$spec_eval_idx))[-1]) {
+					func_nd_prod <- func_nd_prod*func_1d_evals[[i]][spec_data$spec_eval_idx[,i]]
+				}
+			
+				func_eval[spec_eval_idx] <- func_eval[spec_eval_idx] + func_nd_prod*field_weight
+			}
 		}
 		
 		if (return_resid) {
@@ -827,7 +859,7 @@ fit_jac <- function(par, fit_data) {
 
 	jac_eval <- matrix(0, nrow=fit_data$num_points, ncol=length(par), dimnames=list(NULL, names(par)))
 
-	param_list <- unpack_fit_params(par, fit_data$group_list, fit_data$comb_list, fit_data$start_list)
+	param_list_orig <- unpack_fit_params(par, fit_data$group_list, fit_data$comb_list, fit_data$start_list)
 
 	idx_list <- group_param_idx(names(par), fit_data$group_list, fit_data$start_list)
 
@@ -837,66 +869,91 @@ fit_jac <- function(par, fit_data) {
 		
 		spec_eval_idx <- seq_along(spec_data$spec_int)+spec_data$spec_offset
 		
-		for (peak_idx in seq_len(dim(fit_data[["start_list"]][["omega0"]])[2])) {
+		field_eval_idx <- !is.na(idx_list[["field"]][,spec_idx])
 		
-			deriv_1d_evals <- lapply(seq_along(spec_data$omega_eval), function(dim_idx) {
-			
-				eval_peak_1d_deriv(
-					spec_data$fit_func[[dim_idx]]$formulas,
-					spec_data$fit_func[[dim_idx]]$data,
-					spec_data$ref_freq[dim_idx],
-					spec_data$omega_eval[[dim_idx]],
-					param_list[["omega0"]][dim_idx,peak_idx,spec_idx],
-					param_list[["r2"]][dim_idx,peak_idx,spec_idx],
-					param_list[["p0"]][dim_idx,peak_idx,spec_idx],
-					param_list[["p1"]][dim_idx,peak_idx,spec_idx],
-					spec_data$p1_frac[[dim_idx]]
-				)
-			})
-			
-			#print(str(deriv_1d_evals))
-			
-			if (FALSE) {
-			omega0_idx <- which(!is.na(idx_list[["omega0"]][,peak_idx,spec_idx]))
-			for (idx in omega0_idx) {
-				deriv_nd_prod <- deriv_1d_evals[[idx]][spec_data$spec_eval_idx[,idx],"omega0"]*param_list[["m0"]][peak_idx,spec_idx]
-				for (i in seq_len(ncol(spec_data$spec_eval_idx))[-idx]) {
-					deriv_nd_prod <- deriv_nd_prod*deriv_1d_evals[[i]][spec_data$spec_eval_idx[,i],"f"]
-				}
-				jac_eval[spec_eval_idx,idx_list[["omega0"]][idx,peak_idx,spec_idx]] <- jac_eval[spec_eval_idx,idx_list[["omega0"]][idx,peak_idx,spec_idx]] + deriv_nd_prod
+		for (field_idx in seq(0, nrow(fit_data$field_offsets))) {
+		
+			field_eval <- (field_idx == 0 && any(field_eval_idx)) || (field_idx != 0 && !is.na(idx_list[["field"]][field_idx,spec_idx]))
+		
+			param_list <- param_list_orig
+		
+			if (field_idx == 0) {
+				field_weight <- 1-sum(param_list[["field"]][,spec_idx])
+			} else {
+				field_weight <- param_list[["field"]][field_idx,spec_idx]
+				param_list[["omega0"]] <- param_list[["omega0"]]+fit_data$field_offsets[field_idx,spec_idx]
 			}
-			}
+		
+			for (peak_idx in seq_len(dim(fit_data[["start_list"]][["omega0"]])[2])) {
+		
+				deriv_1d_evals <- lapply(seq_along(spec_data$omega_eval), function(dim_idx) {
 			
-			for (var_name in c("omega0", "r2", "p0", "p1")) {
-				var_idx <- which(!is.na(idx_list[[var_name]][,peak_idx,spec_idx]))
-				for (idx in var_idx) {
-					deriv_nd_prod <- deriv_1d_evals[[idx]][spec_data$spec_eval_idx[,idx],var_name]*param_list[["m0"]][peak_idx,spec_idx]
+					eval_peak_1d_deriv(
+						spec_data$fit_func[[dim_idx]]$formulas,
+						spec_data$fit_func[[dim_idx]]$data,
+						spec_data$ref_freq[dim_idx],
+						spec_data$omega_eval[[dim_idx]],
+						param_list[["omega0"]][dim_idx,peak_idx,spec_idx],
+						param_list[["r2"]][dim_idx,peak_idx,spec_idx],
+						param_list[["p0"]][dim_idx,peak_idx,spec_idx],
+						param_list[["p1"]][dim_idx,peak_idx,spec_idx],
+						spec_data$p1_frac[[dim_idx]]
+					)
+				})
+			
+				#print(str(deriv_1d_evals))
+			
+				if (FALSE) {
+				omega0_idx <- which(!is.na(idx_list[["omega0"]][,peak_idx,spec_idx]))
+				for (idx in omega0_idx) {
+					deriv_nd_prod <- deriv_1d_evals[[idx]][spec_data$spec_eval_idx[,idx],"omega0"]*param_list[["m0"]][peak_idx,spec_idx]
 					for (i in seq_len(ncol(spec_data$spec_eval_idx))[-idx]) {
 						deriv_nd_prod <- deriv_nd_prod*deriv_1d_evals[[i]][spec_data$spec_eval_idx[,i],"f"]
 					}
-					jac_eval[spec_eval_idx,idx_list[[var_name]][idx,peak_idx,spec_idx]] <- jac_eval[spec_eval_idx,idx_list[[var_name]][idx,peak_idx,spec_idx]] + deriv_nd_prod
+					jac_eval[spec_eval_idx,idx_list[["omega0"]][idx,peak_idx,spec_idx]] <- jac_eval[spec_eval_idx,idx_list[["omega0"]][idx,peak_idx,spec_idx]] + deriv_nd_prod*field_weight
 				}
-			}
-			
-			if (!is.na(idx_list[["m0"]][peak_idx,spec_idx])) {
-				func_nd_prod <- deriv_1d_evals[[1]][spec_data$spec_eval_idx[,1],"f"]
-				for (i in seq_len(ncol(spec_data$spec_eval_idx))[-1]) {
-					func_nd_prod <- func_nd_prod*deriv_1d_evals[[i]][spec_data$spec_eval_idx[,i],"f"]
 				}
-				jac_eval[spec_eval_idx,idx_list[["m0"]][peak_idx,spec_idx]] <- jac_eval[spec_eval_idx,idx_list[["m0"]][peak_idx,spec_idx]] + func_nd_prod
-			}
 			
-			for (var_name in c("omega0")) {
-				var_comb_name <- paste(var_name, "comb", sep="_")
-				var_idx <- which(!sapply(fit_data$comb_list[[var_name]][,peak_idx,spec_idx], is.null))
-				for (idx in var_idx) {
-					deriv_nd_prod <- deriv_1d_evals[[idx]][spec_data$spec_eval_idx[,idx],var_name]*param_list[["m0"]][peak_idx,spec_idx]
-					for (i in seq_len(ncol(spec_data$spec_eval_idx))[-idx]) {
-						deriv_nd_prod <- deriv_nd_prod*deriv_1d_evals[[i]][spec_data$spec_eval_idx[,i],"f"]
+				for (var_name in c("omega0", "r2", "p0", "p1")) {
+					var_idx <- which(!is.na(idx_list[[var_name]][,peak_idx,spec_idx]))
+					for (idx in var_idx) {
+						deriv_nd_prod <- deriv_1d_evals[[idx]][spec_data$spec_eval_idx[,idx],var_name]*param_list[["m0"]][peak_idx,spec_idx]
+						for (i in seq_len(ncol(spec_data$spec_eval_idx))[-idx]) {
+							deriv_nd_prod <- deriv_nd_prod*deriv_1d_evals[[i]][spec_data$spec_eval_idx[,i],"f"]
+						}
+						jac_eval[spec_eval_idx,idx_list[[var_name]][idx,peak_idx,spec_idx]] <- jac_eval[spec_eval_idx,idx_list[[var_name]][idx,peak_idx,spec_idx]] + deriv_nd_prod*field_weight
 					}
-					comb_data <- fit_data$comb_list[[var_name]][[idx,peak_idx,spec_idx]]
-					for (comb_idx in which(!is.na(idx_list[[var_comb_name]][comb_data[,1]]))) {
-						jac_eval[spec_eval_idx,idx_list[[var_comb_name]][comb_data[comb_idx,1]]] <- jac_eval[spec_eval_idx,idx_list[[var_comb_name]][comb_data[comb_idx,1]]] + deriv_nd_prod*comb_data[comb_idx,2]
+				}
+			
+				if (!is.na(idx_list[["m0"]][peak_idx,spec_idx]) || field_eval) {
+					func_nd_prod <- deriv_1d_evals[[1]][spec_data$spec_eval_idx[,1],"f"]
+					for (i in seq_len(ncol(spec_data$spec_eval_idx))[-1]) {
+						func_nd_prod <- func_nd_prod*deriv_1d_evals[[i]][spec_data$spec_eval_idx[,i],"f"]
+					}
+					if (!is.na(idx_list[["m0"]][peak_idx,spec_idx])) {
+						jac_eval[spec_eval_idx,idx_list[["m0"]][peak_idx,spec_idx]] <- jac_eval[spec_eval_idx,idx_list[["m0"]][peak_idx,spec_idx]] + func_nd_prod*field_weight
+					}
+					if (field_eval) {
+						if (field_idx == 0) {
+							jac_eval[spec_eval_idx,idx_list[["field"]][field_eval_idx,spec_idx]] <- jac_eval[spec_eval_idx,idx_list[["field"]][field_eval_idx,spec_idx]] - func_nd_prod*param_list[["m0"]][peak_idx,spec_idx]
+						} else {
+							jac_eval[spec_eval_idx,idx_list[["field"]][field_idx,spec_idx]] <- jac_eval[spec_eval_idx,idx_list[["field"]][field_idx,spec_idx]] + func_nd_prod*param_list[["m0"]][peak_idx,spec_idx]
+						}
+					}
+				}
+			
+				for (var_name in c("omega0")) {
+					var_comb_name <- paste(var_name, "comb", sep="_")
+					var_idx <- which(!sapply(fit_data$comb_list[[var_name]][,peak_idx,spec_idx], is.null))
+					for (idx in var_idx) {
+						deriv_nd_prod <- deriv_1d_evals[[idx]][spec_data$spec_eval_idx[,idx],var_name]*param_list[["m0"]][peak_idx,spec_idx]
+						for (i in seq_len(ncol(spec_data$spec_eval_idx))[-idx]) {
+							deriv_nd_prod <- deriv_nd_prod*deriv_1d_evals[[i]][spec_data$spec_eval_idx[,i],"f"]
+						}
+						comb_data <- fit_data$comb_list[[var_name]][[idx,peak_idx,spec_idx]]
+						for (comb_idx in which(!is.na(idx_list[[var_comb_name]][comb_data[,1]]))) {
+							jac_eval[spec_eval_idx,idx_list[[var_comb_name]][comb_data[comb_idx,1]]] <- jac_eval[spec_eval_idx,idx_list[[var_comb_name]][comb_data[comb_idx,1]]] + deriv_nd_prod*comb_data[comb_idx,2]*field_weight
+						}
 					}
 				}
 			}
@@ -1050,10 +1107,15 @@ plot_fit_1d <- function(fit_data, always_show_start=FALSE) {
 #' Plot a two dimensional peak fit
 #'
 #' @export
-plot_fit_2d <- function(fit_output, spec_ord=seq_len(dim(fit_output$start_list$omega0)[1]), plot_start=FALSE, main=NULL) {
+plot_fit_2d <- function(fit_output, spec_ord=seq_len(dim(fit_output$start_list$omega0)[1]), always_show_start=FALSE, main=NULL) {
 
 	input_spec_int <- fitnmr::get_spec_int(fit_output, "input")
-	fit_spec_int <- fitnmr::get_spec_int(fit_output, "fit")
+	if ("fit_list" %in% names(fit_output)) {
+		fit_spec_int <- fitnmr::get_spec_int(fit_output, "fit")
+		plot_start <- always_show_start
+	} else {
+		plot_start <- TRUE
+	}
 	
 	ref_freq_mat <- sapply(fit_output$spec_data, "[[", "ref_freq")
 	ref_freq_mat_exp <- ref_freq_mat[,rep(seq_len(ncol(ref_freq_mat)), each=dim(fit_output$start_list$r2)[2])]
@@ -1081,12 +1143,14 @@ plot_fit_2d <- function(fit_output, spec_ord=seq_len(dim(fit_output$start_list$o
 			graphics::segments(fit_output$start_list$omega0[spec_ord[1],,i], start_r2_ppm_low[spec_ord[2],,i], fit_output$start_list$omega0[spec_ord[1],,i], start_r2_ppm_high[spec_ord[2],,i], col="blue")
 			graphics::segments(start_r2_ppm_low[spec_ord[1],,i], fit_output$start_list$omega0[spec_ord[2],,i], start_r2_ppm_high[spec_ord[1],,i], fit_output$start_list$omega0[spec_ord[2],,i], col="blue")
 		}
-		fitnmr::contour_pipe(aperm(fit_spec_int[[i]], spec_ord), zlim=zlim, col_pos="red", col_neg="pink", add=TRUE)
+		if ("fit_list" %in% names(fit_output)) {
+			fitnmr::contour_pipe(aperm(fit_spec_int[[i]], spec_ord), zlim=zlim, col_pos="red", col_neg="pink", add=TRUE)
+			graphics::points(t(fit_output$fit_list$omega0[spec_ord,,i]), pch=16, col="red")
+			graphics::segments(fit_output$fit_list$omega0[spec_ord[1],,i], fit_r2_ppm_low[spec_ord[2],,i], fit_output$fit_list$omega0[spec_ord[1],,i], fit_r2_ppm_high[spec_ord[2],,i], col="red")
+			graphics::segments(fit_r2_ppm_low[spec_ord[1],,i], fit_output$fit_list$omega0[spec_ord[2],,i], fit_r2_ppm_high[spec_ord[1],,i], fit_output$fit_list$omega0[spec_ord[2],,i], col="red")
+		}
 		omega0_1_idx <- fitnmr::omega0_param_idx(fit_output, spec_ord[1], specs=i)
 		omega0_2_idx <- fitnmr::omega0_param_idx(fit_output, spec_ord[2], specs=i)
-		graphics::points(t(fit_output$fit_list$omega0[spec_ord,,i]), pch=16, col="red")
-		graphics::segments(fit_output$fit_list$omega0[spec_ord[1],,i], fit_r2_ppm_low[spec_ord[2],,i], fit_output$fit_list$omega0[spec_ord[1],,i], fit_r2_ppm_high[spec_ord[2],,i], col="red")
-		graphics::segments(fit_r2_ppm_low[spec_ord[1],,i], fit_output$fit_list$omega0[spec_ord[2],,i], fit_r2_ppm_high[spec_ord[1],,i], fit_output$fit_list$omega0[spec_ord[2],,i], col="red")
 		graphics::rect(param_values(fit_output$upper_list, omega0_1_idx), param_values(fit_output$upper_list, omega0_2_idx), param_values(fit_output$lower_list, omega0_1_idx), param_values(fit_output$lower_list, omega0_2_idx), border="gray")
 	}
 }
@@ -1465,7 +1529,7 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 	#print(lapply(param_list_orig, "[[", "omega0_comb"))
 	#print(lapply(param_list_orig, "[[", "m0"))
 	
-	if (plot_fit_stages) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Unfixed: m0")
+	if (plot_fit_stages) plot_fit_2d(fit_output, spec_ord, always_show_start=TRUE, "Unfixed: m0")
 	
 	# unfix r2 values
 	param_list$group_list$r2[] <- param_list_orig$group_list$r2[]
@@ -1484,7 +1548,7 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 	param_list <- fit_output[c("fit_list", "group_list", "comb_list")]
 	names(param_list)[1] <- "start_list"
 	
-	if (plot_fit_stages) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Unfixed: m0, r2, sc")
+	if (plot_fit_stages) plot_fit_2d(fit_output, spec_ord, always_show_start=TRUE, "Unfixed: m0, r2, sc")
 	
 	# unfix omega0 values
 	param_values(param_list$group_list, omega0_idx) <- param_values(param_list_orig$group_list, omega0_idx)
@@ -1500,7 +1564,7 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 	fit_input <- limit_omega0_by_r2(fit_input)
 	fit_output <- fitnmr::perform_fit(fit_input)
 	
-	if (plot_fit_stages) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Unfixed: m0, r2, sc, omega0")
+	if (plot_fit_stages) plot_fit_2d(fit_output, spec_ord, always_show_start=TRUE, "Unfixed: m0, r2, sc, omega0")
 	
 	refit_thresh <- c(1e-3, 1e-2)[spec_ord]*2
 	
@@ -1520,7 +1584,7 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 		param_values(fit_input$upper_list, coupling_idx) <- sc_bounds[2]
 		fit_output <- fitnmr::perform_fit(fit_input)
 		
-		if (plot_fit_stages) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Unfixed: m0, r2, sc, omega0 (Refit 1)")
+		if (plot_fit_stages) plot_fit_2d(fit_output, spec_ord, always_show_start=TRUE, "Unfixed: m0, r2, sc, omega0 (Refit 1)")
 	}
 	
 	if (any(omega0_bound_distance(fit_output) < refit_thresh)) {
@@ -1539,7 +1603,7 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 		fit_input <- limit_omega0_by_r2(fit_input)
 		fit_output <- fitnmr::perform_fit(fit_input)
 		
-		if (plot_fit_stages) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Unfixed: m0, r2, sc, omega0 (Refit 2)")
+		if (plot_fit_stages) plot_fit_2d(fit_output, spec_ord, always_show_start=TRUE, "Unfixed: m0, r2, sc, omega0 (Refit 2)")
 	}
 	
 	if (any(omega0_bound_distance(fit_output) < refit_thresh)) {
@@ -1558,7 +1622,7 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 		fit_input <- limit_omega0_by_r2(fit_input)
 		fit_output <- fitnmr::perform_fit(fit_input)
 		
-		if (plot_fit_stages) plot_fit_2d(fit_output, spec_ord, plot_start=TRUE, "Unfixed: m0, r2, sc, omega0 (Refit 3)")
+		if (plot_fit_stages) plot_fit_2d(fit_output, spec_ord, always_show_start=TRUE, "Unfixed: m0, r2, sc, omega0 (Refit 3)")
 	}
 	
 	fit_output

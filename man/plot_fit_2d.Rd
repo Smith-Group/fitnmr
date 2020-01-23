@@ -7,7 +7,7 @@
 plot_fit_2d(
   fit_output,
   spec_ord = seq_len(dim(fit_output$start_list$omega0)[1]),
-  plot_start = FALSE,
+  always_show_start = FALSE,
   main = NULL
 )
 }

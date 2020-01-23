@@ -22,6 +22,9 @@ make_fit_input(
   omega0_comb = NULL,
   omega0_comb_start = NULL,
   omega0_comb_group = NULL,
+  field_offsets = numeric(),
+  field_start = numeric(),
+  field_group = 0,
   fheader = NULL
 )
 }
