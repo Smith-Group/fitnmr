@@ -715,7 +715,7 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 	upper_list[["omega0"]] <- omega0_start + omega0_plus
 	lower_list[["r2"]][] <- 0
 	lower_list[["field"]][] <- 0
-	upper_list[["field"]][] <- 0.5
+	upper_list[["field"]][] <- 1
 	
 	#print(start_list)
 	
@@ -815,11 +815,12 @@ fit_fn <- function(par, fit_data, return_resid=TRUE) {
 			param_list <- param_list_orig
 		
 			if (field_idx == 0) {
-				field_weight <- 1-sum(param_list[["field"]][,spec_idx])
+				field_weight <- 1
 			} else {
 				field_weight <- param_list[["field"]][field_idx,spec_idx]
 				param_list[["omega0"]] <- param_list[["omega0"]]+fit_data$field_offsets[field_idx,spec_idx]
 			}
+			field_weight <- field_weight/(sum(param_list[["field"]][,spec_idx]) + 1)
 		
 			for (peak_idx in seq_len(dim(fit_data[["start_list"]][["omega0"]])[2])) {
 		
@@ -878,11 +879,14 @@ fit_jac <- function(par, fit_data) {
 			param_list <- param_list_orig
 		
 			if (field_idx == 0) {
-				field_weight <- 1-sum(param_list[["field"]][,spec_idx])
+				field_weight <- 1
 			} else {
 				field_weight <- param_list[["field"]][field_idx,spec_idx]
 				param_list[["omega0"]] <- param_list[["omega0"]]+fit_data$field_offsets[field_idx,spec_idx]
 			}
+			field_factor_sum <- (sum(param_list[["field"]][,spec_idx]) + 1)
+			field_factor_sum_sq <- field_factor_sum^2
+			field_weight <- field_weight/field_factor_sum_sq
 		
 			for (peak_idx in seq_len(dim(fit_data[["start_list"]][["omega0"]])[2])) {
 		
@@ -935,9 +939,12 @@ fit_jac <- function(par, fit_data) {
 					}
 					if (field_eval) {
 						if (field_idx == 0) {
-							jac_eval[spec_eval_idx,idx_list[["field"]][field_eval_idx,spec_idx]] <- jac_eval[spec_eval_idx,idx_list[["field"]][field_eval_idx,spec_idx]] - func_nd_prod*param_list[["m0"]][peak_idx,spec_idx]
+							deriv_factor <- sum(param_list[["field"]][,spec_idx])/field_factor_sum_sq*param_list[["m0"]][peak_idx,spec_idx]
+							jac_eval[spec_eval_idx,idx_list[["field"]][field_eval_idx,spec_idx]] <- jac_eval[spec_eval_idx,idx_list[["field"]][field_eval_idx,spec_idx]] - func_nd_prod*deriv_factor
 						} else {
-							jac_eval[spec_eval_idx,idx_list[["field"]][field_idx,spec_idx]] <- jac_eval[spec_eval_idx,idx_list[["field"]][field_idx,spec_idx]] + func_nd_prod*param_list[["m0"]][peak_idx,spec_idx]
+							deriv_factor <- sum(param_list[["field"]][-field_idx,spec_idx])/field_factor_sum_sq*param_list[["m0"]][peak_idx,spec_idx]
+							jac_eval[spec_eval_idx,idx_list[["field"]][field_idx,spec_idx]] <- jac_eval[spec_eval_idx,idx_list[["field"]][field_idx,spec_idx]] + func_nd_prod*deriv_factor
+							jac_eval[spec_eval_idx,idx_list[["field"]][field_eval_idx & !field_idx,spec_idx]] <- jac_eval[spec_eval_idx,idx_list[["field"]][field_eval_idx & !field_idx,spec_idx]] - func_nd_prod*deriv_factor
 						}
 					}
 				}
