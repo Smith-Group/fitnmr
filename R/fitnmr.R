@@ -386,7 +386,7 @@ group_param_idx <- function(param_names, group_list, start_list) {
 
 #' Determine array of destination parameters from a source vector
 #'
-#' @param vector of source parameters
+#' @param comb_vec vector of source parameters
 #' @param comb_array array of 2xN data frames with mapping between vector and array
 #' @param param_array starting array of destination parameters
 #' @param na_only only overwrite values in param_array if they are NA
@@ -2424,6 +2424,10 @@ plot_peak_df <- function(peak_df, spectra, noise_sigma=NULL, noise_cutoff=4, cex
 			if ("f_pvalue" %in% names(peak_df)) {
 				graphics::text(lab_coord, labels=sprintf("%.0e", peak_df$f_pvalue), pos=1, offset=cex*1.25, cex=cex)
 			}
+		}
+		
+		if (!is.null(names(spectra))) {
+			title(names(spectra)[[spec_i]])
 		}
 	}
 }
