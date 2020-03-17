@@ -24,10 +24,10 @@ fit_sc <- TRUE
 
 # Plotting Parameters:
 
-# lowest contour in fit_spectra.pdf will be this number times the noise level
+# lowest contour in *_fit.pdf will be this number times the noise level
 plot_noise_cutoff <- 4
 
-# scaling factor for fit_spectra.pdf labels
+# scaling factor for *_fit.pdf labels
 cex <- 0.4
 
 # show omega0 constraints imposed by omega0_r2_factor
@@ -138,3 +138,4 @@ parallel::mclapply(seq_along(spec_list), function(spec_i) {
 	dev.off()
 
 }, mc.cores=mc_cores)
+
