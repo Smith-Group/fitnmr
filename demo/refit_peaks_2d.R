@@ -28,7 +28,7 @@ fit_sc <- TRUE
 plot_noise_cutoff <- 4
 
 # scaling factor for *_fit.pdf labels
-cex <- 0.4
+cex <- 0.2
 
 # show omega0 constraints imposed by omega0_r2_factor
 plot_omega0_bounds <- TRUE
@@ -131,8 +131,8 @@ parallel::mclapply(seq_along(spec_list), function(spec_i) {
 		omega0_2_idx <- omega0_param_idx(fit_output, 2, specs=1)
 		
 		# plot values in blue and bounds with rectangles
-		points(param_values(fit_output$fit_list, omega0_1_idx), param_values(fit_output$fit_list, omega0_2_idx), pch=16, col=rgb(0, 0, 1, 1), cex=.2)
-		rect(param_values(fit_output$upper_list, omega0_1_idx), param_values(fit_output$upper_list, omega0_2_idx), param_values(fit_output$lower_list, omega0_1_idx), param_values(fit_output$lower_list, omega0_2_idx), border=gray(0, 0.25))
+		points(param_values(fit_output$fit_list, omega0_1_idx), param_values(fit_output$fit_list, omega0_2_idx), pch=16, col=rgb(0, 0, 1, 1), cex=0.5*cex)
+		rect(param_values(fit_output$upper_list, omega0_1_idx), param_values(fit_output$upper_list, omega0_2_idx), param_values(fit_output$lower_list, omega0_1_idx), param_values(fit_output$lower_list, omega0_2_idx), border=gray(0, 0.25), lwd=cex)
 	}
 
 	dev.off()

@@ -2377,7 +2377,7 @@ peak_df_to_fit_input <- function(peak_df, spectra, ...) {
 #' @param add logical indicating whether to suppress generation of a new plot and add to an existing plot.
 #'
 #' @export
-plot_peak_df <- function(peak_df, spectra, noise_sigma=NULL, noise_cutoff=4, cex=0.2, lwd=0.25, label=TRUE, p0=NULL, p1=NULL, add=FALSE) {
+plot_peak_df <- function(peak_df, spectra, noise_sigma=NULL, noise_cutoff=4, cex=0.2, lwd=0.25, label=TRUE, label_col="black", p0=NULL, p1=NULL, add=FALSE) {
 
 	if (is.null(noise_sigma)) {
 		noise_sigma <- sapply(spectra, function(x) fitnmr::noise_estimate(x$int, plot_distributions=FALSE))["sigma",]
@@ -2420,9 +2420,9 @@ plot_peak_df <- function(peak_df, spectra, noise_sigma=NULL, noise_cutoff=4, cex
 				graphics::points(t(fit_input$start_list$omega0[,id==omega_comb_ids[,spec_i],spec_i]), type="l", col="blue", lwd=cex*1.25)
 			}
 			#graphics::text(lab_coord, labels=sprintf("%s-%s\np: %.0e", peak_df$fit, peak_df$peak, peak_df$f_pvalue), pos=1, offset=0.1, cex=0.2)
-			graphics::text(lab_coord, labels=sprintf("%s:%s", peak_df$peak, peak_df$fit), pos=1, offset=cex*0.5, cex=cex)
+			graphics::text(lab_coord, labels=sprintf("%s:%s", peak_df$peak, peak_df$fit), pos=1, offset=cex*0.5, cex=cex, col=label_col)
 			if ("f_pvalue" %in% names(peak_df)) {
-				graphics::text(lab_coord, labels=sprintf("%.0e", peak_df$f_pvalue), pos=1, offset=cex*1.25, cex=cex)
+				graphics::text(lab_coord, labels=sprintf("%.0e", peak_df$f_pvalue), pos=1, offset=cex*1.25, cex=cex, col=label_col)
 			}
 		}
 		
@@ -2672,6 +2672,8 @@ height_assign <- function(assigned, unknown, thresh=0.01) {
 	
 	# set unassigned peaks to NA
 	assign_idx[assign_idx == 0] <- NA
+	
+	attr(assign_idx, "thresh") <- thresh*c(wd1, wd2)
 	
 	assign_idx
 }

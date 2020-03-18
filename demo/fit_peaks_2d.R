@@ -31,7 +31,7 @@ sc_bounds <- c(2, 12)
 plot_noise_cutoff <- 4
 
 # scaling factor for fit_spectra.pdf labels
-cex <- 0.4
+cex <- 0.2
 
 
 library(fitnmr)

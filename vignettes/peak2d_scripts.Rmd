@@ -1,0 +1,383 @@
+---
+title: "Automated 2D Peak Fitting Scripts"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Automated 2D Peak Fitting Scripts}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_knit$set(
+  global.par = TRUE
+)
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  cache = FALSE,
+  fig.retina = 2
+)
+#knitr::opts_chunk$set(optipng = "-o7 -strip all")
+#knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+options(digits=5, width=90)
+```
+
+FitNMR enables fully automated peak fitting of 2D NMR spectra. This document shows how the 2D fitting can be done with very little manual code entry using three convenience scripts, `fit_peaks_2d.R`, `refit_peaks_2d.R`, and `assign_peaks_2d.R`, that are included with FitNMR. For a description of how a similar workflow can be accomplished using `R` code and more details about algorithms, see the "Automated 2D Peak Fitting Code" document. The directory containing the three demo scripts that will be used here can be found by running the following from within R:
+
+```{r, results = "hide"}
+system.file("demo", package="fitnmr")
+```
+
+For each spectrum first use NMRPipe to produce an `*.ft2` file. The data must only be apodized with the `SP` function using an exponent of 1 or 2. In addition, use the `EXT` function to extract the smallest region that contains all the relevant peaks to be fit. Eliminating noise and other extraneous peaks speeds up the processing and simplifies the output.
+
+```{r, include = FALSE}
+pdf <- function(file, width=7, height=7, pointsize=12) {
+
+	if (file == "fit_iterations.pdf") {
+		file <- "fit_iterations_%02i.pdf"
+		width <- 3.4
+		height <- 3.4
+		pointsize <- 10
+	}
+	file <- sub(".pdf$", ".png", file)
+	width <- min(width, 7)
+	height <- min(height, 7)
+	
+	grDevices::png(file, width, height, "in", pointsize, res=192)
+}
+
+update_cex <- function(file, cex) {
+	
+	script_lines <- readLines(file)
+	script_lines <- sub("^cex <- 0.2", paste("cex <-", cex), script_lines)
+	writeLines(script_lines, file)
+}
+```
+
+## Fitting Initial Set of Peaks
+
+The `fit_peaks_2d.R` script handles the initial fitting of peaks. You would typically use this script to find an initial set of peaks on the highest signal-to-noise spectrum in your dataset. The script can be customized by creating a copy then editing the parameters listed at the top prior to running it in R.
+
+In a typical workflow, you would create a directory to perform the initial fitting in, then copy the reference spectrum into that directory. That spectrum must have `.ft2` as the extension, otherwise the script won't be able to find it. Ordinarily you would do this manually, but here we will do so in code. The following creates a `fit` directory and copies the first T~1~ spectrum into it.
+
+```{r, echo = FALSE}
+t1_dir <- system.file("extdata", "t1", package="fitnmr")
+t1_ft2_filenames <- list.files(t1_dir, pattern=".ft2")
+```
+
+```{r, results = "hide"}
+dir.create("fit", showWarnings=FALSE)
+file.copy(file.path(t1_dir, t1_ft2_filenames[1]), "fit")
+```
+
+Next we need to make a copy of the `fit_peaks_2d.R` script, which may be easiest to do from within R. (Note: if you want to copy the script into the current working directory, change `"fit"` to `"."` in the line below.)
+
+```{r, results = "hide"}
+file.copy(system.file("demo", "fit_peaks_2d.R", package="fitnmr"), "fit")
+```
+```{r, include = FALSE}
+update_cex(file.path("fit", "fit_peaks_2d.R"), 0.6)
+```
+
+You can then customize any of the options at the top of `fit_peaks_2d`:
+
+```{r, echo = FALSE, comment = NA}
+fit_peaks_2d_lines <- readLines(file.path("fit", "fit_peaks_2d.R"))
+library_idx <- grep("^library", fit_peaks_2d_lines)
+cat(fit_peaks_2d_lines[seq(1, library_idx-3)], sep="\n")
+```
+
+In this case, we will use the script unmodified. The `fit_peaks_2d.R` script must be run from within the `fit` directory, which is done below. (Note: usually you should have already set the working directory to be `fit` and thus omit the `setwd()` calls below.)
+
+```{r}
+setwd("fit")
+source("fit_peaks_2d.R")
+setwd("..")
+```
+
+### Output Files
+
+Four output files are created by `fit_peaks_2d.R`:
+
+- `noise_histograms.pdf`
+- `fit_iterations.pdf`
+- `fit_spectra.pdf`
+- `fit_volume.csv`
+
+```{r, include = FALSE}
+list.files("fit")
+```
+
+`noise_histograms.pdf` gives a histogram of the intensity values for each of the input spectra. The standard deviation of a Gaussian fit to that histogram is used to determine the noise level.
+
+```{r, echo = FALSE, hold = TRUE}
+knitr::include_graphics(file.path("fit", "noise_histograms.png"))
+```
+
+`fit_iterations.pdf` shows each iteration of the fitting, with the data shown in black and the fit contours shown in red. Negative contours are shown with lighter colors. The starting peak position is indicated with a green circle. It is the highest intensity in the spectrum after previous fits have been subtracted. The blue points show the positions of the peaks in the modeled doublet.
+
+The first line of text under each peak gives the peak number and fraction of the total volume in that iteration. The second line gives the F-test p-value for that peak. The title text in parentheses gives the reason the next peak was rejected: either the p-value for the peak was greater than `f_alpha` or the peak had 0 volume.
+
+All peaks in a given iteration are fit with the same peak shape parameters, including the peak position (`omega0`) and doublet scalar coupling (`sc`). Those peaks are all assigned to the same fitting group (`fit`) and continue to share the same peak shape parameters in subsequent fit optimizations. This parameter sharing can be important for peaks that are highly overlapped both for accuracy and stability of the fitting algorithm. If desired, you can manually modify the peak grouping in the peak list comma separated value (CSV) file to change which peaks share parameters.
+
+The first four pages of what would be in `fit_iterations.pdf` are shown here:
+
+```{r, echo = FALSE, hold = TRUE}
+knitr::include_graphics(file.path("fit", sprintf("fit_iterations_%02i.png", 1:4)))
+```
+
+`fit_spectra.pdf` gives the fit spectra. The doublet peak positions are shown with semi-transparent blue dots that are scaled such that the area is proportional to the peak volume. The first line of text under each peak gives the peak number and the fit group number separated by a colon. The second line gives the F-test p-value for that peak. By default, the lowest contour of this spectrum is set to four times the noise level, but that can be changed using the `plot_noise_cutoff` script parameter. Furthermore, the size of the labels can be controlled using the `cex` (i.e. *c*haracter *ex*pansion) script parameter.
+
+```{r, echo = FALSE, hold = TRUE}
+knitr::include_graphics(file.path("fit", "fit_spectra.png"))
+```
+
+`fit_volume.csv` contains all the identified peaks, the fitting group for each peak (which in this case is the iteration it was found in), the peak position/shape parameters, and a column for the volume found in each spectrum.
+
+```{r, echo = FALSE, results = "asis"}
+csv_table <- read.csv(file.path("fit", "fit_volume.csv"), check.names = FALSE)
+csv_table[,"f_pvalue"] <- sprintf("%0.2e", csv_table[,"f_pvalue"])
+knitr::kable(csv_table)
+```
+
+## Refining the Initial Fit
+
+The initial fit is done iteratively so it is usually a good idea to refine this by editing the fitting groups, deleting extraneous peaks, and then doing a simultaneous refit of all peaks together with the `refit_peaks_2d.R` script. We will do this in another directory called `refine`, to which the first spectrum and the `refit_peaks_2d.R` script should be copied:
+
+```{r, results = "hide"}
+dir.create("refine", showWarnings=FALSE)
+file.copy(file.path(t1_dir, t1_ft2_filenames[1]), "refine")
+file.copy(system.file("demo", "refit_peaks_2d.R", package="fitnmr"), "refine", overwrite=TRUE)
+```
+```{r, include = FALSE}
+update_cex(file.path("refine", "refit_peaks_2d.R"), 0.6)
+```
+
+Any of the options at the top of `refit_peaks_2d.R` can then be customized:
+
+```{r, echo = FALSE, comment = NA}
+refit_peaks_2d_lines <- readLines(file.path("refine", "refit_peaks_2d.R"))
+library_idx <- grep("^library", refit_peaks_2d_lines)
+cat(refit_peaks_2d_lines[seq(1, library_idx-3)], sep="\n")
+```
+
+However, in this case the script will be used unmodified. The next step is to copy the peak list from the `fit` directory to a file called `start_volume.csv` in the new directory:
+
+```{r, results = "hide"}
+file.copy(file.path("fit", "fit_volume.csv"), file.path("refine", "start_volume.csv"), overwrite=TRUE)
+```
+
+Once that file has been copied, you can then manually change the peak groups and delete rows for any peaks you want to discard. In this case, that will be done with the following `R` code, which puts peaks 5 and 7 into a new fitting group, and removes peaks 4, 14, and 16:
+
+```{r}
+input_table <- read.csv(file.path("refine", "start_volume.csv"), check.names=FALSE)
+input_table[c(5,7),"fit"] <- max(input_table[,"fit"])+1
+input_table <- input_table[-c(4,14,16),]
+write.csv(input_table, file.path("refine", "start_volume.csv"), row.names=FALSE)
+```
+
+The final step is to call the `refit_peaks_2d.R` from within the `refine` directory:
+
+```{r}
+setwd("refine")
+source("refit_peaks_2d.R")
+setwd("..")
+```
+
+The `refit_peaks_2d.R` script first optimizes the volumes, keeping all other parameters fixed, then optimizes the volumes along with whatever other variables the user specifies in the script. Also, unlike the refinement done in "Automated 2D Peak Fitting Code", `refit_peaks_2d.R` only fits a single spectrum at a time. This avoids two problems:
+
+1. For many experiments in which a series of spectra are acquired, different amounts of applied power can result in subtle shifts of the temperature/peak positions. Especially for overlappling peaks, this can cause systematic variations in the volumes. Allowing each spectrum to have slightly different peak positions within a small region around the starting values helps avoid this problem.
+2. When many spectra are fit simultaneously, the memory usage for FitNMR can grow very large. This will hopefully be fixed in a future update.
+
+## Output Files
+
+The `refit_peaks_2d.R` script creates two files for each spectrum, whose names are derived from the spectrum filenames:
+
+- `*_fit.pdf`
+- `*_volume.csv`
+
+```{r, include = FALSE}
+list.files("refine")
+```
+
+`*_fit.pdf` shows the overall spectrum as described above. In addition, it also shows the constraints on the `omega0` parameters using gray rectangles, the size of which is determined by the `omega0_r2_factor` parameter. The central peak position, shown as a small blue dot, is constrained to be within that gray rectangle.
+
+```{r, echo = FALSE, hold = TRUE}
+knitr::include_graphics(file.path("refine", "1_fit.png"))
+```
+
+`*_volume.csv` contains all the identified peaks, along with a column for the volume found in that spectrum.
+
+```{r, echo = FALSE, results = "asis"}
+csv_table <- read.csv(file.path("refine", "1_volume.csv"), check.names = FALSE)
+knitr::kable(csv_table)
+```
+
+## Extending the Fit to Other Spectra
+
+To extend the refined fit to a series of other spectra, we will create another directory called `extend`. To this directory both T~1~ spectra will be copied. In addition, the fit parameter CSV file output by the refinement step will be copied to the file `start_volume.csv` for use as input.
+
+```{r, results = "hide"}
+dir.create("extend", FALSE)
+file.copy(file.path(t1_dir, t1_ft2_filenames), "extend")
+file.copy(file.path("refine", "1_volume.csv"), file.path("extend", "start_volume.csv"), overwrite=TRUE)
+```
+
+A copy of the `refit_peaks_2d.R` script will be used again:
+
+```{r, results = "hide"}
+file.copy(system.file("demo", "refit_peaks_2d.R", package="fitnmr"), "extend", overwrite=TRUE)
+```
+```{r, include = FALSE}
+update_cex(file.path("extend", "refit_peaks_2d.R"), 0.6)
+script_lines <- readLines(file.path("extend", "refit_peaks_2d.R"))
+script_lines <- sub("mc_cores <- parallel::detectCores\\(\\)", "mc_cores <- 1", script_lines)
+writeLines(script_lines, file.path("extend", "refit_peaks_2d.R"))
+```
+
+However, when extending the fit to other spectra, the parameters determining the peak shape (`sc` and `r2`) will be fixed, allowing only the volume and peak position to vary. This is done by changing `fit_sc` and `fit_r2` to `FALSE` at the top of the script, which can be done using a text editor. For the purposes of this demonstration, the two parameters are changed with the following code:
+
+```{r}
+script_lines <- readLines(file.path("extend", "refit_peaks_2d.R"))
+script_lines <- sub("fit_sc <- TRUE", "fit_sc <- FALSE", script_lines)
+script_lines <- sub("fit_r2 <- TRUE", "fit_r2 <- FALSE", script_lines)
+writeLines(script_lines, file.path("extend", "refit_peaks_2d.R"))
+```
+
+The part of the script controlling the parameters to be fit now reads:
+
+```{r, echo = FALSE, comment = NA}
+extend_peaks_2d_lines <- readLines(file.path("extend", "refit_peaks_2d.R"))
+fit_omega0_idx <- grep("^fit_omega0", extend_peaks_2d_lines)
+cat(extend_peaks_2d_lines[seq(fit_omega0_idx-1, fit_omega0_idx+7)], sep="\n")
+```
+
+Next, run `refit_peaks_2d.R` from within the the `extend` directory. It will do the refitting for each spectrum on a different CPU core, reducing the total time taken to fit a large number of spectra.
+
+```{r}
+setwd("extend")
+source("refit_peaks_2d.R")
+setwd("..")
+```
+
+### Output Files
+
+As above, the script creates two files for each spectrum, whose names are derived from the spectrum filenames. Here the output associated with `2.ft2` is shown, as the output for `1.ft2` is very similar to the previous section.
+
+```{r, include = FALSE}
+list.files("extend")
+```
+
+`*_fit.pdf` shows the overall spectrum. Pay particular attention to where the small blue circle is located in the gray rectangle. You may want to adjust `omega0_r2_factor` to increase or decrease the stringency of the `omega0` constraint, or possibly choose a different spectrum to use for `start_volume.csv`.
+
+```{r, echo = FALSE, hold = TRUE}
+knitr::include_graphics(file.path("extend", "2_fit.png"))
+```
+
+`*_volume.csv` contains all the identified peaks, along with a column for the volume found in that spectrum.
+
+```{r, echo = FALSE, results = "asis"}
+csv_table <- read.csv(file.path("extend", "2_volume.csv"), check.names = FALSE)
+knitr::kable(csv_table)
+```
+
+## Transferring Assignments
+
+FitNMR can also transfer previously determined peak assignments onto the peak lists. Unlike the previous section, this will be done in the same `extend` directory used above. For this tutorial, assignments for the subregion of the spectrum are also provided, which should be copied into that directory and given the name `assignments.csv`.
+
+```{r, results = "hide"}
+file.copy("~/Documents/Wesleyan/R/fitnmr/inst/extdata/t1/assignments.csv", "extend", overwrite=TRUE)
+```
+
+The `assignments.csv` file should contain a header and three columns. The text in the header is ignored, but the order of the columns must be: 
+
+1. Peak identifier
+2. PPM in dimension 1
+3. PPM in dimension 2
+
+The `assignments.csv` file used here contains eight peaks:
+
+```{r, echo = FALSE, results = "asis"}
+csv_table <- read.csv(file.path("extend", "assignments.csv"), check.names = FALSE)
+knitr::kable(csv_table)
+```
+
+The script that transfers assignments is called `assign_peaks_2d.R` and should also be copied into the `extend` directory:
+
+```{r, results = "hide"}
+file.copy("~/Documents/Wesleyan/R/fitnmr/demo/assign_peaks_2d.R", "extend", overwrite=TRUE)
+```
+
+There are a number of parameters at the top of that script that can be customized:
+
+```{r, echo = FALSE, comment = NA}
+assign_peaks_2d_lines <- readLines(file.path("extend", "assign_peaks_2d.R"))
+library_idx <- grep("^library", assign_peaks_2d_lines)
+cat(assign_peaks_2d_lines[seq(1, library_idx-3)], sep="\n")
+```
+```{r, include = FALSE}
+update_cex(file.path("extend", "assign_peaks_2d.R"), 0.6)
+```
+
+The assignment transfer uses a FitNMR function called `height_assign()` that goes through each peak the spectrum in order of decreasing height/volume, and assigns it to the closest position in the assignment list that is within some threshold distance. Internally, the chemical shifts in each dimension are normalized by the range of values in that dimension. The threshold is given in those normalized units, such that a value of 0.1 would allow a difference of no more than 10% of the spectral width in each dimension, or less for diagonally adjacent peaks. The algorithm does not assign multiple peaks to the same identifier.
+
+To help automatically handle differences in referencing between the spectra and input assignments, the algorithm uses `height_assign()` in two different stages. The first stage uses a larger threshold to handle cases where the referencing is quite different. After that initial assignment, the median offsets between the spectra and input assignments (in each dimension) are used to shift the input assignments. As long as there are enough isolated peaks that can be correctly assigned in the first stage, this is often sufficient to automatically correct the referencing for a more stringent second stage. The thresholds for both stages (`thresh_1` and `thresh_2`) can be tailored individually. In addition, the assigned chemical shifts can be manually adjusted for each stage (using `cs_adj_2` and `cs_adj_2`) to help in cases where the referencing cannot be automatically corrected.
+
+Because this is a subspectrum, the default values for the thresholds do not work as well. Furthermore, while the whole spectrum has enough peaks to automatically determine the correct offset after stage 1, the subspectrum does not, so the proton assignments are manually shifted 0.02 ppm to the left to compensate. For this tutorial, that is done with the following code:
+
+```{r}
+script_lines <- readLines(file.path("extend", "assign_peaks_2d.R"))
+script_lines <- sub("thresh_1 <- 0.1", "thresh_1 <- 0.2", script_lines)
+script_lines <- sub("cs_adj_2 <- c\\(0, 0\\)", "cs_adj_2 <- c(-0.02, 0)", script_lines)
+script_lines <- sub("thresh_2 <- 0.025", "thresh_2 <- 0.075", script_lines)
+writeLines(script_lines, file.path("extend", "assign_peaks_2d.R"))
+```
+
+After modification, the modified part of the script now reads:
+
+```{r, echo = FALSE, comment = NA}
+extend_peaks_2d_lines <- readLines(file.path("extend", "refit_peaks_2d.R"))
+thresh_1_idx <- grep("^thresh_1", script_lines)
+cat(script_lines[seq(thresh_1_idx-1, thresh_1_idx+6)], sep="\n")
+```
+
+The `assign_peaks_2d.R` script should then be run from within the `extend` directory:
+
+```{r}
+setwd("extend")
+source("assign_peaks_2d.R")
+setwd("..")
+```
+
+### Output Files
+
+Three output files are generated by the script:
+
+- `assign_stages.pdf`
+- `assign_omegas.pdf`
+- `assign_volume.csv`
+
+```{r, include = FALSE}
+list.files("extend")
+```
+
+`assign_stages.pdf` shows two stages used for assignment transfer. The gray points show the chemical shifts of the input assignments after `cs_adj_1` has been applied. The peaks matched to those assignments in stage 1 are connected by gray lines. A larger gray oval around each input assignment shows the size of `thresh_1`. The adjusted input assignment chemical shifts used for stage 2 are shown in green, with smaller ovals indicating a more stringent `thresh_2`. Any input assignment not matched to a peak has its label drawn in purple. Likewise, any peak not matched to an input assignment is labeled in purple.
+
+```{r, echo = FALSE, hold = TRUE}
+knitr::include_graphics(file.path("extend", "assign_stages.png"))
+```
+
+`assign_omegas.pdf` shows the final results of the assignment transfer, with the identifier of an assigned peak shown above the peak, and unassigned peaks labeled in purple. In addition, the peak positions from all of the fit spectra are shown as very small points, which are difficult to see here and are best viewed zoomed in to the PDF. An attempt is made to color each peak in a given group differently.
+
+```{r, echo = FALSE, hold = TRUE}
+knitr::include_graphics(file.path("extend", "assign_omegas.png"))
+```
+
+`assign_volume.csv` contains all the peaks, with the assigned identifier in the first column. The peak positions, scalar couplings, and relaxation rates in this table give the median values from all the individual fits. There is also a column for the volume found in each spectrum.
+
+```{r, echo = FALSE, results = "asis"}
+csv_table <- read.csv(file.path("extend", "assign_volume.csv"), check.names = FALSE)
+csv_table[,"assignment"] <- as.character(csv_table[,"assignment"])
+csv_table[is.na(csv_table[,"assignment"]),"assignment"] <- ""
+knitr::kable(csv_table)
+```
