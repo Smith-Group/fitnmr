@@ -22,7 +22,7 @@ knitr::opts_chunk$set(
 options(digits=5, width=90)
 ```
 
-FitNMR enables fully automated peak fitting of 2D NMR spectra. This document is split into two sections. The first section demonstrates how fitting can be done using `R` code, various stages of the algorithm, and some of the ways that the results can be visualized. The second section, "Fitting Peaks without Coding", shows how the same fitting can be done with very little manual code entry using two convenience scripts, `fit_peaks_2d.R` and `refit_peaks_2d.R`.
+FitNMR enables fully automated peak fitting of 2D NMR spectra. This document demonstrates how fitting can be done using `R` code, various stages of the algorithm, and some of the ways that the results can be visualized. For a description of how a similar workflow can be accomplished using prewritten `R` scripts that process all the spectra you put in a given directory, see the "Automated 2D Peak Fitting Scripts" document.
 
 The following tutorial will assume you have loaded the FitNMR package.
 

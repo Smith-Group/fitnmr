@@ -1,6 +1,17 @@
 ---
 title: "Automated 2D Peak Fitting Scripts"
 output: rmarkdown::html_vignette
+resource_files:
+ - fit/noise_histograms.png
+ - fit/fit_iterations_01.png
+ - fit/fit_iterations_02.png
+ - fit/fit_iterations_03.png
+ - fit/fit_iterations_04.png
+ - fit/fit_spectra.png
+ - refine/1_fit.png
+ - extend/2_fit.png
+ - extend/assign_stages.png
+ - extend/assign_omegas.png
 vignette: >
   %\VignetteIndexEntry{Automated 2D Peak Fitting Scripts}
   %\VignetteEngine{knitr::rmarkdown}
@@ -189,7 +200,7 @@ The `refit_peaks_2d.R` script first optimizes the volumes, keeping all other par
 1. For many experiments in which a series of spectra are acquired, different amounts of applied power can result in subtle shifts of the temperature/peak positions. Especially for overlappling peaks, this can cause systematic variations in the volumes. Allowing each spectrum to have slightly different peak positions within a small region around the starting values helps avoid this problem.
 2. When many spectra are fit simultaneously, the memory usage for FitNMR can grow very large. This will hopefully be fixed in a future update.
 
-## Output Files
+### Output Files
 
 The `refit_peaks_2d.R` script creates two files for each spectrum, whose names are derived from the spectrum filenames:
 

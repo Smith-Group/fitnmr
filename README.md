@@ -2,17 +2,19 @@
 
 ## Installation
 
-The latest developmental version of FitNMR can be installed by running the following command from within R. Before doing so, you should make sure that you have a writable library directory set using the `.libPaths()` command.
+The best way to install FitNMR is downloading and installing one of the [released packages](https://smith-group.github.io/fitnmr_releases/). These include prebuilt vignettes, which you can also view online as described below.
+
+The latest developmental version of FitNMR can be installed directly from GitHub by running the following command from within R. Before doing so, you should make sure that you have a writable library directory set using the `.libPaths()` command.
 
 ```
 source("https://raw.githubusercontent.com/r-lib/remotes/master/install-github.R")$value("Smith-Group/fitnmr")
 ```
 
-Installing `fitnmr` in this way will not include the vignettes. To read those, you must install one of the forthcoming release packages, or view them online as described below.
+Installing `fitnmr` in this way will not include the vignettes.
 
 ## Usage
 
-An example of how to use FitNMR for 2D peak fitting can be found in the [Automated 2D Peak Fitting](https://smith-group.github.io/fitnmr/articles/peak2d.html) vignette. If you are not comfortable with using R at the command line, we plan to very soon add a set of prewritten scripts that handle 2D peak identification and refitting across multiple spectra. All you will need to do is adjust a few settings in each script to do automatic fitting of 2D spectra.
+An example of how to use FitNMR for 2D peak fitting can be found in the [Automated 2D Peak Fitting Scripts](https://smith-group.github.io/fitnmr/articles/peak2d_scripts.html) vignette. For more background on the algorithms, or if you are comfortable with R code, see the [Automated 2D Peak Fitting Code](https://smith-group.github.io/fitnmr/articles/peak2d.html) vignette.
 
 For a roadmap describing the different categories of functions available, see the [FitNMR Package Overview](https://smith-group.github.io/fitnmr/reference/fitnmr.html).
 
