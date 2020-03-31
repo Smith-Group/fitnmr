@@ -297,7 +297,7 @@ knitr::kable(csv_table)
 FitNMR can also transfer previously determined peak assignments onto the peak lists. Unlike the previous section, this will be done in the same `extend` directory used above. For this tutorial, assignments for the subregion of the spectrum are also provided, which should be copied into that directory and given the name `assignments.csv`.
 
 ```{r, results = "hide"}
-file.copy("~/Documents/Wesleyan/R/fitnmr/inst/extdata/t1/assignments.csv", "extend", overwrite=TRUE)
+file.copy(system.file("extdata", "t1", "assignments.csv"), "extend", overwrite=TRUE)
 ```
 
 The `assignments.csv` file should contain a header and three columns. The text in the header is ignored, but the order of the columns must be: 
