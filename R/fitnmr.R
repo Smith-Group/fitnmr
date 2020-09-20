@@ -627,7 +627,7 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 			frac[omega_eval_idx[[j]]]
 		})
 		
-		aq_time <- aq_times(fheader)*c(2,2)
+		aq_time <- aq_times(fheader)
 		
 		fit_func <- vector("list", ncol(fheader))
 		
