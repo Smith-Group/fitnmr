@@ -1,3 +1,12 @@
+# Input Files:
+#  start_volume.csv: starting peak parameters for refitting
+#  *.ft2: 2D spectra with peaks to be refit
+
+# Output Files:
+#  *_volume.csv: refit peak parameters for each *.ft2 file
+#  *_fit.pdf: contour plots of the peaks fit to each *.ft2 file
+
+
 # Fitting Parameters:
 
 # data +/- these ppm values will be used for fitting (1H and X nuclei, respectively)

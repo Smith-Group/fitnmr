@@ -1,3 +1,15 @@
+# Input Files:
+#  assignments.csv: assignments to transfer to *_volume.csv files
+#  *_volume.csv: peak parameters to be assigned (each must have same number of peaks)
+#  *.ft2: 2D spectra associated with each *_volume.csv file
+#  start_volume.csv (optional): *_volume.csv file most similar to this used for assignment
+
+# Output Files
+#  assign_volume.csv: assigned peaks, median parameters, and aggregated volumes
+#  assign_stages.pdf: contour plot showing both assignment stages
+#  assign_omegas.pdf: contour plot showing final peak assignments
+
+
 # Assignment Parameters:
 
 # peak assignment stage 1 adjustment (for first and second dimensions, respectively)
@@ -63,13 +75,20 @@ omega0_ppm_1_idx <- match("omega0_ppm_1", dimnames(peak_array)[[2]])
 omega0_ppm_2_idx <- match("omega0_ppm_2", dimnames(peak_array)[[2]])
 peak_vol_idx <- match("r2_hz_2", dimnames(peak_array)[[2]])+1
 
-# read the starting volume
-start_df <- read.csv("start_volume.csv", check.names=FALSE)
-start_vol_idx <- match("r2_hz_2", colnames(start_df))+1
+# if start_volume.csv exists, use the spectra with the most similar volumes for assignment
+if (file.exists("start_volume.csv")) {
 
-# determine the peak list with the lowest root mean square volume compared with start
-vol_rms <- colMeans((peak_array[,peak_vol_idx,]-start_df[,start_vol_idx])^2)
-min_rms_idx <- which.min(vol_rms)
+	# read the starting volume
+	start_df <- read.csv("start_volume.csv", check.names=FALSE)
+	start_vol_idx <- match("r2_hz_2", colnames(start_df))+1
+
+	# determine the peak list with the lowest root mean square volume compared with start
+	vol_rms <- colMeans((peak_array[,peak_vol_idx,]-start_df[,start_vol_idx])^2)
+	min_rms_idx <- which.min(vol_rms)
+
+} else {
+	min_rms_idx <- 1
+}
 
 # read in the spectrum for that peak list
 spec_list <- lapply(ft2_files[min_rms_idx], read_nmrpipe, dim_order="hx")
@@ -94,7 +113,7 @@ assign_idx_adj <- height_assign(assigned_tab_adj, unknown_tab, thresh=thresh_2)
 
 
 median_tab <- apply(peak_array[,-peak_vol_idx,], 1:2, median)
-volume_tab <- peak_array[,peak_vol_idx,]
+volume_tab <- matrix(peak_array[,peak_vol_idx,], nrow=dim(peak_array)[1])
 colnames(volume_tab) <- sub("^[.]/", "", ft2_files)
 
 assignment_labels <- assignments_df[match(seq_len(nrow(median_tab)), assign_idx_adj),1]

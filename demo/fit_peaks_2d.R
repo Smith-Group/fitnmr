@@ -1,3 +1,13 @@
+# Input Files:
+#  *.ft2: 2D spectra with peaks to be fit
+
+# Output Files:
+#  fit_volume.csv: peak parameters for joint fit of all *.ft2 files
+#  noise_histograms.pdf: Gaussian fits of baseline intensity histograms for each *.ft2 file
+#  fit_iterations.pdf: contour plots showing the result of each peak fitting iteration
+#  fit_spectra.pdf: contour plots of the peaks fit to each *.ft2 file
+
+
 # Fitting Parameters:
 
 # peak height must be at least this times the noise level for a new fitting iteration
