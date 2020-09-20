@@ -9,9 +9,11 @@ plot_peak_df(
   spectra,
   noise_sigma = NULL,
   noise_cutoff = 4,
+  omega0_plus = c(0.075, 0.75) * 2,
   cex = 0.2,
   lwd = 0.25,
   label = TRUE,
+  label_col = "black",
   p0 = NULL,
   p1 = NULL,
   add = FALSE

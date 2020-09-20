@@ -9,6 +9,7 @@ fit_peak_cluster(
   cs_start,
   spec_ord,
   f_alpha_thresh = 0.001,
+  omega0_plus = c(0.075, 0.75),
   r2_start = 5,
   r2_bounds = c(0.5, 20),
   sc_start = NULL,

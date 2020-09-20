@@ -12,13 +12,13 @@ comb_vec_to_param_array(
 )
 }
 \arguments{
+\item{comb_vec}{vector of source parameters}
+
 \item{comb_array}{array of 2xN data frames with mapping between vector and array}
 
 \item{param_array}{starting array of destination parameters}
 
 \item{na_only}{only overwrite values in param_array if they are NA}
-
-\item{vector}{of source parameters}
 }
 \description{
 Determine array of destination parameters from a source vector
