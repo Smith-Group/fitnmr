@@ -627,7 +627,7 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 			frac[omega_eval_idx[[j]]]
 		})
 		
-		aq_time <- aq_times(fheader)
+		aq_time <- aq_times(fheader)*c(2,2)
 		
 		fit_func <- vector("list", ncol(fheader))
 		
@@ -1490,7 +1490,7 @@ spec_overlap_mat <- function(peak_int_list) {
 #'
 #' @export
 fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plus=c(0.075, 0.75), r2_start=5, r2_bounds=c(0.5, 20), sc_start=NULL, sc_bounds=c(0, Inf), positive_only=TRUE, plot_fit_stages=TRUE) {
-	
+
 	if (FALSE) {
 	sc_start <- NULL
 	if (!is.null(j_bounds)) {
@@ -1883,7 +1883,7 @@ param_list_to_arg_list <- function(param_list) {
 #' Fit a cluster nearby peaks starting from a seed table of chemical shifts
 #'
 #' @export
-fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001, r2_start=5, r2_bounds=c(0.5, 20), sc_start=NULL, sc_bounds=c(0, Inf), plot_main_prefix=NULL, peak_num_offset=0, plot_fit_stages=FALSE) {
+fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001, omega0_plus=c(0.075, 0.75), r2_start=5, r2_bounds=c(0.5, 20), sc_start=NULL, sc_bounds=c(0, Inf), plot_main_prefix=NULL, peak_num_offset=0, plot_fit_stages=FALSE) {
 
 	cs_new <- cs_start
 	fit_output <- NULL
@@ -1896,7 +1896,7 @@ fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001
 	while (f_alpha < f_alpha_thresh) {
 	
 		# perform trial fit
-		trial_fit_output <- fit_peaks(spec_list, cs_new, fit_output, spec_ord=spec_ord, sc_start=sc_start, sc_bounds=sc_bounds, positive_only=TRUE, plot_fit_stages=plot_fit_stages)
+		trial_fit_output <- fit_peaks(spec_list, cs_new, fit_output, spec_ord=spec_ord, omega0_plus=omega0_plus, r2_start=r2_start, r2_bounds=r2_bounds, sc_start=sc_start, sc_bounds=sc_bounds, positive_only=TRUE, plot_fit_stages=plot_fit_stages)
 		
 		# get new data from trial fit
 		trial_input_spec_int <- fitnmr::get_spec_int(trial_fit_output, "input")
@@ -2166,7 +2166,7 @@ fit_peak_iter <- function(spectra, noise_sigma=NULL, noise_cutoff=15, f_alpha=1e
 		if (plot_fit) {
 			plot_main_prefix <- paste("Fit", fit_num)
 		}
-		fit_output <- fitnmr::fit_peak_cluster(spec_sub_list, max_cs, spec_ord=1:2, f_alpha_thresh=f_alpha, r2_start=r2_start, r2_bounds=r2_bounds, sc_start=sc_start, sc_bounds=sc_bounds, plot_main_prefix=plot_main_prefix, peak_num_offset=peak_num_offset, plot_fit_stages=plot_fit_stages)
+		fit_output <- fitnmr::fit_peak_cluster(spec_sub_list, max_cs, spec_ord=1:2, f_alpha_thresh=f_alpha, omega0_plus=omega0_plus, r2_start=r2_start, r2_bounds=r2_bounds, sc_start=sc_start, sc_bounds=sc_bounds, plot_main_prefix=plot_main_prefix, peak_num_offset=peak_num_offset, plot_fit_stages=plot_fit_stages)
 		
 		if ("fit_list" %in% names(fit_output)) {
 
@@ -2377,7 +2377,7 @@ peak_df_to_fit_input <- function(peak_df, spectra, ...) {
 #' @param add logical indicating whether to suppress generation of a new plot and add to an existing plot.
 #'
 #' @export
-plot_peak_df <- function(peak_df, spectra, noise_sigma=NULL, noise_cutoff=4, cex=0.2, lwd=0.25, label=TRUE, label_col="black", p0=NULL, p1=NULL, add=FALSE) {
+plot_peak_df <- function(peak_df, spectra, noise_sigma=NULL, noise_cutoff=4, omega0_plus=c(0.075, 0.75)*2, cex=0.2, lwd=0.25, label=TRUE, label_col="black", p0=NULL, p1=NULL, add=FALSE) {
 
 	if (is.null(noise_sigma)) {
 		noise_sigma <- sapply(spectra, function(x) fitnmr::noise_estimate(x$int, plot_distributions=FALSE))["sigma",]
@@ -2385,7 +2385,7 @@ plot_peak_df <- function(peak_df, spectra, noise_sigma=NULL, noise_cutoff=4, cex
 
 	param_list <- peak_df_to_param_list(peak_df, spectra)
 
-	fit_input <- do.call(fitnmr::make_fit_input, c(list(spectra, omega0_plus=c(0.075, 0.75)*2), param_list_to_arg_list(param_list)))
+	fit_input <- do.call(fitnmr::make_fit_input, c(list(spectra, omega0_plus=omega0_plus), param_list_to_arg_list(param_list)))
 	if (!is.null(p0)) {
 		fit_input$start_list$p0[] <- p0
 	}
