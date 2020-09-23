@@ -83,7 +83,7 @@ if (file.exists("start_volume.csv")) {
 	start_vol_idx <- match("r2_hz_2", colnames(start_df))+1
 
 	# determine the peak list with the lowest root mean square volume compared with start
-	vol_rms <- colMeans((peak_array[,peak_vol_idx,]-start_df[,start_vol_idx])^2)
+	vol_rms <- colMeans((matrix(peak_array[,peak_vol_idx,], nrow=dim(peak_array)[1])-start_df[,start_vol_idx])^2)
 	min_rms_idx <- which.min(vol_rms)
 
 } else {
