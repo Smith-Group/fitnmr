@@ -30,6 +30,9 @@ fit_r2 <- TRUE
 # enable refitting of scalar couplings
 fit_sc <- TRUE
 
+# enable constraint of peak volume sign
+preserve_m0_sign <- FALSE
+
 
 # Plotting Parameters:
 
@@ -71,6 +74,14 @@ parallel::mclapply(seq_along(spec_list), function(spec_i) {
 	fit_input$group_list$r2[] <- 0
 	fit_input$group_list$omega0_comb[] <- 0
 	
+	# assign bounds
+	if (preserve_m0_sign) {
+		pos_idx <- fit_input$start_list$m0 >= 0
+		neg_idx <- fit_input$start_list$m0 < 0
+		fit_input$lower_list$m0[pos_idx,] <- 0
+		fit_input$upper_list$m0[neg_idx,] <- 0
+	}
+	
 	cat(paste("Fitting m0 for spectrum ", names(spec_list)[spec_i], "...", sep=""), sep="\n")
 	fit_output <- perform_fit(fit_input)
 	fit_output$group_list <- unfixed_group_list
@@ -106,6 +117,12 @@ parallel::mclapply(seq_along(spec_list), function(spec_i) {
 			fit_params <- c(fit_params, "r2")
 		} else {
 			fit_input$group_list$r2[] <- 0
+		}
+		
+		# reassign bounds
+		if (preserve_m0_sign) {
+			fit_input$lower_list$m0[pos_idx,] <- 0
+			fit_input$upper_list$m0[neg_idx,] <- 0
 		}
 		
 		fit_params <- c(fit_params, "m0")
