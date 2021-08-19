@@ -227,7 +227,7 @@ fill_array_list <- function(x, array_dim, comb=FALSE) {
 	
 	not_null_idx <- !sapply(x, is.null)
 	x[not_null_idx] <- lapply(x[not_null_idx], function(y) {
-		data.frame(as.integer(y[[1]]), as.numeric(y[[2]]), fix.empty.names=FALSE)
+		data.frame(y[[1]], as.numeric(y[[2]]), fix.empty.names=FALSE)
 	})
 	
 	array(x, array_dim)
@@ -254,6 +254,7 @@ fill_comb_group <- function(x, comb_array) {
 	
 	if (length(not_null_idx)) {
 	
+		x_names <- names(x)
 		x_dim <- dim(x)
 		x_dimnames <- dimnames(x)
 	
@@ -264,10 +265,14 @@ fill_comb_group <- function(x, comb_array) {
 		}
 	
 		all_comb <- do.call(rbind, comb_array[not_null_idx])
-		max_comb_idx <- max(all_comb[,1])
-		stopifnot(seq_len(max_comb_idx) %in% all_comb[,1])
-	
-		x <- rep_len(x, max_comb_idx)
+		
+		if (is.integer(all_comb[,1])) {
+		
+			max_comb_idx <- max(all_comb[,1])
+			stopifnot(seq_len(max_comb_idx) %in% all_comb[,1])
+			
+			x <- rep_len(x, max_comb_idx)
+		}
 	
 		na_idx <- is.na(x)
 		x[na_idx] <- utils::head(setdiff(seq_along(x), x[!na_idx]), sum(na_idx))
@@ -275,6 +280,8 @@ fill_comb_group <- function(x, comb_array) {
 		if (prod(x_dim) == length(x)) {
 			dim(x) <- x_dim
 			dimnames(x) <- x_dimnames
+		} else if (length(x_names) == length(x)) {
+			names(x) <- x_names
 		}
 	
 		x
@@ -379,6 +386,7 @@ group_param_idx <- function(param_names, group_list, start_list) {
 	
 	for (i in seq_along(start_list)) {
 		idx_list[[i]][] <- match(paste(names(group_list)[i], group_list[[i]], sep="_"), param_names)
+		names(idx_list[[i]]) <- names(start_list[[i]])
 	}
 	
 	idx_list
@@ -402,7 +410,7 @@ comb_vec_to_param_array <- function(comb_vec, comb_array, param_array=NULL, na_o
 	
 		all_comb <- do.call(rbind, comb_array[not_null_idx])
 	
-		stopifnot(length(comb_vec) == max(all_comb[,1]))
+		stopifnot((is.numeric(all_comb[,1]) && length(comb_vec) == max(all_comb[,1])) || unique(all_comb[,1]) %in% names(comb_vec))
 	
 		for (i in seq_along(not_null_idx)) {
 			comb_df <- comb_array[[not_null_idx[i]]]
@@ -471,7 +479,7 @@ param_array_to_comb_vec <- function(param_array, comb_array, group_vec=NULL, res
 #' Prepare input data structure for peak fitting
 #'
 #' @export
-make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omega0_plus, r2_start=NULL, m0_start=NULL, m0_region=(omega0_plus+omega0_minus)/2, p0_start=0, p1_start=0, omega0_group=NULL, r2_group=NULL, m0_group=NULL, p0_group=0, p1_group=0, omega0_comb=NULL, omega0_comb_start=NULL, omega0_comb_group=NULL, field_offsets=numeric(), field_start=numeric(), field_group=0, fheader=NULL) {
+make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omega0_plus, r2_start=NULL, m0_start=NULL, m0_region=(omega0_plus+omega0_minus)/2, p0_start=0, p1_start=0, omega0_group=NULL, r2_group=NULL, m0_group=NULL, p0_group=0, p1_group=0, omega0_comb=NULL, omega0_comb_start=NULL, omega0_comb_group=NULL, resonance_names=NULL, field_offsets=numeric(), field_start=numeric(), field_group=0, fheader=NULL) {
 
 	if (is.data.frame(spectra)) {
 		fheader <- fheader
@@ -724,6 +732,7 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 		start_list=start_list,
 		group_list=group_list,
 		comb_list=comb_list,
+		resonance_names=resonance_names,
 		field_offsets=field_offsets,
 		lower_list=lower_list,
 		upper_list=upper_list,
@@ -1399,6 +1408,9 @@ fit_footprint <- function(fit, frac=0.12) {
 limit_omega0_by_r2 <- function(fit_input, factor=1.5) {
 
 	ref_freq_mat <- sapply(fit_input$spec_data, "[[", "ref_freq")
+	if (!is.matrix(ref_freq_mat)) {
+		ref_freq_mat <- matrix(ref_freq_mat, nrow=1)
+	}
 	ref_freq_mat_exp <- ref_freq_mat[,rep(seq_len(ncol(ref_freq_mat)), each=dim(fit_input$start_list$r2)[2])]
 
 	#print(fit_input$start_list$r2)
@@ -1779,6 +1791,9 @@ omega0_param_idx <- function(param_list, dims=seq_len(dim(param_list[["group_lis
 	
 	idx_list <- lapply(param_list[["group_list"]], function(x) if (is.array(x)) array(FALSE, dim(x)) else logical(length(x)))
 	names(idx_list) <- names(param_list[["group_list"]])
+	for (i in seq_along(idx_list)) {
+		names(idx_list[[i]]) <- names(param_list[["group_list"]][[i]])
+	}
 	
 	subset_idx <- idx_list[["omega0"]]
 	subset_idx[dims, peaks, specs] <- TRUE
@@ -1800,12 +1815,19 @@ coupling_param_idx <- function(param_list, comb_idx_offset=0) {
 	
 	idx_list <- lapply(param_list[["group_list"]], function(x) if (is.array(x)) array(FALSE, dim(x)) else logical(length(x)))
 	names(idx_list) <- names(param_list[["group_list"]])
+	for (i in seq_along(idx_list)) {
+		names(idx_list[[i]]) <- names(param_list[["group_list"]][[i]])
+	}
 	
 	not_null_idx <- which(!sapply(param_list[["comb_list"]][["omega0"]], is.null))
 	
 	for (i in which(!idx_list[["omega0"]] )) {
 		not_unity_idx <- param_list[["comb_list"]][["omega0"]][[i]][,2] != 1
-		idx_list[["omega0_comb"]][ param_list[["comb_list"]][["omega0"]][[i]][not_unity_idx,1]-comb_idx_offset ] <- TRUE
+		if (is.numeric(param_list[["comb_list"]][["omega0"]][[i]][,1])) {
+			idx_list[["omega0_comb"]][ param_list[["comb_list"]][["omega0"]][[i]][not_unity_idx,1]-comb_idx_offset ] <- TRUE
+		} else {
+			idx_list[["omega0_comb"]][ param_list[["comb_list"]][["omega0"]][[i]][not_unity_idx,1] ] <- TRUE
+		}
 	}
 	
 	idx_list
@@ -1827,7 +1849,11 @@ omega0_comb_source_idx <- function(param_list, omega0_idx=omega0_param_idx(param
 		unity_idx <- param_list[["comb_list"]][["omega0"]][[i]][,2] == 1
 		comb_idx <- param_list[["comb_list"]][["omega0"]][[i]][unity_idx,1]
 		if (omega0_idx[["omega0_comb"]][comb_idx]) {
-			idx <- match(comb_idx, which(omega0_idx[["omega0_comb"]]))+length(omega0_source_idx)
+			if (is.numeric(comb_idx)) {
+				idx <- match(comb_idx, which(omega0_idx[["omega0_comb"]]))+length(omega0_source_idx)
+			} else {
+				idx <- match(comb_idx, names(which(omega0_idx[["omega0_comb"]])))+length(omega0_source_idx)
+			}
 			source_idx[idx] <- i
 		}
 	}
@@ -1873,7 +1899,12 @@ param_values <- function(params, idx_list) {
 param_list_to_arg_list <- function(param_list) {
 
 	for (i in seq_along(param_list)) {
-		names(param_list[[i]]) <- paste(names(param_list[[i]]), sub("_list", "", names(param_list)[i]), sep="_")
+		if (names(param_list)[i] != "resonance_names") {
+			names(param_list[[i]]) <- paste(names(param_list[[i]]), sub("_list", "", names(param_list)[i]), sep="_")
+		}
+	}
+	if ("resonance_names" %in% names(param_list)) {
+		param_list[["resonance_names"]] <- list(resonance_names=param_list[["resonance_names"]])
 	}
 	names(param_list) <- NULL
 
