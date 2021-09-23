@@ -225,10 +225,12 @@ fill_array_list <- function(x, array_dim, comb=FALSE) {
 		x <- as.list(x)
 	}
 	
-	not_null_idx <- !sapply(x, is.null)
-	x[not_null_idx] <- lapply(x[not_null_idx], function(y) {
-		data.frame(y[[1]], as.numeric(y[[2]]), fix.empty.names=FALSE)
-	})
+	if (comb) {
+		not_null_idx <- !sapply(x, is.null)
+		x[not_null_idx] <- lapply(x[not_null_idx], function(y) {
+			data.frame(y[[1]], as.numeric(y[[2]]), fix.empty.names=FALSE)
+		})
+	}
 	
 	array(x, array_dim)
 }
@@ -248,11 +250,12 @@ fill_group <- function(x, array_dim, na_dim1_same=FALSE) {
 	x
 }
 
-fill_comb_group <- function(x, comb_array) {
+fill_comb_group <- function(x, omega0_array, coupling_array) {
 
-	not_null_idx <- which(!sapply(comb_array, is.null))
+	omega0_not_null_idx <- which(!sapply(omega0_array, is.null))
+	coupling_not_null_idx <- which(!sapply(coupling_array, is.null))
 	
-	if (length(not_null_idx)) {
+	if (length(omega0_not_null_idx) + length(coupling_not_null_idx)) {
 	
 		x_names <- names(x)
 		x_dim <- dim(x)
@@ -264,7 +267,7 @@ fill_comb_group <- function(x, comb_array) {
 			x <- as.integer(x)
 		}
 	
-		all_comb <- do.call(rbind, comb_array[not_null_idx])
+		all_comb <- do.call(rbind, omega0_array[omega0_not_null_idx])
 		
 		if (is.integer(all_comb[,1])) {
 		
@@ -476,10 +479,28 @@ param_array_to_comb_vec <- function(param_array, comb_array, group_vec=NULL, res
 	}
 }
 
+coupling_omega0_weights <- function(omega0, coupling_mat=NULL, omega0_comb=NULL, ref_mhz=NULL) {
+
+	if (is.null(coupling_mat)) {
+	
+		matrix(c(omega0, 1), nrow=1)
+		
+	} else {
+	
+		offset_mat <- coupling_mat[,-1,drop=FALSE]
+		if (ncol(offset_mat) > 1) {
+			for (coupling_name in colnames(offset_mat)[-1]) {
+				offset_mat[,coupling_name] <- offset_mat[,coupling_name]*omega0_comb[coupling_name]
+			}
+		}
+		cbind(omega0+rowSums(offset_mat)/ref_mhz, coupling_mat[,1])
+	}
+}
+
 #' Prepare input data structure for peak fitting
 #'
 #' @export
-make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omega0_plus, r2_start=NULL, m0_start=NULL, m0_region=(omega0_plus+omega0_minus)/2, p0_start=0, p1_start=0, omega0_group=NULL, r2_group=NULL, m0_group=NULL, p0_group=0, p1_group=0, omega0_comb=NULL, omega0_comb_start=NULL, omega0_comb_group=NULL, resonance_names=NULL, field_offsets=numeric(), field_start=numeric(), field_group=0, fheader=NULL) {
+make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omega0_plus, r2_start=NULL, m0_start=NULL, m0_region=(omega0_plus+omega0_minus)/2, p0_start=0, p1_start=0, omega0_group=NULL, r2_group=NULL, m0_group=NULL, p0_group=0, p1_group=0, omega0_comb=NULL, omega0_comb_start=NULL, omega0_comb_group=NULL, coupling_comb=NULL, resonance_names=NULL, nucleus_names=NULL, field_offsets=numeric(), field_start=numeric(), field_group=0, fheader=NULL) {
 
 	if (is.data.frame(spectra)) {
 		fheader <- fheader
@@ -521,7 +542,9 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 		omega0_start <- comb_vec_to_param_array(omega0_comb_start, omega0_comb, omega0_start)
 	}
 	
-	omega0_comb_group <- fill_comb_group(omega0_comb_group, omega0_comb)
+	coupling_comb <- fill_array_list(coupling_comb, dim(omega0_start))
+	
+	omega0_comb_group <- fill_comb_group(omega0_comb_group, omega0_comb, coupling_comb)
 	
 	if (!is.matrix(field_offsets)) {
 		field_offsets <- matrix(field_offsets, nrow=length(field_offsets), ncol=n_spectra)
@@ -565,6 +588,8 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 		spec_int <- spectra[[i]][["int"]]
 		spec_ppm <- spectra[[i]][["ppm"]]
 		
+		fheader <- spectra[[i]][["fheader"]]
+		
 		for (j in seq_along(peak_idx_list)) {
 		
 			roi_idx <- roi_dimnames <- vector("list", length(spec_ppm))
@@ -573,10 +598,12 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 				# take aliasing into account
 				sw_ppm <- spectra[[i]][["fheader"]]["SW",k]/spectra[[i]][["fheader"]]["OBS",k]
 				sw_ppm <- 0
+				omega0_weights <- coupling_omega0_weights(omega0_start[k,j,i], coupling_comb[[k,j,i]], omega0_comb_start, fheader["OBS",k])
+				omega0_range <- range(omega0_weights[,1])
 				roi_idx[[k]] <- (
-					(spec_ppm[[k]] >= omega0_start[k,j,i]-omega0_minus[k,j,i] & spec_ppm[[k]] <= omega0_start[k,j,i]+omega0_plus[k,j,i]) |
-					(spec_ppm[[k]]+sw_ppm >= omega0_start[k,j,i]-omega0_minus[k,j,i] & spec_ppm[[k]]+sw_ppm <= omega0_start[k,j,i]+omega0_plus[k,j,i]) |
-					(spec_ppm[[k]]-sw_ppm >= omega0_start[k,j,i]-omega0_minus[k,j,i] & spec_ppm[[k]]-sw_ppm <= omega0_start[k,j,i]+omega0_plus[k,j,i])
+					(spec_ppm[[k]] >= omega0_range[1]-omega0_minus[k,j,i] & spec_ppm[[k]] <= omega0_range[2]+omega0_plus[k,j,i]) |
+					(spec_ppm[[k]]+sw_ppm >= omega0_range[1]-omega0_minus[k,j,i] & spec_ppm[[k]]+sw_ppm <= omega0_range[2]+omega0_plus[k,j,i]) |
+					(spec_ppm[[k]]-sw_ppm >= omega0_range[1]-omega0_minus[k,j,i] & spec_ppm[[k]]-sw_ppm <= omega0_range[2]+omega0_plus[k,j,i])
 				)
 				roi_dimnames[[k]] <- dimnames(spec_int)[[k]][roi_idx[[k]]]
 			}
@@ -623,8 +650,6 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 		spec_eval_idx <- sapply(seq_len(ncol(spec_eval_idx)), function(j) match(spec_eval_idx[,j], omega_eval_idx[[j]]))
 		
 		omega_eval <- lapply(seq_len(ncol(spec_eval_idx)), function(j) spec_ppm[[j]][omega_eval_idx[[j]]])
-		
-		fheader <- spectra[[i]][["fheader"]]
 		
 		p1_frac <- lapply(seq_along(omega_eval), function(j) {
 			frac <- seq(0, 1, length.out=fheader["FTSIZE",j]+1)
@@ -709,7 +734,8 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 	)
 	
 	comb_list <- list(
-		omega0=omega0_comb
+		omega0=omega0_comb,
+		coupling=coupling_comb
 	)
 	
 	lower_list <- upper_list <- start_list
@@ -733,6 +759,7 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 		group_list=group_list,
 		comb_list=comb_list,
 		resonance_names=resonance_names,
+		nucleus_names=nucleus_names,
 		field_offsets=field_offsets,
 		lower_list=lower_list,
 		upper_list=upper_list,
@@ -740,7 +767,7 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 	)
 }
 
-eval_peak_1d <- function(func_list, func_data, ref_mhz, omega, omega0, r2, p0=0, p1=0, p1_frac=0) {
+eval_peak_1d <- function(func_list, func_data, ref_mhz, omega, omega0, r2, p0=0, p1=0, p1_frac=0, coupling=NULL, omega0_comb=NULL) {
 
 	func_data <- c(list(
 		omega=omega*ref_mhz*2*pi, # convert ppm to rad/s
@@ -751,15 +778,31 @@ eval_peak_1d <- function(func_list, func_data, ref_mhz, omega, omega0, r2, p0=0,
 	p0 <- p0*pi/180 # convert degrees to rad
 	p1 <- p1*pi/180 # convert degrees to rad
 	
-	func <- eval(func_list$func, func_data)
-	#func <- eval(lineshapes_simplified_func$none, func_data)
+	if (is.null(coupling)) {
+	
+		func <- eval(func_list$func, func_data)
+		#func <- eval(lineshapes_simplified_func$none, func_data)
+	
+	} else {
+	
+		func <- complex(length(omega))
+		
+		omega0_weights <- coupling_omega0_weights(omega0, coupling, omega0_comb, ref_mhz)
+		
+		for (i in seq_len(nrow(omega0_weights))) {
+		
+			func_data[["omega0"]] <- omega0_weights[i,1]*ref_mhz*2*pi # convert ppm to rad/s
+			
+			func <- func + eval(func_list$func, func_data)*omega0_weights[i,2]
+		}
+	}
 	
 	pvec <- exp(1i*(p0+p1*p1_frac))
 	
 	Re(func*pvec)
 }
 
-eval_peak_1d_deriv <- function(func_list, func_data, ref_mhz, omega, omega0, r2, p0=0, p1=0, p1_frac=0) {
+eval_peak_1d_deriv <- function(func_list, func_data, ref_mhz, omega, omega0, r2, p0=0, p1=0, p1_frac=0, coupling=NULL, omega0_comb=NULL) {
 
 	func_data <- c(list(
 		omega=omega*ref_mhz*2*pi, # convert ppm to rad/s
@@ -773,20 +816,49 @@ eval_peak_1d_deriv <- function(func_list, func_data, ref_mhz, omega, omega0, r2,
 	#foo <- eval(lineshapes_simplified$none, func_data)
 	#print(foo)
 	
-	if (TRUE) {
-		func <- eval(func_list$func, func_data)
-		dfunc_domega0 <- eval(func_list$domega0, func_data)
-		dfunc_dr2 <- eval(func_list$dr2, func_data)
-	} else {
-		eval_vec <- eval(lineshapes_simplified$none, func_data)
-		func <- eval_vec[[1]]
-		dfunc_domega0 <- eval_vec[[2]]
-		dfunc_dr2 <- eval_vec[[3]]
-	}
+	if (is.null(coupling)) {
 	
-	#pvec <-          exp(1i*(p0 + p1*p1_frac))
-	#dpvec_dp0 <-  1i*exp(1i*(p0 + p1*p1_frac))
-	#dpvec_dp1 <- -1i*exp(1i*(p0 + p1*p1_frac))*p1_frac
+		if (TRUE) {
+			func <- eval(func_list$func, func_data)
+			dfunc_domega0 <- eval(func_list$domega0, func_data)
+			dfunc_dr2 <- eval(func_list$dr2, func_data)
+		} else {
+			eval_vec <- eval(lineshapes_simplified$none, func_data)
+			func <- eval_vec[[1]]
+			dfunc_domega0 <- eval_vec[[2]]
+			dfunc_dr2 <- eval_vec[[3]]
+		}
+	
+		#pvec <-          exp(1i*(p0 + p1*p1_frac))
+		#dpvec_dp0 <-  1i*exp(1i*(p0 + p1*p1_frac))
+		#dpvec_dp1 <- -1i*exp(1i*(p0 + p1*p1_frac))*p1_frac
+		
+		dfunc_dcoupling <- NULL
+	
+	} else {
+	
+		func <- complex(length(omega))
+		dfunc_domega0 <- complex(length(omega))
+		dfunc_dr2 <- complex(length(omega))
+		dfunc_dcoupling <- matrix(complex(1), nrow=length(omega), ncol=ncol(coupling)-2)
+		colnames(dfunc_dcoupling) <- colnames(coupling)[-(1:2)]
+		
+		omega0_weights <- coupling_omega0_weights(omega0, coupling, omega0_comb, ref_mhz)
+		
+		for (i in seq_len(nrow(omega0_weights))) {
+		
+			func_data[["omega0"]] <- omega0_weights[i,1]*ref_mhz*2*pi # convert ppm to rad/s
+			
+			func <- func + eval(func_list$func, func_data)*omega0_weights[i,2]
+			dfunc_domega0_weighted <- eval(func_list$domega0, func_data)*omega0_weights[i,2]
+			dfunc_domega0 <- dfunc_domega0 + dfunc_domega0_weighted
+			dfunc_dr2 <- dfunc_dr2 + eval(func_list$dr2, func_data)*omega0_weights[i,2]
+			
+			if (ncol(dfunc_dcoupling)) {
+				dfunc_dcoupling <- dfunc_dcoupling + dfunc_domega0_weighted*rep(coupling[i,-(1:2)], each=length(dfunc_domega0_weighted))
+			}
+		}
+	}
 	
 	pvec <- exp(1i*(p0 + p1*p1_frac))
 	dpvec_dp0 <- 1i*pvec
@@ -794,16 +866,18 @@ eval_peak_1d_deriv <- function(func_list, func_data, ref_mhz, omega, omega0, r2,
 	
 	func_re <- Re(func*pvec)
 	dfunc_domega0_re <- Re(dfunc_domega0*pvec)*ref_mhz*2*pi # convert rad/s back to ppm
-	dfunc_dr2_re <- Re(dfunc_dr2*pvec)*2*pi # convert rad/s back to Hz 
+	dfunc_dr2_re <- Re(dfunc_dr2*pvec)*2*pi # convert rad/s back to Hz
 	dfunc_dp0_re <- Re(func*dpvec_dp0)*pi/180 # convert rad back to degrees
 	dfunc_dp1_re <- Re(func*dpvec_dp1)*pi/180 # convert rad back to degrees
+	dfunc_dcoupling_re <- Re(dfunc_dcoupling*pvec)*2*pi # convert rad/s back to Hz
 	
 	cbind(
 		f=func_re,
 		omega0=dfunc_domega0_re,
 		r2=dfunc_dr2_re,
 		p0=dfunc_dp0_re,
-		p1=dfunc_dp1_re
+		p1=dfunc_dp1_re,
+		dfunc_dcoupling_re
 	)
 }
 
@@ -844,7 +918,9 @@ fit_fn <- function(par, fit_data, return_resid=TRUE) {
 						param_list[["r2"]][dim_idx,peak_idx,spec_idx],
 						param_list[["p0"]][dim_idx,peak_idx,spec_idx],
 						param_list[["p1"]][dim_idx,peak_idx,spec_idx],
-						spec_data$p1_frac[[dim_idx]]
+						spec_data$p1_frac[[dim_idx]],
+						fit_data[["comb_list"]][["coupling"]][[dim_idx,peak_idx,spec_idx]],
+						param_list[["omega0_comb"]]
 					)
 				})
 			
@@ -910,7 +986,9 @@ fit_jac <- function(par, fit_data) {
 						param_list[["r2"]][dim_idx,peak_idx,spec_idx],
 						param_list[["p0"]][dim_idx,peak_idx,spec_idx],
 						param_list[["p1"]][dim_idx,peak_idx,spec_idx],
-						spec_data$p1_frac[[dim_idx]]
+						spec_data$p1_frac[[dim_idx]],
+						fit_data[["comb_list"]][["coupling"]][[dim_idx,peak_idx,spec_idx]],
+						param_list[["omega0_comb"]]
 					)
 				})
 			
@@ -969,6 +1047,24 @@ fit_jac <- function(par, fit_data) {
 						comb_data <- fit_data$comb_list[[var_name]][[idx,peak_idx,spec_idx]]
 						for (comb_idx in which(!is.na(idx_list[[var_comb_name]][comb_data[,1]]))) {
 							jac_eval[spec_eval_idx,idx_list[[var_comb_name]][comb_data[comb_idx,1]]] <- jac_eval[spec_eval_idx,idx_list[[var_comb_name]][comb_data[comb_idx,1]]] + deriv_nd_prod*comb_data[comb_idx,2]*field_weight
+						}
+					}
+				}
+				
+				for (var_name in c("coupling")) {
+					for (idx in seq_along(deriv_1d_evals)) {
+						# find which coupling matrices are not null
+						var_idx <- which(!sapply(fit_data$comb_list[[var_name]][,peak_idx,spec_idx], is.null))
+						for (idx in var_idx) {
+							# get the names of couplings from columns 6 and onwards
+							coupling_names <- colnames(deriv_1d_evals[[idx]])[-(1:5)]
+							# loop over couplings that are being optimized
+							for (coupling_name in coupling_names[!is.na(idx_list[["omega0_comb"]][coupling_names])]) {
+								# expand the 1D derivative to cover nD points and account for volume
+								deriv_nd_prod <- deriv_1d_evals[[idx]][spec_data$spec_eval_idx[,idx],coupling_name]*param_list[["m0"]][peak_idx,spec_idx]
+								# accumulate the nD derivative and account for weight in field inhomogeneity
+								jac_eval[spec_eval_idx,idx_list[["omega0_comb"]][coupling_name]] <- jac_eval[spec_eval_idx,idx_list[["omega0_comb"]][coupling_name]] + deriv_nd_prod*field_weight
+							}
 						}
 					}
 				}
@@ -1821,13 +1917,19 @@ coupling_param_idx <- function(param_list, comb_idx_offset=0) {
 	
 	not_null_idx <- which(!sapply(param_list[["comb_list"]][["omega0"]], is.null))
 	
-	for (i in which(!idx_list[["omega0"]] )) {
+	for (i in which(!idx_list[["omega0"]])) {
 		not_unity_idx <- param_list[["comb_list"]][["omega0"]][[i]][,2] != 1
 		if (is.numeric(param_list[["comb_list"]][["omega0"]][[i]][,1])) {
 			idx_list[["omega0_comb"]][ param_list[["comb_list"]][["omega0"]][[i]][not_unity_idx,1]-comb_idx_offset ] <- TRUE
 		} else {
 			idx_list[["omega0_comb"]][ param_list[["comb_list"]][["omega0"]][[i]][not_unity_idx,1] ] <- TRUE
 		}
+	}
+	
+	for (i in seq_along(param_list[["comb_list"]][["coupling"]])) {
+	
+		coupling_names <- colnames(param_list[["comb_list"]][["coupling"]][[i]])[-(1:2)]
+		idx_list[["omega0_comb"]][coupling_names] <- TRUE
 	}
 	
 	idx_list
@@ -1899,12 +2001,15 @@ param_values <- function(params, idx_list) {
 param_list_to_arg_list <- function(param_list) {
 
 	for (i in seq_along(param_list)) {
-		if (names(param_list)[i] != "resonance_names") {
+		if (! names(param_list)[i] %in% c("resonance_names", "nucleus_names")) {
 			names(param_list[[i]]) <- paste(names(param_list[[i]]), sub("_list", "", names(param_list)[i]), sep="_")
 		}
 	}
 	if ("resonance_names" %in% names(param_list)) {
 		param_list[["resonance_names"]] <- list(resonance_names=param_list[["resonance_names"]])
+	}
+	if ("nucleus_names" %in% names(param_list)) {
+		param_list[["nucleus_names"]] <- list(nucleus_names=param_list[["nucleus_names"]])
 	}
 	names(param_list) <- NULL
 
