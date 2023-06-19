@@ -22,7 +22,11 @@
 #' @export
 read_nmrpipe <- function(inFormat, dim_order=NULL, complex_data=FALSE) {
 	
-	inFile <- sprintf(inFormat, 1)
+	if (length(grep("%[0-9]+[di]", inFormat))) {
+		inFile <- sprintf(inFormat, 1)
+	} else {
+		inFile <- inFormat
+	}
 	
 	if (missing(inFile))
 		stop('The inFile file path is required')	
@@ -96,7 +100,11 @@ read_nmrpipe <- function(inFormat, dim_order=NULL, complex_data=FALSE) {
 	
 	for (i in seq_len(header["FDFILECOUNT"])) {
 	
-		inFile <- sprintf(inFormat, i)
+		if (header["FDFILECOUNT"] > 1) {
+			inFile <- sprintf(inFormat, 1)
+		} else {
+			inFile <- inFormat
+		}
 		readCon <- file(inFile, "rb")
 		seek(readCon, where=4*512)
 		data_read <- readBin(readCon, size=4, what="numeric", n=n, endian=endianness)
