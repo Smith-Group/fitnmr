@@ -1062,6 +1062,10 @@ fit_jac <- function(par, fit_data) {
 							for (coupling_name in coupling_names[!is.na(idx_list[["omega0_comb"]][coupling_names])]) {
 								# expand the 1D derivative to cover nD points and account for volume
 								deriv_nd_prod <- deriv_1d_evals[[idx]][spec_data$spec_eval_idx[,idx],coupling_name]*param_list[["m0"]][peak_idx,spec_idx]
+								# multiply 1D function from other dimensions
+								for (i in seq_len(ncol(spec_data$spec_eval_idx))[-idx]) {
+									deriv_nd_prod <- deriv_nd_prod*deriv_1d_evals[[i]][spec_data$spec_eval_idx[,i],"f"]
+								}
 								# accumulate the nD derivative and account for weight in field inhomogeneity
 								jac_eval[spec_eval_idx,idx_list[["omega0_comb"]][coupling_name]] <- jac_eval[spec_eval_idx,idx_list[["omega0_comb"]][coupling_name]] + deriv_nd_prod*field_weight
 							}
