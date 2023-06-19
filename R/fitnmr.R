@@ -280,7 +280,7 @@ fill_comb_group <- function(x, omega0_array, coupling_array) {
 		na_idx <- is.na(x)
 		x[na_idx] <- utils::head(setdiff(seq_along(x), x[!na_idx]), sum(na_idx))
 	
-		if (prod(x_dim) == length(x)) {
+		if (!is.null(x_dim) && prod(x_dim) == length(x)) {
 			dim(x) <- x_dim
 			dimnames(x) <- x_dimnames
 		} else if (length(x_names) == length(x)) {
