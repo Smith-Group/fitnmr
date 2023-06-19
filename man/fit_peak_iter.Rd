@@ -17,7 +17,8 @@ fit_peak_iter(
   sc_bounds = c(2, 12),
   fit_list = list(),
   plot_fit = FALSE,
-  plot_fit_stages = FALSE
+  plot_fit_stages = FALSE,
+  iter_callback = NULL
 )
 }
 \arguments{
@@ -46,6 +47,8 @@ fit_peak_iter(
 \item{plot_fit}{logical indicating whether produce a fit cluster plot for each iteration.}
 
 \item{plot_fit_stages}{logical indicating whether to plot each stage of fitting within the iterations.}
+
+\item{iter_callback}{function called after each iteration with two arguments: \code{iter} and \code{iter_max}}
 }
 \value{
 List of fit objects returned by \code{\link{fit_peak_cluster}}, one for each iteration. They are appended to \code{fit_list} if supplied.

@@ -2242,10 +2242,11 @@ fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001
 #' @param fit_list list of previous fits to which the new fits should be appended.
 #' @param plot_fit logical indicating whether produce a fit cluster plot for each iteration.
 #' @param plot_fit_stages logical indicating whether to plot each stage of fitting within the iterations.
+#' @param iter_callback function called after each iteration with two arguments: \code{iter} and \code{iter_max}
 #' @return List of fit objects returned by \code{\link{fit_peak_cluster}}, one for each iteration. They are appended to \code{fit_list} if supplied.
 #'
 #' @export
-fit_peak_iter <- function(spectra, noise_sigma=NULL, noise_cutoff=15, f_alpha=1e-3, iter_max=100, omega0_plus=c(0.075, 0.75), r2_start=5, r2_bounds=c(0.5, 20), sc_start=c(6, NA), sc_bounds=c(2, 12), fit_list=list(), plot_fit=FALSE, plot_fit_stages=FALSE) {
+fit_peak_iter <- function(spectra, noise_sigma=NULL, noise_cutoff=15, f_alpha=1e-3, iter_max=100, omega0_plus=c(0.075, 0.75), r2_start=5, r2_bounds=c(0.5, 20), sc_start=c(6, NA), sc_bounds=c(2, 12), fit_list=list(), plot_fit=FALSE, plot_fit_stages=FALSE, iter_callback=NULL) {
 
 	if (is.null(noise_sigma)) {
 		noise_sigma <- sapply(spectra, function(x) fitnmr::noise_estimate(x$int, plot_distributions=FALSE))["sigma",]
@@ -2334,6 +2335,10 @@ fit_peak_iter <- function(spectra, noise_sigma=NULL, noise_cutoff=15, f_alpha=1e
 		
 				spec_sub_list[[i]]$int[idx_1,idx_2][not_na_idx] <- (spec_sub_list[[i]]$int[idx_1,idx_2]-fit_output[[i]])[not_na_idx]
 			}
+		}
+		
+		if (!is.null(iter_callback)) {
+			iter_callback(iter, iter_max)
 		}
 	}
 	
