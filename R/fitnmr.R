@@ -2128,13 +2128,17 @@ fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001
 		
 		# calculate value of F statistic and corresponding P-value
 		f_val <- ((rss-trial_rss)/(trial_num_params-num_params))/(trial_rss/(num_pts-trial_num_params))
-		f_alpha <- 1-stats::pf(f_val, trial_num_params-num_params, num_pts-trial_num_params)
-		f_alpha <- -expm1(stats::pf(f_val, trial_num_params-num_params, num_pts-trial_num_params, log.p=TRUE))
+		#f_alpha <- 1-stats::pf(f_val, trial_num_params-num_params, num_pts-trial_num_params)
+		if (num_pts <= trial_num_params) {
+			f_alpha <- NaN
+		} else {
+			f_alpha <- -expm1(stats::pf(f_val, trial_num_params-num_params, num_pts-trial_num_params, log.p=TRUE))
+		}
 		f_p_trace <- c(f_p_trace, f_alpha)
 		
 		cat(sprintf(" %2i -> %2i fit parameters: F = %0.1f (p = %g)", num_params, trial_num_params, f_val, f_alpha), sep="\n")
 		
-		if (f_alpha < f_alpha_thresh)  {
+		if (is.finite(f_alpha) && f_alpha < f_alpha_thresh)  {
 		
 			fit_output <- trial_fit_output
 			input_spec_int <- trial_input_spec_int
@@ -2155,7 +2159,12 @@ fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001
 		
 		} else {
 		
-			cat(sprintf(" Terminating search because F-test p-value < %g", f_alpha_thresh), sep="\n")
+			if (is.finite(f_alpha)) {
+				cat(sprintf(" Terminating search because F-test p-value > %g", f_alpha_thresh), sep="\n")
+			} else {
+				cat(" Terminating search because too few points available to fit", sep="\n")
+				f_alpha <- 1
+			}
 			if (is.null(fit_output)) {
 				if (length(spec_list) > 1) {
 					fit_output <- trial_fit_spec_int
