@@ -78,7 +78,7 @@ read_nmrpipe <- function(inFormat, dim_order=NULL, complex_data=FALSE) {
 	
 	fheader <- rbind(fheader, SIZE=fsizes, DMXVAL=0)
 	
-	fheader["DMXVAL",which.max(utils::head(forder, header["FDDIMCOUNT"]))] <- header["FDDMXVAL"]
+	fheader["DMXVAL",header["FDDIMCOUNT"]] <- header["FDDMXVAL"]
 	
 	FDFILECOUNT <- header["FDFILECOUNT"]
 	FDDIMCOUNT <- header["FDDIMCOUNT"]
