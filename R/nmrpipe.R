@@ -1,3 +1,61 @@
+#' Infer acquisition time for each dimension
+#'
+#' @param fheader matrix of generalized ND parameters
+#' @param empirically_correct logical indicating whether to apply empirical correction
+infer_acquisition_time <- function(fheader, empirically_correct=TRUE) {
+
+	# showhdr.c does NDAPOD/NDSW which gives a slightly different answer than below
+	acquisition_time <- unname(fheader["TDSIZE",]/fheader["SW",]*ifelse(fheader["FTSIZE",] == 0, 1, fheader["SIZE",]/fheader["FTSIZE",]))
+	
+	# correct for FID offset as a result of digital oversampling
+	acquisition_time <- acquisition_time*unname(1-fheader["DMXVAL",]/fheader["TDSIZE",])
+	
+	if (empirically_correct) {
+	
+		correction_factor <- ifelse(fheader["APODCODE",] == 1, 1, 0.5)
+		acquisition_time <- acquisition_time*unname(1-correction_factor/fheader["TDSIZE",])
+	}
+	
+	acquisition_time
+}
+
+#' Infer original sweep width for each dimension
+#'
+#' @param fheader matrix of generalized ND parameters
+infer_sweep_width <- function(fheader) {
+
+	fheader["SW",]/fheader["OBS",]*ifelse(fheader["FTSIZE",] == 0, 1, fheader["FTSIZE",]/fheader["SIZE",])
+}
+
+#' Infer which dimension was directly acquired
+#'
+#' @param fheader matrix of generalized ND parameters
+infer_direct <- function(fheader) {
+
+	direct <- integer(ncol(fheader))
+	
+	direct[order(fheader["TDSIZE",], decreasing=TRUE)[1]] <- 1
+	
+	direct
+}
+
+#' Infer which dimension was directly acquired
+#'
+#' @param fheader matrix of generalized ND parameters
+infer_aliasing <- function(fheader, phase_tolerance=10) {
+
+	# assume everything except direct dimension aliases
+	alias_vec <- 1L-infer_direct(fheader)
+	
+	#half_dwell_delay <- abs(fheader["P0",] - -90) < phase_tolerance & abs(fheader["P1",] - 180) < phase_tolerance
+	# getFold in fdatap.c only checks for P1 == 180 degrees
+	half_dwell_delay <- abs(fheader["P1",] - 180) < phase_tolerance
+
+	alias_vec[half_dwell_delay] <- -alias_vec[half_dwell_delay]
+
+	alias_vec
+}
+
 #' Read NMRPipe spectrum
 #'
 #' This function reads 1D-4D spectra stored in the NMRPipe format.
@@ -19,6 +77,49 @@
 #'   \item{header}{numeric vector with the complete header contents}
 #' }
 #' 
+#' The \code{fheader} row definitions are as follows (taken from NMRPipe fdatp.h):
+#'
+#' | Row Name  | Description                            |
+#' | --------- | -------------------------------------- |
+#' | SIZE      | Number of points in dimension          |
+#' | APOD      | Current valid time-domain size         |
+#' | SW        | Sweep Width, Hz                        |
+#' | ORIG      | Axis Origin (Last Point), Hz           |
+#' | OBS       | Obs Freq, MHz                          |
+#' | FTFLAG    | 1=Freq Domain 0=Time Domain            |
+#' | QUADFLAG  | Data Type Code (See Below)             |
+#' | UNITS     | Axis Units Code (See Below)            |
+#' | P0        | Zero Order Phase, Degrees              |
+#' | P1        | First Order Phase, Degrees             |
+#' | CAR       | Carrier Position, PPM                  |
+#' | CENTER    | Point Location of Zero Freq            |
+#' | AQSIGN    | Sign adjustment needed for FT          |
+#' | APODCODE  | Window function used                   |
+#' | APODQ1    | Window parameter 1                     |
+#' | APODQ2    | Window parameter 2                     |
+#' | APODQ3    | Window parameter 3                     |
+#' | C1        | Add 1.0 to get First Point Scale       |
+#' | ZF        | Negative of Zero Fill Size             |
+#' | X1        | Extract region origin, if any, pts     |
+#' | XN        | Extract region endpoint, if any, pts   |
+#' | OFFPPM    | Additional PPM offset (for alignment)  |
+#' | FTSIZE    | Size of data when FT performed         |
+#' | TDSIZE    | Original valid time-domain size        |
+#' | LB        | Extra Exponential Broadening, Hz       |
+#' | GB        | Extra Gaussian Broadening, Hz          |
+#' | GOFF      | Offset for Gaussian Broadening, 0 to 1 |
+#' | OBSMID    | Original Obs Freq before 0.0ppm adjust |
+#'
+#' In addition several rows contain information inferred from the header data:
+#'
+#' | Row Name  | Description                            |
+#' | --------- | -------------------------------------- |
+#' | aq_s      | Acquisition time, seconds              |
+#' | sw_ppm    | Original Sweep Width, PPM              |
+#' | direct    | Direct (1) or indirect (0) dimension   |
+#' | alias     | Aliasing (0/1) with inversion (-1)     |
+#'
+#' @md
 #' @export
 read_nmrpipe <- function(inFormat, dim_order=NULL, complex_data=FALSE) {
 	
@@ -64,7 +165,7 @@ read_nmrpipe <- function(inFormat, dim_order=NULL, complex_data=FALSE) {
 						' format spectrum.', sep=''))
 	}
 	
-	fnames <- substr(names(header)[grep("FDF1", names(header))], 5, 100)
+	fnames <- c("APOD", "SW", "ORIG", "OBS", "FTFLAG", "QUADFLAG", "UNITS", "P0", "P1", "CAR", "CENTER", "AQSIGN", "APODCODE", "APODQ1", "APODQ2", "APODQ3", "C1", "ZF", "X1", "XN", "OFFPPM", "FTSIZE", "TDSIZE", "LB", "GB", "GOFF", "OBSMID")
 	
 	forder <- header[c("FDDIMORDER1", "FDDIMORDER2", "FDDIMORDER3", "FDDIMORDER4")]
 	
@@ -74,15 +175,22 @@ read_nmrpipe <- function(inFormat, dim_order=NULL, complex_data=FALSE) {
 	#fnames <- c(fnames, "SIZE")
 	
 	fheader <- matrix(header[fheader_names], ncol=4, dimnames=list(fnames, flabels))
-	fheader <- fheader[setdiff(rownames(fheader), "LABEL"),]
 	
 	fsizes <- header[c("FDSIZE", "FDSPECNUM", "FDF3SIZE", "FDF4SIZE")][order(forder)]
 	
 	#print(header)
 	
-	fheader <- rbind(fheader, SIZE=fsizes, DMXVAL=0)
+	fheader <- rbind(SIZE=unname(fsizes), fheader, DMXVAL=0)
 	
-	fheader["DMXVAL",header["FDDIMCOUNT"]] <- header["FDDMXVAL"]
+	fheader <- rbind(
+		fheader,
+		aq_s=infer_acquisition_time(fheader),
+		sw_ppm=infer_sweep_width(fheader),
+		direct=infer_direct(fheader),
+		alias=infer_aliasing(fheader)
+	)
+	
+	fheader["DMXVAL",fheader["direct",] == 1] <- header["FDDMXVAL"]
 	
 	FDFILECOUNT <- header["FDFILECOUNT"]
 	FDDIMCOUNT <- header["FDDIMCOUNT"]

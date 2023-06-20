@@ -15,11 +15,52 @@ read_nmrpipe(inFormat, dim_order = NULL, complex_data = FALSE)
 }
 \value{
 a named list with four elements:
- \describe{
-  \item{int}{multidimensional array with spectrum intensities (ppm values are given in the dimnames)}
-  \item{ppm}{list of numeric vectors giving the ppm values associated with each int array dimension}
-  \item{fheader}{matrix with dimension-specific header information}
-  \item{header}{numeric vector with the complete header contents}
+\describe{
+\item{int}{multidimensional array with spectrum intensities (ppm values are given in the dimnames)}
+\item{ppm}{list of numeric vectors giving the ppm values associated with each int array dimension}
+\item{fheader}{matrix with dimension-specific header information}
+\item{header}{numeric vector with the complete header contents}
+}
+
+The \code{fheader} row definitions are as follows (taken from NMRPipe fdatp.h):\tabular{ll}{
+   Row Name \tab Description \cr
+   SIZE \tab Number of points in dimension \cr
+   APOD \tab Current valid time-domain size \cr
+   SW \tab Sweep Width, Hz \cr
+   ORIG \tab Axis Origin (Last Point), Hz \cr
+   OBS \tab Obs Freq, MHz \cr
+   FTFLAG \tab 1=Freq Domain 0=Time Domain \cr
+   QUADFLAG \tab Data Type Code (See Below) \cr
+   UNITS \tab Axis Units Code (See Below) \cr
+   P0 \tab Zero Order Phase, Degrees \cr
+   P1 \tab First Order Phase, Degrees \cr
+   CAR \tab Carrier Position, PPM \cr
+   CENTER \tab Point Location of Zero Freq \cr
+   AQSIGN \tab Sign adjustment needed for FT \cr
+   APODCODE \tab Window function used \cr
+   APODQ1 \tab Window parameter 1 \cr
+   APODQ2 \tab Window parameter 2 \cr
+   APODQ3 \tab Window parameter 3 \cr
+   C1 \tab Add 1.0 to get First Point Scale \cr
+   ZF \tab Negative of Zero Fill Size \cr
+   X1 \tab Extract region origin, if any, pts \cr
+   XN \tab Extract region endpoint, if any, pts \cr
+   OFFPPM \tab Additional PPM offset (for alignment) \cr
+   FTSIZE \tab Size of data when FT performed \cr
+   TDSIZE \tab Original valid time-domain size \cr
+   LB \tab Extra Exponential Broadening, Hz \cr
+   GB \tab Extra Gaussian Broadening, Hz \cr
+   GOFF \tab Offset for Gaussian Broadening, 0 to 1 \cr
+   OBSMID \tab Original Obs Freq before 0.0ppm adjust \cr
+}
+
+
+In addition several rows contain information inferred from the header data:\tabular{ll}{
+   Row Name \tab Description \cr
+   aq_s \tab Acquisition time, seconds \cr
+   sw_ppm \tab Original Sweep Width, PPM \cr
+   direct \tab Direct (1) or indirect (0) dimension \cr
+   alias \tab Aliasing (0/1) with inversion (-1) \cr
 }
 }
 \description{
