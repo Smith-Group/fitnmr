@@ -365,7 +365,7 @@ coupling_omega0_weights <- function(omega0, coupling_mat=NULL, omega0_comb=NULL,
 #' Prepare input data structure for peak fitting
 #'
 #' @export
-make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omega0_plus, r2_start=NULL, m0_start=NULL, m0_region=(omega0_plus+omega0_minus)/2, p0_start=0, p1_start=0, omega0_group=NULL, r2_group=NULL, m0_group=NULL, p0_group=0, p1_group=0, omega0_comb=NULL, omega0_comb_start=NULL, omega0_comb_group=NULL, coupling_comb=NULL, resonance_names=NULL, nucleus_names=NULL, field_offsets=numeric(), field_start=numeric(), field_group=0, fheader=NULL) {
+make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omega0_plus, omega0_trunc=NULL, r2_start=NULL, m0_start=NULL, m0_region=(omega0_plus+omega0_minus)/2, p0_start=0, p1_start=0, omega0_group=NULL, r2_group=NULL, m0_group=NULL, p0_group=0, p1_group=0, omega0_comb=NULL, omega0_comb_start=NULL, omega0_comb_group=NULL, coupling_comb=NULL, resonance_names=NULL, nucleus_names=NULL, field_offsets=numeric(), field_start=numeric(), field_group=0, fheader=NULL) {
 
 	if (is.data.frame(spectra)) {
 		fheader <- fheader
@@ -387,6 +387,9 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 	
 	omega0_plus <- fill_array(omega0_plus, dim(omega0_start))
 	omega0_minus <- fill_array(omega0_minus, dim(omega0_start))
+	if (!is.null(omega0_trunc)) {
+		omega0_trunc <- fill_array(omega0_trunc, dim(omega0_start))
+	}
 	
 	r2_start <- fill_array(r2_start, dim(omega0_start))
 	m0_start <- fill_array(m0_start, dim(omega0_start)[-1])
@@ -439,8 +442,6 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 	}
 	}
 	
-	peak_idx <- peak_dimnames <- array(list(), dim=dim(omega0_start)[2:3])
-	
 	spec_data <- vector("list", length(spectra))
 	names(spec_data) <- names(spectra)
 	
@@ -455,22 +456,42 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 		
 		fheader <- spectra[[i]][["fheader"]]
 		
+		if (any(fheader["alias",] != 0) || !is.null(omega0_trunc)) {
+			peak_omega_eval <- array(list(), dim=dim(omega0_start)[1:2])
+			peak_1d_sign <- array(list(), dim=dim(omega0_start)[1:2])
+		}
+		
 		for (j in seq_along(peak_idx_list)) {
 		
-			roi_idx <- roi_dimnames <- vector("list", length(spec_ppm))
+			roi_idx <- vector("list", length(spec_ppm))
 			
 			for (k in seq_along(spec_ppm)) {
-				# take aliasing into account
-				sw_ppm <- spectra[[i]][["fheader"]]["SW",k]/spectra[[i]][["fheader"]]["OBS",k]
-				sw_ppm <- 0
+			
+				# get range of 1D peak ppm values
 				omega0_weights <- coupling_omega0_weights(omega0_start[k,j,i], coupling_comb[[k,j,i]], omega0_comb_start, fheader["OBS",k])
 				omega0_range <- range(omega0_weights[,1])
-				roi_idx[[k]] <- (
-					(spec_ppm[[k]] >= omega0_range[1]-omega0_minus[k,j,i] & spec_ppm[[k]] <= omega0_range[2]+omega0_plus[k,j,i]) |
-					(spec_ppm[[k]]+sw_ppm >= omega0_range[1]-omega0_minus[k,j,i] & spec_ppm[[k]]+sw_ppm <= omega0_range[2]+omega0_plus[k,j,i]) |
-					(spec_ppm[[k]]-sw_ppm >= omega0_range[1]-omega0_minus[k,j,i] & spec_ppm[[k]]-sw_ppm <= omega0_range[2]+omega0_plus[k,j,i])
-				)
-				roi_dimnames[[k]] <- dimnames(spec_int)[[k]][roi_idx[[k]]]
+				
+				if (any(fheader["alias",] != 0) || !is.null(omega0_trunc)) {
+				
+					# omega values evaluated for each peak start off with those from the spectrum
+					peak_omega_eval[[k,j]] <- spec_ppm[[k]]
+					peak_1d_sign[[k,j]] <- rep(1L, length(spec_ppm[[k]]))
+					# account for aliasing if relevant for the given dimension
+					if (fheader["alias",k] != 0) {
+						# adjust omega values to be centered around starting omega0 value
+						omega_range_start <- mean(omega0_range) - fheader["sw_ppm",k]/2
+						peak_omega_eval[[k,j]] <- ((peak_omega_eval[[k,j]] - omega_range_start) %% fheader["sw_ppm",k]) + omega_range_start
+						# calculate for each 1D point a multiplication factor to reverse the sign to account for aliasing
+						peak_1d_sign[[k,j]] <- 1L-2L*as.integer(round(((peak_omega_eval[[k,j]] - spec_ppm[[k]])/fheader["sw_ppm",k]) %% 2))
+					}
+					
+					# calculate the region of interest to include in the peak mask
+					roi_idx[[k]] <- peak_omega_eval[[k,j]] >= omega0_range[1]-omega0_minus[k,j,i] & peak_omega_eval[[k,j]] <= omega0_range[2]+omega0_plus[k,j,i]
+				
+				} else {
+				
+					roi_idx[[k]] <- spec_ppm[[k]] >= omega0_range[1]-omega0_minus[k,j,i] & spec_ppm[[k]] <= omega0_range[2]+omega0_plus[k,j,i]
+				}
 			}
 			
 			peak_mask <- array(FALSE, dim=dim(spec_int))
@@ -488,35 +509,37 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 			}
 			
 			peak_idx_list[[j]] <- which(peak_mask)
-			
-			peak_dimnames[[j,i]] <- roi_dimnames
 		}
 		
 		peak_idx_unique <- unique(sort(unlist(peak_idx_list)))
 		
-		for (j in seq_along(peak_idx_list)) {
-		
-			peak_idx_sub <- match(peak_idx_list[[j]], peak_idx_unique)
-			peak_idx[[j,i]] <- peak_idx_sub
-		}
-		
 		spec_mask <- array(FALSE, dim=dim(spec_int))
 		spec_mask[peak_idx_unique] <- TRUE
 		
-		spec_eval_idx <- which(spec_mask, arr.ind=TRUE)
+		# combinations of 1D peak evaluations to produce ND spectral intensities
+		spec_nd_idx <- which(spec_mask, arr.ind=TRUE)
 		
-		#print(str(spec_eval_idx))
+		# indices of omega values within the mask to be evaluating
+		omega_eval_idx <- lapply(seq_len(ncol(spec_nd_idx)), function(j) unique(sort(spec_nd_idx[,j])))
 		
-		#print(spectra[[i]][["fheader"]])
+		# update combinations of 1D peak evaluations to account for a subset of evaluated omegas
+		spec_nd_idx <- sapply(seq_len(ncol(spec_nd_idx)), function(j) match(spec_nd_idx[,j], omega_eval_idx[[j]]))
 		
-		omega_eval_idx <- lapply(seq_len(ncol(spec_eval_idx)), function(j) unique(sort(spec_eval_idx[,j])))
+		# get omega values within spectrum mask to be evaluating
+		omega_eval <- lapply(seq_len(ncol(spec_nd_idx)), function(j) spec_ppm[[j]][omega_eval_idx[[j]]])
 		
-		#spec_eval_idx <- sapply(seq_len(ncol(spec_eval_idx)), function(j) match(omega_eval_idx[[j]], spec_eval_idx[,j]))
-		spec_eval_idx <- sapply(seq_len(ncol(spec_eval_idx)), function(j) match(spec_eval_idx[,j], omega_eval_idx[[j]]))
+		if (any(fheader["alias",] != 0) || !is.null(omega0_trunc)) {
+			for (j in seq_along(peak_idx_list)) {
+				for (k in seq_along(spec_ppm)) {
+					# subset peak_omega_eval and peak_1d_sign based on all omegas within the peak mask
+					peak_omega_eval[[k,j]] <- peak_omega_eval[[k,j]][omega_eval_idx[[k]]]
+					peak_1d_sign[[k,j]] <- peak_1d_sign[[k,j]][omega_eval_idx[[k]]]
+				}
+			}
+		}
 		
-		omega_eval <- lapply(seq_len(ncol(spec_eval_idx)), function(j) spec_ppm[[j]][omega_eval_idx[[j]]])
-		
-		p1_frac <- lapply(seq_along(omega_eval), function(j) {
+		# get fractions for p1 evaluation
+		spec_p1_frac <- lapply(seq_along(omega_eval), function(j) {
 			frac <- seq(0, 1, length.out=fheader["FTSIZE",j]+1)
 			frac <- frac[-length(frac)]
 			if (all(fheader[c("X1","XN"),j] != 0)) {
@@ -525,7 +548,60 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 			frac[omega_eval_idx[[j]]]
 		})
 		
-		aq_time <- fheader["aq_s",]
+		if (!is.null(omega0_trunc)) {
+		
+			# peak-specific fractions for p1 evaluation
+			peak_p1_frac <- array(list(), dim=dim(omega0_start)[1:2])
+			# combinations of 1D peak evaluations to produce ND spectral intensities
+			peak_nd_idx <- array(list(), dim=dim(omega0_start)[2])
+			# mapping from intensities calculated for the peak onto spectral intensities
+			peak_output_idx <- array(list(), dim=dim(omega0_start)[2])
+		
+			peak_trunc_idx <- array(list(), dim=dim(omega0_start)[1:2])
+		
+			for (j in seq_along(peak_idx_list)) {
+		
+				for (k in seq_along(spec_ppm)) {
+				
+					# copy spectrum p1_frac into peak-specific p1 fraction
+					peak_p1_frac[[k,j]] <- spec_p1_frac[[k]]
+				
+					# get range of 1D peak ppm values
+					omega0_weights <- coupling_omega0_weights(omega0_start[k,j,i], coupling_comb[[k,j,i]], omega0_comb_start, fheader["OBS",k])
+					omega0_range <- range(omega0_weights[,1])
+					# determine which omega values are within the truncation region
+					peak_trunc_idx[[k,j]] <- which(peak_omega_eval[[k,j]] >= omega0_range[1]-omega0_trunc[k,j,i] & peak_omega_eval[[k,j]] <= omega0_range[2]+omega0_trunc[k,j,i])
+					# subset peak_omega_eval to be within the truncation region
+					peak_omega_eval[[k,j]] <- peak_omega_eval[[k,j]][peak_trunc_idx[[k,j]]]
+					# subset peak_1d_sign to be within the truncation region
+					peak_1d_sign[[k,j]] <- peak_1d_sign[[k,j]][peak_trunc_idx[[k,j]]]
+					# subset peak_p1_frac to be within the truncation region
+					peak_p1_frac[[k,j]] <- peak_p1_frac[[k,j]][peak_trunc_idx[[k,j]]]
+				}
+			
+				# if truncation, determine truncation region within the overall spectrum mask
+				spec_truc_idx <- spec_nd_idx[,1] %in% peak_trunc_idx[[1,j]]
+				for (k in seq_along(spec_ppm)[-1]) {
+					spec_truc_idx <- spec_truc_idx & (spec_nd_idx[,k] %in% peak_trunc_idx[[k,j]])
+				}
+			
+				# evaluate each peak only within the truncation region
+				peak_nd_idx[[j]] <- spec_nd_idx[spec_truc_idx,]
+				# map ND indices back into the truncated region
+				for (k in seq_along(spec_ppm)) {
+					peak_nd_idx[[j]][,k] <- match(peak_nd_idx[[j]][,k], peak_trunc_idx[[k,j]])
+				}
+			
+				peak_output_idx[[j]] <- which(spec_truc_idx)
+			}
+		
+			#print(str(peak_omega_eval))
+			#print(str(peak_nd_idx))
+			#print(str(peak_output_idx))
+			#print(str(peak_spec_sign))
+		}
+		
+		aq_time <- unname(fheader["aq_s",])
 		
 		fit_func <- vector("list", ncol(fheader))
 		
@@ -566,12 +642,27 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 			ref_freq=unname(fheader["OBS",]),
 			omega_eval=omega_eval,
 			omega_contigous=omega_contigous,
-			p1_frac=p1_frac,
-			spec_eval_idx=spec_eval_idx,
+			spec_p1_frac=spec_p1_frac,
+			spec_nd_idx=spec_nd_idx,
 			spec_int=unname(spec_int[peak_idx_unique]),
 			spec_offset=spec_offset,
 			fit_func=fit_func
 		)
+		
+		if (any(fheader["alias",] != 0) || !is.null(omega0_trunc)) {
+			spec_data[[i]] <- c(spec_data[[i]], list(	
+				peak_omega_eval=peak_omega_eval,
+				peak_1d_sign=peak_1d_sign
+			))
+		}
+		
+		if (!is.null(omega0_trunc)) {
+			spec_data[[i]] <- c(spec_data[[i]], list(
+				peak_p1_frac=peak_p1_frac,
+				peak_nd_idx=peak_nd_idx,
+				peak_output_idx=peak_output_idx
+			))
+		}
 		
 		spec_offset <- spec_offset+length(peak_idx_unique)
 	}
@@ -756,7 +847,7 @@ fit_fn <- function(par, fit_data, return_resid=TRUE) {
 	
 		spec_data <- fit_data[["spec_data"]][[spec_idx]]
 		
-		spec_eval_idx <- seq_along(spec_data$spec_int)+spec_data$spec_offset
+		spec_output_idx <- seq_along(spec_data$spec_int)+spec_data$spec_offset
 		
 		for (field_idx in seq(0, nrow(fit_data$field_offsets))) {
 		
@@ -771,35 +862,58 @@ fit_fn <- function(par, fit_data, return_resid=TRUE) {
 			field_weight <- field_weight/(sum(param_list[["field"]][,spec_idx]) + 1)
 		
 			for (peak_idx in seq_len(dim(fit_data[["start_list"]][["omega0"]])[2])) {
+			
+				if ("peak_nd_idx" %in% names(spec_data)) {
+					nd_idx <- spec_data$peak_nd_idx[[peak_idx]]
+					output_idx <- spec_data$peak_output_idx[[peak_idx]]+spec_data$spec_offset
+				} else {
+					nd_idx <- spec_data$spec_nd_idx
+					output_idx <- spec_output_idx
+				}
 		
 				func_1d_evals <- lapply(seq_along(spec_data$omega_eval), function(dim_idx) {
 			
+					if ("peak_omega_eval" %in% names(spec_data)) {
+						omega_eval <- spec_data$peak_omega_eval[[dim_idx,peak_idx]]
+					} else {
+						omega_eval <- spec_data$omega_eval[[dim_idx]]
+					}
+					if ("peak_1d_sign" %in% names(spec_data)) {
+						sign_factor <- spec_data$peak_1d_sign[[dim_idx,peak_idx]]
+					} else {
+						sign_factor <- 1
+					}
+					if ("peak_p1_frac" %in% names(spec_data)) {
+						p1_frac <- spec_data$peak_p1_frac[[dim_idx,peak_idx]]
+					} else {
+						p1_frac <- spec_data$spec_p1_frac[[dim_idx]]
+					}
 					eval_peak_1d(
 						spec_data$fit_func[[dim_idx]]$formulas,
 						spec_data$fit_func[[dim_idx]]$data,
 						spec_data$ref_freq[dim_idx],
-						spec_data$omega_eval[[dim_idx]],
+						omega_eval,
 						param_list[["omega0"]][dim_idx,peak_idx,spec_idx],
 						param_list[["r2"]][dim_idx,peak_idx,spec_idx],
 						param_list[["p0"]][dim_idx,peak_idx,spec_idx],
 						param_list[["p1"]][dim_idx,peak_idx,spec_idx],
-						spec_data$p1_frac[[dim_idx]],
+						p1_frac,
 						fit_data[["comb_list"]][["coupling"]][[dim_idx,peak_idx,spec_idx]],
 						param_list[["omega0_comb"]]
-					)
+					) * sign_factor
 				})
 			
-				func_nd_prod <- func_1d_evals[[1]][spec_data$spec_eval_idx[,1]]*param_list[["m0"]][peak_idx,spec_idx]
-				for (i in seq_len(ncol(spec_data$spec_eval_idx))[-1]) {
-					func_nd_prod <- func_nd_prod*func_1d_evals[[i]][spec_data$spec_eval_idx[,i]]
+				func_nd_prod <- func_1d_evals[[1]][nd_idx[,1]]*param_list[["m0"]][peak_idx,spec_idx]
+				for (i in seq_len(ncol(nd_idx))[-1]) {
+					func_nd_prod <- func_nd_prod*func_1d_evals[[i]][nd_idx[,i]]
 				}
 			
-				func_eval[spec_eval_idx] <- func_eval[spec_eval_idx] + func_nd_prod*field_weight
+				func_eval[output_idx] <- func_eval[output_idx] + func_nd_prod*field_weight
 			}
 		}
 		
 		if (return_resid) {
-			func_eval[spec_eval_idx] <- spec_data$spec_int - func_eval[spec_eval_idx]
+			func_eval[spec_output_idx] <- spec_data$spec_int - func_eval[spec_output_idx]
 		}
 	}
 	
@@ -817,8 +931,6 @@ fit_jac <- function(par, fit_data) {
 	for (spec_idx in seq_along(fit_data$spec_data)) {
 	
 		spec_data <- fit_data[["spec_data"]][[spec_idx]]
-		
-		spec_eval_idx <- seq_along(spec_data$spec_int)+spec_data$spec_offset
 		
 		field_eval_idx <- !is.na(idx_list[["field"]][,spec_idx])
 		
@@ -839,22 +951,45 @@ fit_jac <- function(par, fit_data) {
 			field_weight <- field_weight/field_factor_sum_sq
 		
 			for (peak_idx in seq_len(dim(fit_data[["start_list"]][["omega0"]])[2])) {
+			
+				if ("peak_nd_idx" %in% names(spec_data)) {
+					nd_idx <- spec_data$peak_nd_idx[[peak_idx]]
+					output_idx <- spec_data$peak_output_idx[[peak_idx]]+spec_data$spec_offset
+				} else {
+					nd_idx <- spec_data$spec_nd_idx
+					output_idx <- seq_along(spec_data$spec_int)+spec_data$spec_offset
+				}
 		
 				deriv_1d_evals <- lapply(seq_along(spec_data$omega_eval), function(dim_idx) {
 			
+					if ("peak_omega_eval" %in% names(spec_data)) {
+						omega_eval <- spec_data$peak_omega_eval[[dim_idx,peak_idx]]
+					} else {
+						omega_eval <- spec_data$omega_eval[[dim_idx]]
+					}
+					if ("peak_1d_sign" %in% names(spec_data)) {
+						sign_factor <- spec_data$peak_1d_sign[[dim_idx,peak_idx]]
+					} else {
+						sign_factor <- 1
+					}
+					if ("peak_p1_frac" %in% names(spec_data)) {
+						p1_frac <- spec_data$peak_p1_frac[[dim_idx,peak_idx]]
+					} else {
+						p1_frac <- spec_data$spec_p1_frac[[dim_idx]]
+					}
 					eval_peak_1d_deriv(
 						spec_data$fit_func[[dim_idx]]$formulas,
 						spec_data$fit_func[[dim_idx]]$data,
 						spec_data$ref_freq[dim_idx],
-						spec_data$omega_eval[[dim_idx]],
+						omega_eval,
 						param_list[["omega0"]][dim_idx,peak_idx,spec_idx],
 						param_list[["r2"]][dim_idx,peak_idx,spec_idx],
 						param_list[["p0"]][dim_idx,peak_idx,spec_idx],
 						param_list[["p1"]][dim_idx,peak_idx,spec_idx],
-						spec_data$p1_frac[[dim_idx]],
+						p1_frac,
 						fit_data[["comb_list"]][["coupling"]][[dim_idx,peak_idx,spec_idx]],
 						param_list[["omega0_comb"]]
-					)
+					) * sign_factor
 				})
 			
 				#print(str(deriv_1d_evals))
@@ -862,41 +997,41 @@ fit_jac <- function(par, fit_data) {
 				if (FALSE) {
 				omega0_idx <- which(!is.na(idx_list[["omega0"]][,peak_idx,spec_idx]))
 				for (idx in omega0_idx) {
-					deriv_nd_prod <- deriv_1d_evals[[idx]][spec_data$spec_eval_idx[,idx],"omega0"]*param_list[["m0"]][peak_idx,spec_idx]
-					for (i in seq_len(ncol(spec_data$spec_eval_idx))[-idx]) {
-						deriv_nd_prod <- deriv_nd_prod*deriv_1d_evals[[i]][spec_data$spec_eval_idx[,i],"f"]
+					deriv_nd_prod <- deriv_1d_evals[[idx]][nd_idx[,idx],"omega0"]*param_list[["m0"]][peak_idx,spec_idx]
+					for (i in seq_len(ncol(nd_idx))[-idx]) {
+						deriv_nd_prod <- deriv_nd_prod*deriv_1d_evals[[i]][nd_idx[,i],"f"]
 					}
-					jac_eval[spec_eval_idx,idx_list[["omega0"]][idx,peak_idx,spec_idx]] <- jac_eval[spec_eval_idx,idx_list[["omega0"]][idx,peak_idx,spec_idx]] + deriv_nd_prod*field_weight
+					jac_eval[output_idx,idx_list[["omega0"]][idx,peak_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["omega0"]][idx,peak_idx,spec_idx]] + deriv_nd_prod*field_weight
 				}
 				}
 			
 				for (var_name in c("omega0", "r2", "p0", "p1")) {
 					var_idx <- which(!is.na(idx_list[[var_name]][,peak_idx,spec_idx]))
 					for (idx in var_idx) {
-						deriv_nd_prod <- deriv_1d_evals[[idx]][spec_data$spec_eval_idx[,idx],var_name]*param_list[["m0"]][peak_idx,spec_idx]
-						for (i in seq_len(ncol(spec_data$spec_eval_idx))[-idx]) {
-							deriv_nd_prod <- deriv_nd_prod*deriv_1d_evals[[i]][spec_data$spec_eval_idx[,i],"f"]
+						deriv_nd_prod <- deriv_1d_evals[[idx]][nd_idx[,idx],var_name]*param_list[["m0"]][peak_idx,spec_idx]
+						for (i in seq_len(ncol(nd_idx))[-idx]) {
+							deriv_nd_prod <- deriv_nd_prod*deriv_1d_evals[[i]][nd_idx[,i],"f"]
 						}
-						jac_eval[spec_eval_idx,idx_list[[var_name]][idx,peak_idx,spec_idx]] <- jac_eval[spec_eval_idx,idx_list[[var_name]][idx,peak_idx,spec_idx]] + deriv_nd_prod*field_weight
+						jac_eval[output_idx,idx_list[[var_name]][idx,peak_idx,spec_idx]] <- jac_eval[output_idx,idx_list[[var_name]][idx,peak_idx,spec_idx]] + deriv_nd_prod*field_weight
 					}
 				}
 			
 				if (!is.na(idx_list[["m0"]][peak_idx,spec_idx]) || field_eval) {
-					func_nd_prod <- deriv_1d_evals[[1]][spec_data$spec_eval_idx[,1],"f"]
-					for (i in seq_len(ncol(spec_data$spec_eval_idx))[-1]) {
-						func_nd_prod <- func_nd_prod*deriv_1d_evals[[i]][spec_data$spec_eval_idx[,i],"f"]
+					func_nd_prod <- deriv_1d_evals[[1]][nd_idx[,1],"f"]
+					for (i in seq_len(ncol(nd_idx))[-1]) {
+						func_nd_prod <- func_nd_prod*deriv_1d_evals[[i]][nd_idx[,i],"f"]
 					}
 					if (!is.na(idx_list[["m0"]][peak_idx,spec_idx])) {
-						jac_eval[spec_eval_idx,idx_list[["m0"]][peak_idx,spec_idx]] <- jac_eval[spec_eval_idx,idx_list[["m0"]][peak_idx,spec_idx]] + func_nd_prod*field_weight
+						jac_eval[output_idx,idx_list[["m0"]][peak_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["m0"]][peak_idx,spec_idx]] + func_nd_prod*field_weight
 					}
 					if (field_eval) {
 						if (field_idx == 0) {
 							deriv_factor <- sum(param_list[["field"]][,spec_idx])/field_factor_sum_sq*param_list[["m0"]][peak_idx,spec_idx]
-							jac_eval[spec_eval_idx,idx_list[["field"]][field_eval_idx,spec_idx]] <- jac_eval[spec_eval_idx,idx_list[["field"]][field_eval_idx,spec_idx]] - func_nd_prod*deriv_factor
+							jac_eval[output_idx,idx_list[["field"]][field_eval_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["field"]][field_eval_idx,spec_idx]] - func_nd_prod*deriv_factor
 						} else {
 							deriv_factor <- sum(param_list[["field"]][-field_idx,spec_idx])/field_factor_sum_sq*param_list[["m0"]][peak_idx,spec_idx]
-							jac_eval[spec_eval_idx,idx_list[["field"]][field_idx,spec_idx]] <- jac_eval[spec_eval_idx,idx_list[["field"]][field_idx,spec_idx]] + func_nd_prod*deriv_factor
-							jac_eval[spec_eval_idx,idx_list[["field"]][field_eval_idx & !field_idx,spec_idx]] <- jac_eval[spec_eval_idx,idx_list[["field"]][field_eval_idx & !field_idx,spec_idx]] - func_nd_prod*deriv_factor
+							jac_eval[output_idx,idx_list[["field"]][field_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["field"]][field_idx,spec_idx]] + func_nd_prod*deriv_factor
+							jac_eval[output_idx,idx_list[["field"]][field_eval_idx & !field_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["field"]][field_eval_idx & !field_idx,spec_idx]] - func_nd_prod*deriv_factor
 						}
 					}
 				}
@@ -905,13 +1040,13 @@ fit_jac <- function(par, fit_data) {
 					var_comb_name <- paste(var_name, "comb", sep="_")
 					var_idx <- which(!sapply(fit_data$comb_list[[var_name]][,peak_idx,spec_idx], is.null))
 					for (idx in var_idx) {
-						deriv_nd_prod <- deriv_1d_evals[[idx]][spec_data$spec_eval_idx[,idx],var_name]*param_list[["m0"]][peak_idx,spec_idx]
-						for (i in seq_len(ncol(spec_data$spec_eval_idx))[-idx]) {
-							deriv_nd_prod <- deriv_nd_prod*deriv_1d_evals[[i]][spec_data$spec_eval_idx[,i],"f"]
+						deriv_nd_prod <- deriv_1d_evals[[idx]][nd_idx[,idx],var_name]*param_list[["m0"]][peak_idx,spec_idx]
+						for (i in seq_len(ncol(nd_idx))[-idx]) {
+							deriv_nd_prod <- deriv_nd_prod*deriv_1d_evals[[i]][nd_idx[,i],"f"]
 						}
 						comb_data <- fit_data$comb_list[[var_name]][[idx,peak_idx,spec_idx]]
 						for (comb_idx in which(!is.na(idx_list[[var_comb_name]][comb_data[,1]]))) {
-							jac_eval[spec_eval_idx,idx_list[[var_comb_name]][comb_data[comb_idx,1]]] <- jac_eval[spec_eval_idx,idx_list[[var_comb_name]][comb_data[comb_idx,1]]] + deriv_nd_prod*comb_data[comb_idx,2]*field_weight
+							jac_eval[output_idx,idx_list[[var_comb_name]][comb_data[comb_idx,1]]] <- jac_eval[output_idx,idx_list[[var_comb_name]][comb_data[comb_idx,1]]] + deriv_nd_prod*comb_data[comb_idx,2]*field_weight
 						}
 					}
 				}
@@ -926,13 +1061,13 @@ fit_jac <- function(par, fit_data) {
 							# loop over couplings that are being optimized
 							for (coupling_name in coupling_names[!is.na(idx_list[["omega0_comb"]][coupling_names])]) {
 								# expand the 1D derivative to cover nD points and account for volume
-								deriv_nd_prod <- deriv_1d_evals[[idx]][spec_data$spec_eval_idx[,idx],coupling_name]*param_list[["m0"]][peak_idx,spec_idx]
+								deriv_nd_prod <- deriv_1d_evals[[idx]][nd_idx[,idx],coupling_name]*param_list[["m0"]][peak_idx,spec_idx]
 								# multiply 1D function from other dimensions
-								for (i in seq_len(ncol(spec_data$spec_eval_idx))[-idx]) {
-									deriv_nd_prod <- deriv_nd_prod*deriv_1d_evals[[i]][spec_data$spec_eval_idx[,i],"f"]
+								for (i in seq_len(ncol(nd_idx))[-idx]) {
+									deriv_nd_prod <- deriv_nd_prod*deriv_1d_evals[[i]][nd_idx[,i],"f"]
 								}
 								# accumulate the nD derivative and account for weight in field inhomogeneity
-								jac_eval[spec_eval_idx,idx_list[["omega0_comb"]][coupling_name]] <- jac_eval[spec_eval_idx,idx_list[["omega0_comb"]][coupling_name]] + deriv_nd_prod*field_weight
+								jac_eval[output_idx,idx_list[["omega0_comb"]][coupling_name]] <- jac_eval[output_idx,idx_list[["omega0_comb"]][coupling_name]] + deriv_nd_prod*field_weight
 							}
 						}
 					}
@@ -1028,7 +1163,7 @@ get_spec_int <- function(fit_data, spec_type=c("input", "start", "fit"), spec_id
 			match(spec_data$omega_eval[[i]], spec_data$omega_contigous[[i]])
 		})
 		
-		spec_contig_idx <- spec_data$spec_eval_idx
+		spec_contig_idx <- spec_data$spec_nd_idx
 		for (i in seq_len(ncol(spec_contig_idx))) {
 			spec_contig_idx[,i] <- omega_contig_idx[[i]][spec_contig_idx[,i]]
 		}
