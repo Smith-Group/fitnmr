@@ -4,7 +4,11 @@
 \alias{perform_fit}
 \title{Perform a fit with an input data structure}
 \usage{
-perform_fit(fit_input)
+perform_fit(
+  fit_input,
+  method = c("minpack.lm", "gslnls", "sparseLM", "L-BFGS-B"),
+  ...
+)
 }
 \description{
 Perform a fit with an input data structure

@@ -920,9 +920,13 @@ fit_fn <- function(par, fit_data, return_resid=TRUE) {
 	func_eval
 }
 
-fit_jac <- function(par, fit_data) {
+fit_jac <- function(par, fit_data, drss_dspec=NULL) {
 
-	jac_eval <- matrix(0, nrow=fit_data$num_points, ncol=length(par), dimnames=list(NULL, names(par)))
+	if (is.null(drss_dspec)) {
+		jac_eval <- matrix(0, nrow=fit_data$num_points, ncol=length(par), dimnames=list(NULL, names(par)))
+	} else {
+		jac_eval <- structure(numeric(length(par)), names=names(par))
+	}
 
 	param_list_orig <- unpack_fit_params(par, fit_data$group_list, fit_data$comb_list, fit_data$start_list)
 
@@ -1012,7 +1016,11 @@ fit_jac <- function(par, fit_data) {
 						for (i in seq_len(ncol(nd_idx))[-idx]) {
 							deriv_nd_prod <- deriv_nd_prod*deriv_1d_evals[[i]][nd_idx[,i],"f"]
 						}
-						jac_eval[output_idx,idx_list[[var_name]][idx,peak_idx,spec_idx]] <- jac_eval[output_idx,idx_list[[var_name]][idx,peak_idx,spec_idx]] + deriv_nd_prod*field_weight
+						if (is.null(drss_dspec)) {
+							jac_eval[output_idx,idx_list[[var_name]][idx,peak_idx,spec_idx]] <- jac_eval[output_idx,idx_list[[var_name]][idx,peak_idx,spec_idx]] + deriv_nd_prod*field_weight
+						} else {
+							jac_eval[idx_list[[var_name]][idx,peak_idx,spec_idx]] <- jac_eval[idx_list[[var_name]][idx,peak_idx,spec_idx]] + sum(deriv_nd_prod*field_weight*drss_dspec[output_idx])
+						}
 					}
 				}
 			
@@ -1022,16 +1030,29 @@ fit_jac <- function(par, fit_data) {
 						func_nd_prod <- func_nd_prod*deriv_1d_evals[[i]][nd_idx[,i],"f"]
 					}
 					if (!is.na(idx_list[["m0"]][peak_idx,spec_idx])) {
-						jac_eval[output_idx,idx_list[["m0"]][peak_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["m0"]][peak_idx,spec_idx]] + func_nd_prod*field_weight
+						if (is.null(drss_dspec)) {
+							jac_eval[output_idx,idx_list[["m0"]][peak_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["m0"]][peak_idx,spec_idx]] + func_nd_prod*field_weight
+						} else {
+							jac_eval[idx_list[["m0"]][peak_idx,spec_idx]] <- jac_eval[idx_list[["m0"]][peak_idx,spec_idx]] + sum(func_nd_prod*field_weight*drss_dspec[output_idx])
+						}
 					}
 					if (field_eval) {
 						if (field_idx == 0) {
 							deriv_factor <- sum(param_list[["field"]][,spec_idx])/field_factor_sum_sq*param_list[["m0"]][peak_idx,spec_idx]
-							jac_eval[output_idx,idx_list[["field"]][field_eval_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["field"]][field_eval_idx,spec_idx]] - func_nd_prod*deriv_factor
+							if (is.null(drss_dspec)) {
+								jac_eval[output_idx,idx_list[["field"]][field_eval_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["field"]][field_eval_idx,spec_idx]] - func_nd_prod*deriv_factor
+							} else {
+								jac_eval[idx_list[["field"]][field_eval_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["field"]][field_eval_idx,spec_idx]] - sum(func_nd_prod*deriv_factor*drss_dspec[output_idx])
+							}
 						} else {
 							deriv_factor <- sum(param_list[["field"]][-field_idx,spec_idx])/field_factor_sum_sq*param_list[["m0"]][peak_idx,spec_idx]
-							jac_eval[output_idx,idx_list[["field"]][field_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["field"]][field_idx,spec_idx]] + func_nd_prod*deriv_factor
-							jac_eval[output_idx,idx_list[["field"]][field_eval_idx & !field_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["field"]][field_eval_idx & !field_idx,spec_idx]] - func_nd_prod*deriv_factor
+							if (is.null(drss_dspec)) {
+								jac_eval[output_idx,idx_list[["field"]][field_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["field"]][field_idx,spec_idx]] + func_nd_prod*deriv_factor
+								jac_eval[output_idx,idx_list[["field"]][field_eval_idx & !field_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["field"]][field_eval_idx & !field_idx,spec_idx]] - func_nd_prod*deriv_factor
+							} else {
+								jac_eval[idx_list[["field"]][field_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["field"]][field_idx,spec_idx]] + sum(func_nd_prod*deriv_factor*drss_dspec[output_idx])
+								jac_eval[idx_list[["field"]][field_eval_idx & !field_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["field"]][field_eval_idx & !field_idx,spec_idx]] - sum(func_nd_prod*deriv_factor*drss_dspec[output_idx])
+							}
 						}
 					}
 				}
@@ -1046,7 +1067,11 @@ fit_jac <- function(par, fit_data) {
 						}
 						comb_data <- fit_data$comb_list[[var_name]][[idx,peak_idx,spec_idx]]
 						for (comb_idx in which(!is.na(idx_list[[var_comb_name]][comb_data[,1]]))) {
-							jac_eval[output_idx,idx_list[[var_comb_name]][comb_data[comb_idx,1]]] <- jac_eval[output_idx,idx_list[[var_comb_name]][comb_data[comb_idx,1]]] + deriv_nd_prod*comb_data[comb_idx,2]*field_weight
+							if (is.null(drss_dspec)) {
+								jac_eval[output_idx,idx_list[[var_comb_name]][comb_data[comb_idx,1]]] <- jac_eval[output_idx,idx_list[[var_comb_name]][comb_data[comb_idx,1]]] + deriv_nd_prod*comb_data[comb_idx,2]*field_weight
+							} else {
+								jac_eval[idx_list[[var_comb_name]][comb_data[comb_idx,1]]] <- jac_eval[idx_list[[var_comb_name]][comb_data[comb_idx,1]]] + sum(deriv_nd_prod*comb_data[comb_idx,2]*field_weight*drss_dspec[output_idx])
+							}
 						}
 					}
 				}
@@ -1067,7 +1092,11 @@ fit_jac <- function(par, fit_data) {
 									deriv_nd_prod <- deriv_nd_prod*deriv_1d_evals[[i]][nd_idx[,i],"f"]
 								}
 								# accumulate the nD derivative and account for weight in field inhomogeneity
-								jac_eval[output_idx,idx_list[["omega0_comb"]][coupling_name]] <- jac_eval[output_idx,idx_list[["omega0_comb"]][coupling_name]] + deriv_nd_prod*field_weight
+								if (is.null(drss_dspec)) {
+									jac_eval[output_idx,idx_list[["omega0_comb"]][coupling_name]] <- jac_eval[output_idx,idx_list[["omega0_comb"]][coupling_name]] + deriv_nd_prod*field_weight
+								} else {
+									jac_eval[idx_list[["omega0_comb"]][coupling_name]] <- jac_eval[idx_list[["omega0_comb"]][coupling_name]] + sum(deriv_nd_prod*field_weight*drss_dspec[output_idx])
+								}
 							}
 						}
 					}
@@ -1081,19 +1110,99 @@ fit_jac <- function(par, fit_data) {
 	-jac_eval
 }
 
+sparse_fn <- function(par, fit_data) {
+
+	fit_fn(par, fit_data, return_resid=FALSE)
+}
+
+sparse_jac <- function(par, fit_data) {
+
+	jac <- -fit_jac(par, fit_data)
+	
+	jac_sparse <- Matrix::Matrix(jac, sparse=TRUE)
+	
+	jac_sparse
+}
+
+optim_fn <- function(par, fit_data, cache=NULL) {
+
+	fn_resid <- fit_fn(par, fit_data)
+
+	if (is.environment(cache)) {
+		cache[["par"]] <- par
+		cache[["drss_dspec"]] <- 2*fn_resid
+	}
+
+	sum(fn_resid^2)
+}
+
+optim_gr <- function(par, fit_data, cache=NULL) {
+
+	if (is.environment(cache) && length(par) == length(cache[["drss_dspec"]]) && all(par == cache[["drss_dspec"]])) {
+		drss_dspec <- cache[["drss_dspec"]]
+		print(str(drss_dspec))
+	} else {
+		drss_dspec <- 2*fit_fn(par, fit_data)
+	}
+
+	fit_jac(par, fit_data, drss_dspec)
+}
+
 #' Perform a fit with an input data structure
 #'
 #' @export
-perform_fit <- function(fit_input) {
+perform_fit <- function(fit_input, method=c("minpack.lm", "gslnls", "sparseLM", "L-BFGS-B"), ...) {
+
+	method <- match.arg(method)
 
 	fit_par <- pack_fit_params(fit_input$start_list, fit_input$group_list)
 	fit_lower <- pack_fit_params(fit_input$lower_list, fit_input$group_list)
 	fit_upper <- pack_fit_params(fit_input$upper_list, fit_input$group_list)
 		
-	fit <- suppressWarnings(minpack.lm::nls.lm(fit_par, fit_lower, fit_upper, fn=fit_fn, jac=fit_jac, fit_data=fit_input, control=list(minpack.lm::nls.lm.control(nprint=0), maxiter = 1e5)))
+	if (method == "minpack.lm") {
 	
-	fit_input[["fit_list"]] <- unpack_fit_params(fit$par, fit_input$group_list, fit_input$comb_list, default_list=fit_input$start_list)
-	fit_input[["fit_rsstrace"]] <- fit$rsstrace
+		systime <- system.time(fit <- minpack.lm::nls.lm(fit_par, fit_lower, fit_upper, fn=fit_fn, jac=fit_jac, fit_data=fit_input, ...))
+		
+		fit_input[["fit_list"]] <- unpack_fit_params(fit$par, fit_input$group_list, fit_input$comb_list, default_list=fit_input$start_list)
+		fit_input[["fit_rsstrace"]] <- fit$rsstrace
+		fit_input[["fit_counts"]] <- length(fit$rsstrace)
+		fit_input[["fit_time"]] <- systime
+	
+	} else if (method == "gslnls") {
+	
+		y <- unlist(lapply(fit_input$spec_data, "[[", "spec_int"))
+		
+		systime <- system.time(fit <- gslnls::gsl_nls_large(sparse_fn, y, fit_par, jac=sparse_jac, fit_data=fit_input, ...))
+		
+		fit_input[["fit_list"]] <- unpack_fit_params(fit$m$getPars(), fit_input$group_list, fit_input$comb_list, default_list=fit_input$start_list)
+		fit_input[["fit_rsstrace"]] <- sum(fit$m$resid()^2)
+		fit_input[["fit_counts"]] <- c(eval=fit$convInfo$nEval, iter=fit$convInfo$finIter)
+		fit_input[["fit_time"]] <- systime
+		
+	} else if (method == "sparseLM") {
+	
+		x <- unlist(lapply(fit_input$spec_data, "[[", "spec_int"))
+		jac <- sparse_jac(fit_par, fit_data=fit_input)
+		Jnnz <- length(jac@x)
+		
+		systime <- system.time(fit <- sparseLM::sparselm(fit_par, x, sparse_fn, sparse_jac, Jnnz, fit_data=fit_input, ...))
+		
+		fit_input[["fit_list"]] <- unpack_fit_params(fit$par, fit_input$group_list, fit_input$comb_list, default_list=fit_input$start_list)
+		fit_input[["fit_rsstrace"]] <- c(fit[["info"]]["rssinit"], fit[["info"]]["rss"])
+		fit_input[["fit_counts"]] <- fit[["info"]][c("niter", "nfunc", "nfjac", "nsys")]
+		fit_input[["fit_time"]] <- systime
+	
+	} else if (method == "L-BFGS-B") {
+	
+		cache <- new.env(parent=emptyenv())
+		
+		systime <- system.time(fit <- optim(fit_par, fn=optim_fn, gr=optim_gr, fit_data=fit_input, cache=cache, method="L-BFGS-B", lower=fit_lower, upper=fit_upper, ...))
+		
+		fit_input[["fit_list"]] <- unpack_fit_params(fit$par, fit_input$group_list, fit_input$comb_list, default_list=fit_input$start_list)
+		fit_input[["fit_rsstrace"]] <- fit[["value"]]
+		fit_input[["fit_counts"]] <- fit[["counts"]]
+		fit_input[["fit_time"]] <- systime
+	}
 		
 	fit_input
 }
