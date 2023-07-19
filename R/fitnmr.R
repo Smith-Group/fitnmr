@@ -260,6 +260,75 @@ group_param_idx <- function(param_names, group_list, start_list) {
 	idx_list
 }
 
+param_peak_idx <- function(param_names, idx_list, comb_list) {
+	
+	peak_idx_list <- structure(vector("list", length(param_names)), .Names=param_names)
+	
+	for (ptype in c("omega0", "r2", "p0", "p1")) {
+		idx <- idx_list[[ptype]]
+		not_na_idx <- which(!is.na(idx), arr.ind=TRUE, useNames=FALSE)
+		for (i in seq_len(nrow(not_na_idx))) {
+			param_idx <- idx[not_na_idx[i,,drop=FALSE]]
+			peak_idx_list[[param_idx]] <- rbind(peak_idx_list[[param_idx]], not_na_idx[i,-1L])
+		}
+	}
+	
+	for (ptype in c("m0")) {
+		idx <- idx_list[[ptype]]
+		not_na_idx <- unname(which(!is.na(idx), arr.ind=TRUE, useNames=FALSE))
+		for (i in seq_len(nrow(not_na_idx))) {
+			param_idx <- idx[not_na_idx[i,,drop=FALSE]]
+			peak_idx_list[[param_idx]] <- rbind(peak_idx_list[[param_idx]], not_na_idx[i,])
+		}
+	}
+	
+	# the code for omega0 combinations is untested!
+	not_null_idx <- which(array(!sapply(comb_list[["omega0"]], is.null), dim(comb_list[["omega0"]])), arr.ind=TRUE, useNames=FALSE)
+	for (i in seq_len(nrow(not_null_idx))) {
+		comb_names <- comb_list[["omega0"]][not_null_idx[i,,drop=FALSE]][[1]][,1]
+		comb_param_idx <- idx_list[["omega0_comb"]][comb_names]
+		for (param_idx in comb_param_idx[!is.na(comb_param_idx)]) {
+			peak_idx_list[[param_idx]] <- rbind(peak_idx_list[[param_idx]], not_null_idx[i,-1L])
+		}
+	}
+	
+	not_null_idx <- which(array(!sapply(comb_list[["coupling"]], is.null), dim(comb_list[["coupling"]])), arr.ind=TRUE, useNames=FALSE)
+	for (i in seq_len(nrow(not_null_idx))) {
+		comb_names <- colnames(comb_list[["coupling"]][not_null_idx[i,,drop=FALSE]][[1]])[-(1:2)]
+		comb_param_idx <- idx_list[["omega0_comb"]][comb_names]
+		for (param_idx in comb_param_idx[!is.na(comb_param_idx)]) {
+			peak_idx_list[[param_idx]] <- rbind(peak_idx_list[[param_idx]], not_null_idx[i,-1L])
+		}
+	}
+	
+	# still need to implement field combinations
+	stopifnot(!any(comb_list[["field"]] != 0))
+	
+	lapply(peak_idx_list, unique)
+}
+
+param_int_idx <- function(peak_idx_list, spec_data) {
+
+	int_idx_list <- lapply(peak_idx_list, function(peak_spec_mat) {
+		sort(unique(unlist(apply(peak_spec_mat, 1, function(peak_spec) {
+			spec_data[[peak_spec[2]]][["peak_output_idx"]][[peak_spec[1]]] + spec_data[[peak_spec[2]]][["spec_offset"]]
+		}))))
+	})
+	
+	int_idx_list
+}
+
+jac_pattern_matrix <- function(int_idx_list, nrow=max(sapply(int_idx_list, max)), param_names=names(int_idx_list)) {
+
+	new(
+		"ngCMatrix",
+		i=unlist(int_idx_list, use.names=FALSE)-1L,
+		p=c(0L, cumsum(sapply(int_idx_list, length))),
+		Dim=c(nrow, length(int_idx_list)),
+		Dimnames=list(NULL, param_names)
+	)
+}
+
 #' Determine array of destination parameters from a source vector
 #'
 #' @param comb_vec vector of source parameters
@@ -445,7 +514,7 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 	spec_data <- vector("list", length(spectra))
 	names(spec_data) <- names(spectra)
 	
-	spec_offset <- 0
+	spec_offset <- 0L
 	
 	for (i in seq_along(spectra)) {
 	
@@ -922,10 +991,13 @@ fit_fn <- function(par, fit_data, return_resid=TRUE) {
 
 fit_jac <- function(par, fit_data, drss_dspec=NULL) {
 
-	if (is.null(drss_dspec)) {
-		jac_eval <- matrix(0, nrow=fit_data$num_points, ncol=length(par), dimnames=list(NULL, names(par)))
-	} else {
+	if (!is.null(drss_dspec)) {
 		jac_eval <- structure(numeric(length(par)), names=names(par))
+	} else if ("jac_pattern" %in% names(fit_data)) {
+		jac_eval <- as(fit_data[["jac_pattern"]], "dsparseMatrix")
+		jac_eval@x[] <- 0
+	} else {
+		jac_eval <- matrix(0, nrow=fit_data$num_points, ncol=length(par), dimnames=list(NULL, names(par)))
 	}
 
 	param_list_orig <- unpack_fit_params(par, fit_data$group_list, fit_data$comb_list, fit_data$start_list)
@@ -1107,7 +1179,11 @@ fit_jac <- function(par, fit_data, drss_dspec=NULL) {
 	
 	#print(jac_eval)
 	
-	-jac_eval
+	if ("dgCMatrix" %in% class(jac_eval)) {
+		jac_eval
+	} else {
+		-jac_eval
+	}
 }
 
 sparse_fn <- function(par, fit_data) {
@@ -1117,11 +1193,13 @@ sparse_fn <- function(par, fit_data) {
 
 sparse_jac <- function(par, fit_data) {
 
-	jac <- -fit_jac(par, fit_data)
+	jac <- fit_jac(par, fit_data)
 	
-	jac_sparse <- Matrix::Matrix(jac, sparse=TRUE)
+	if (!"dgCMatrix" %in% class(jac)) {
+		jac <- -Matrix::Matrix(jac, sparse=TRUE)
+	}
 	
-	jac_sparse
+	jac
 }
 
 optim_fn <- function(par, fit_data, cache=NULL) {
@@ -1158,7 +1236,17 @@ perform_fit <- function(fit_input, method=c("minpack.lm", "gslnls", "sparseLM", 
 	fit_par <- pack_fit_params(fit_input$start_list, fit_input$group_list)
 	fit_lower <- pack_fit_params(fit_input$lower_list, fit_input$group_list)
 	fit_upper <- pack_fit_params(fit_input$upper_list, fit_input$group_list)
-		
+	
+	if (method %in% c("gslnls","sparseLM")) {
+	
+		# construct sparse pattern matrix
+		fit_group_param_idx <- group_param_idx(names(fit_par), fit_input$group_list, fit_input$start_list)
+		fit_param_peak_idx <- param_peak_idx(names(fit_par), fit_group_param_idx, fit_input$comb_list)
+		fit_param_int_idx <- param_int_idx(fit_param_peak_idx, fit_input$spec_data)
+		fit_int_length <- sum(sapply(fit_input[["spec_data"]], function(x) length(x[["spec_int"]])))
+		fit_input[["jac_pattern"]] <- jac_pattern_matrix(fit_param_int_idx, fit_int_length)
+	}
+	
 	if (method == "minpack.lm") {
 	
 		systime <- system.time(fit <- minpack.lm::nls.lm(fit_par, fit_lower, fit_upper, fn=fit_fn, jac=fit_jac, fit_data=fit_input, ...))
