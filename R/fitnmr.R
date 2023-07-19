@@ -991,11 +991,16 @@ fit_fn <- function(par, fit_data, return_resid=TRUE) {
 
 fit_jac <- function(par, fit_data, drss_dspec=NULL) {
 
+	add_assign_col <- function(x, i, j, value) {
+		expr <- eval.parent(substitute(x[i,j] <- x[i,j] + value))
+	}
+
 	if (!is.null(drss_dspec)) {
 		jac_eval <- structure(numeric(length(par)), names=names(par))
 	} else if ("jac_pattern" %in% names(fit_data)) {
 		jac_eval <- as(fit_data[["jac_pattern"]], "dsparseMatrix")
 		jac_eval@x[] <- 0
+		add_assign_col <- sparseLM::add_assign_col_inplace
 	} else {
 		jac_eval <- matrix(0, nrow=fit_data$num_points, ncol=length(par), dimnames=list(NULL, names(par)))
 	}
@@ -1089,7 +1094,8 @@ fit_jac <- function(par, fit_data, drss_dspec=NULL) {
 							deriv_nd_prod <- deriv_nd_prod*deriv_1d_evals[[i]][nd_idx[,i],"f"]
 						}
 						if (is.null(drss_dspec)) {
-							jac_eval[output_idx,idx_list[[var_name]][idx,peak_idx,spec_idx]] <- jac_eval[output_idx,idx_list[[var_name]][idx,peak_idx,spec_idx]] + deriv_nd_prod*field_weight
+							#jac_eval[output_idx,idx_list[[var_name]][idx,peak_idx,spec_idx]] <- jac_eval[output_idx,idx_list[[var_name]][idx,peak_idx,spec_idx]] + deriv_nd_prod*field_weight
+							add_assign_col(jac_eval, output_idx, idx_list[[var_name]][idx,peak_idx,spec_idx], deriv_nd_prod*field_weight)
 						} else {
 							jac_eval[idx_list[[var_name]][idx,peak_idx,spec_idx]] <- jac_eval[idx_list[[var_name]][idx,peak_idx,spec_idx]] + sum(deriv_nd_prod*field_weight*drss_dspec[output_idx])
 						}
@@ -1103,7 +1109,8 @@ fit_jac <- function(par, fit_data, drss_dspec=NULL) {
 					}
 					if (!is.na(idx_list[["m0"]][peak_idx,spec_idx])) {
 						if (is.null(drss_dspec)) {
-							jac_eval[output_idx,idx_list[["m0"]][peak_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["m0"]][peak_idx,spec_idx]] + func_nd_prod*field_weight
+							#jac_eval[output_idx,idx_list[["m0"]][peak_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["m0"]][peak_idx,spec_idx]] + func_nd_prod*field_weight
+							add_assign_col(jac_eval, output_idx, idx_list[["m0"]][peak_idx,spec_idx], func_nd_prod*field_weight)
 						} else {
 							jac_eval[idx_list[["m0"]][peak_idx,spec_idx]] <- jac_eval[idx_list[["m0"]][peak_idx,spec_idx]] + sum(func_nd_prod*field_weight*drss_dspec[output_idx])
 						}
@@ -1112,15 +1119,18 @@ fit_jac <- function(par, fit_data, drss_dspec=NULL) {
 						if (field_idx == 0) {
 							deriv_factor <- sum(param_list[["field"]][,spec_idx])/field_factor_sum_sq*param_list[["m0"]][peak_idx,spec_idx]
 							if (is.null(drss_dspec)) {
-								jac_eval[output_idx,idx_list[["field"]][field_eval_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["field"]][field_eval_idx,spec_idx]] - func_nd_prod*deriv_factor
+								#jac_eval[output_idx,idx_list[["field"]][field_eval_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["field"]][field_eval_idx,spec_idx]] - func_nd_prod*deriv_factor
+								add_assign_col(jac_eval, output_idx, idx_list[["field"]][field_eval_idx,spec_idx], e-func_nd_prod*deriv_factor)
 							} else {
 								jac_eval[idx_list[["field"]][field_eval_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["field"]][field_eval_idx,spec_idx]] - sum(func_nd_prod*deriv_factor*drss_dspec[output_idx])
 							}
 						} else {
 							deriv_factor <- sum(param_list[["field"]][-field_idx,spec_idx])/field_factor_sum_sq*param_list[["m0"]][peak_idx,spec_idx]
 							if (is.null(drss_dspec)) {
-								jac_eval[output_idx,idx_list[["field"]][field_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["field"]][field_idx,spec_idx]] + func_nd_prod*deriv_factor
-								jac_eval[output_idx,idx_list[["field"]][field_eval_idx & !field_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["field"]][field_eval_idx & !field_idx,spec_idx]] - func_nd_prod*deriv_factor
+								#jac_eval[output_idx,idx_list[["field"]][field_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["field"]][field_idx,spec_idx]] + func_nd_prod*deriv_factor
+								#jac_eval[output_idx,idx_list[["field"]][field_eval_idx & !field_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["field"]][field_eval_idx & !field_idx,spec_idx]] - func_nd_prod*deriv_factor
+								add_assign_col(jac_eval, output_idx, idx_list[["field"]][field_idx,spec_idx], func_nd_prod*deriv_factor)
+								add_assign_col(jac_eval, output_idx, idx_list[["field"]][field_eval_idx & !field_idx,spec_idx], -func_nd_prod*deriv_factor)
 							} else {
 								jac_eval[idx_list[["field"]][field_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["field"]][field_idx,spec_idx]] + sum(func_nd_prod*deriv_factor*drss_dspec[output_idx])
 								jac_eval[idx_list[["field"]][field_eval_idx & !field_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["field"]][field_eval_idx & !field_idx,spec_idx]] - sum(func_nd_prod*deriv_factor*drss_dspec[output_idx])
@@ -1140,7 +1150,8 @@ fit_jac <- function(par, fit_data, drss_dspec=NULL) {
 						comb_data <- fit_data$comb_list[[var_name]][[idx,peak_idx,spec_idx]]
 						for (comb_idx in which(!is.na(idx_list[[var_comb_name]][comb_data[,1]]))) {
 							if (is.null(drss_dspec)) {
-								jac_eval[output_idx,idx_list[[var_comb_name]][comb_data[comb_idx,1]]] <- jac_eval[output_idx,idx_list[[var_comb_name]][comb_data[comb_idx,1]]] + deriv_nd_prod*comb_data[comb_idx,2]*field_weight
+								#jac_eval[output_idx,idx_list[[var_comb_name]][comb_data[comb_idx,1]]] <- jac_eval[output_idx,idx_list[[var_comb_name]][comb_data[comb_idx,1]]] + deriv_nd_prod*comb_data[comb_idx,2]*field_weight
+								add_assign_col(jac_eval, output_idx, idx_list[[var_comb_name]][comb_data[comb_idx,1]], deriv_nd_prod*comb_data[comb_idx,2]*field_weight)
 							} else {
 								jac_eval[idx_list[[var_comb_name]][comb_data[comb_idx,1]]] <- jac_eval[idx_list[[var_comb_name]][comb_data[comb_idx,1]]] + sum(deriv_nd_prod*comb_data[comb_idx,2]*field_weight*drss_dspec[output_idx])
 							}
@@ -1165,7 +1176,8 @@ fit_jac <- function(par, fit_data, drss_dspec=NULL) {
 								}
 								# accumulate the nD derivative and account for weight in field inhomogeneity
 								if (is.null(drss_dspec)) {
-									jac_eval[output_idx,idx_list[["omega0_comb"]][coupling_name]] <- jac_eval[output_idx,idx_list[["omega0_comb"]][coupling_name]] + deriv_nd_prod*field_weight
+									#jac_eval[output_idx,idx_list[["omega0_comb"]][coupling_name]] <- jac_eval[output_idx,idx_list[["omega0_comb"]][coupling_name]] + deriv_nd_prod*field_weight
+									add_assign_col(jac_eval, output_idx, idx_list[["omega0_comb"]][coupling_name], deriv_nd_prod*field_weight)
 								} else {
 									jac_eval[idx_list[["omega0_comb"]][coupling_name]] <- jac_eval[idx_list[["omega0_comb"]][coupling_name]] + sum(deriv_nd_prod*field_weight*drss_dspec[output_idx])
 								}
