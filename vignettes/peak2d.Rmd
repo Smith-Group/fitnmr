@@ -97,8 +97,9 @@ The resulting matrix above gives the mean value the noise is centered on (`mu`),
 
 The `noise_estimate` function can create plots showing the histogram of the intensity values (black) and the fit Gaussian function (blue). S/N is defined as `max/sigma`.
 
-```{r, echo = FALSE, hold = TRUE}
-knitr::include_graphics(sprintf("%snoise-%i.png", knitr::opts_current$get("fig.path"), c(1,2)))
+```{r, echo = FALSE, fig.height = 2, fig.width = 3, hold = TRUE}
+par(mar=c(3, 1, 1, 1), mgp=c(2, 0.8, 0))
+sapply(spec_list, function(x) noise_estimate(x$int))
 ```
 
 To identify an initial set of peaks, better results will probably be obtained using the spectrum with the highest signal-to-noise ratio, which in this case is the first spectrum. 
@@ -223,7 +224,7 @@ We can take a peek at the parameters that show the starting volumes for the refi
 ```{r, include = FALSE}
 par(mar=c(3, 3, 1, 1), mgp=c(2, 0.8, 0))
 ```
-```{r extend, fig.height = 7, fig.width = 7, fig.show = "hide"}
+```{r extend, fig.height = 7, fig.width = 7}
 head(refined_fit_output$fit_list$m0)
 head(extended_fit_input$start_list$m0)
 extended_fit_input <- update_fit_bounds(extended_fit_input, omega0_r2_factor=1.5, r2_bounds=c(0.5, 20), sc_bounds=c(2, 12))
@@ -233,17 +234,7 @@ extended_peak_df
 plot_peak_df(extended_peak_df, spec_list, cex=0.6)
 ```
 
-This is the fit for `1.ft2`.
-
-```{r, echo = FALSE, fig.show = "hold"}
-knitr::include_graphics(sprintf("%sextend-1.png", knitr::opts_current$get("fig.path")))
-```
-
 The fit for `2.ft2` looks nearly identical but the peaks are about fourfold less intense than `1.ft2`. You can tell this because the lowest contour level in the plot below is slightly narrower  than in the plot above. (Remember that the lowest contour level is drawn at 4x the noise level for all plots drawn by `plot_peak_df`.)
-
-```{r, echo = FALSE, fig.show = "hold"}
-knitr::include_graphics(sprintf("%sextend-2.png", knitr::opts_current$get("fig.path")))
-```
 
 The peak volumes between the two spectra are highly correlated and have similar relative ratios, indicating that the T~1~ values are for the peaks are relatively similar.
 
