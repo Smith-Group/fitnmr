@@ -25,7 +25,7 @@ make_coupling_mat <- function(sc_names) {
 #'
 #' The only currently implemented way of splitting string is using whitespace
 #'
-#' @param single string (character vector of length 1) with scalar coupling names
+#' @param name_char single string (character vector of length 1) with scalar coupling names
 split_coupling_names <- function(name_char) {
 
 	strsplit(name_char, "\\s+")[[1]]
@@ -394,7 +394,7 @@ collapse_na <- function(x) {
 #' @export
 make_map <- function(x, max_spacing=0.125, new_spacing=0.025) {
 
-	x <- fitnmr:::collapse_na(drop(x))
+	x <- collapse_na(drop(x))
 
 	x_starts <- y_starts <- as.numeric(names(x)[attr(x, "starts")])
 	x_ends <- y_ends <- as.numeric(names(x)[attr(x, "ends")])
@@ -440,9 +440,9 @@ overlap_groups <- function(interval_mat) {
 	#diag(overlap_mat) <- 0
 	#print(overlap_mat)
 
-	overlap_clust <- hclust(as.dist(-overlap_mat), method="single")
+	overlap_clust <- stats::hclust(stats::as.dist(-overlap_mat), method="single")
 
-	cutree(overlap_clust, h=-1e-8)
+	stats::cutree(overlap_clust, h=-1e-8)
 }
 
 remove_overlaps <- function(interval_mat) {
@@ -453,7 +453,7 @@ remove_overlaps <- function(interval_mat) {
 		return(interval_mat)
 	}
 
-	group_idx <- fitnmr:::overlap_groups(interval_mat)
+	group_idx <- overlap_groups(interval_mat)
 	
 	while (any(duplicated(group_idx))) {
 	
@@ -506,14 +506,14 @@ remove_overlaps <- function(interval_mat) {
 #' @param col_resonances colors for resonances
 #'
 #' @export
-plot_sparse_1d <- function(fit_data, tables=NULL, spec_idx=1, col_model=2, col_resonance=NULL, lwd=1, tick_spacing=0.02, coupling_spacing=0.01, coupling_marks=0.009, xaxs="i", yaxt="n", bty="n", always_show_start=FALSE, add=FALSE, ppm_map=fitnmr::make_map(fitnmr::get_spec_int(fit_data, "input", spec_idx)[[1]])) {
+plot_sparse_1d <- function(fit_data, tables=NULL, spec_idx=1, col_model=2, col_resonance=NULL, lwd=1, tick_spacing=0.02, coupling_spacing=0.01, coupling_marks=0.009, xaxs="i", yaxt="n", bty="n", always_show_start=FALSE, add=FALSE, ppm_map=make_map(get_spec_int(fit_data, "input", spec_idx)[[1]])) {
 
 	stopifnot(length(spec_idx) == 1)
 
-	input_spec_int <- fitnmr:::collapse_na(get_spec_int(fit_data, "input", spec_idx)[[1]])
-	start_spec_int <- fitnmr:::collapse_na(get_spec_int(fit_data, "start", spec_idx)[[1]])
+	input_spec_int <- collapse_na(get_spec_int(fit_data, "input", spec_idx)[[1]])
+	start_spec_int <- collapse_na(get_spec_int(fit_data, "start", spec_idx)[[1]])
 	if ("fit_list" %in% names(fit_data)) {
-		fit_spec_int <- fitnmr:::collapse_na(get_spec_int(fit_data, "fit", spec_idx)[[1]])
+		fit_spec_int <- collapse_na(get_spec_int(fit_data, "fit", spec_idx)[[1]])
 	} else {
 		fit_spec_int <- NULL
 	}
@@ -547,7 +547,7 @@ plot_sparse_1d <- function(fit_data, tables=NULL, spec_idx=1, col_model=2, col_r
 	
 	# create sparse ppm map
 	ppm <- as.numeric(names(input_spec_int))
-	ppm_map_fn <- approxfun(ppm_map[,1], ppm_map[,2])
+	ppm_map_fn <- stats::approxfun(ppm_map[,1], ppm_map[,2])
 	
 	# determine initial limits
 	xlim <- rev(range(ppm_map[,2]))
@@ -590,34 +590,34 @@ plot_sparse_1d <- function(fit_data, tables=NULL, spec_idx=1, col_model=2, col_r
 	for (j in seq_along(starts)) {
 		
 		ticks <- seq(floor(starts[j]/tick_spacing), ceiling(ends[j]/tick_spacing))*tick_spacing
-		axis(1, ppm_map_fn(c(starts[j], ends[j])), labels=FALSE, lwd.ticks=0)
-		axis(1, ppm_map_fn(ticks), ticks, labels=FALSE)
+		graphics::axis(1, ppm_map_fn(c(starts[j], ends[j])), labels=FALSE, lwd.ticks=0)
+		graphics::axis(1, ppm_map_fn(ticks), ticks, labels=FALSE)
 		all_ticks <- c(all_ticks, ticks)
 	}
-	axis(1, ppm_map_fn(all_ticks), all_ticks, tick=FALSE)
+	graphics::axis(1, ppm_map_fn(all_ticks), all_ticks, tick=FALSE)
 	
-	points(ppm_map_fn(ppm), solid_int, type="l", lwd=lwd, col=col_model)
+	graphics::points(ppm_map_fn(ppm), solid_int, type="l", lwd=lwd, col=col_model)
 	
 	if (is.null(tables)) {
 	
-		title(xlab=paste(names(fit_data$spec_data[[spec_idx]]$omega_contigous), "(ppm)"))
+		graphics::title(xlab=paste(names(fit_data$spec_data[[spec_idx]]$omega_contigous), "(ppm)"))
 	
 	} else {
 	
-		res_int_list <- lapply(seq_len(nrow(tables$resonances)), function(i) fitnmr::get_spec_int(fit_data, "start", spec_idx=spec_idx, peak_idx=i)[[1]])
+		res_int_list <- lapply(seq_len(nrow(tables$resonances)), function(i) get_spec_int(fit_data, "start", spec_idx=spec_idx, peak_idx=i)[[1]])
 	
 		res_label <- rownames(tables$resonances)
 		res_label_x <- ppm_map_fn(tables$nuclei[tables$resonances[,"x"],"omega0_ppm"])
 		
 		if (is.null(col_resonance)) {
-			col_resonance <- rep(palette()[-c(1,2)], length.out=length(res_label))[rank(-res_label_x, ties.method="first")]
+			col_resonance <- rep(grDevices::palette()[-c(1,2)], length.out=length(res_label))[rank(-res_label_x, ties.method="first")]
 		} else if (!is.null(names(col_resonance))) {
 			col_resonance <- col_resonance[res_label]
 		}
 		names(col_resonance) <- rownames(tables$resonances)
 		
-		res_label_widths <- abs(strwidth(res_label))+0.001
-		res_label_x <- fitnmr:::remove_overlaps(cbind(res_label_x-res_label_widths/2, res_label_x+res_label_widths/2))[,1] + res_label_widths/2
+		res_label_widths <- abs(graphics::strwidth(res_label))+0.001
+		res_label_x <- remove_overlaps(cbind(res_label_x-res_label_widths/2, res_label_x+res_label_widths/2))[,1] + res_label_widths/2
 		#res_label_col <- cols[res_label]
 		
 		for (i in seq_len(nrow(tables$resonances))) {
@@ -625,9 +625,9 @@ plot_sparse_1d <- function(fit_data, tables=NULL, spec_idx=1, col_model=2, col_r
 			res_int <- res_int_list[[i]]
 			res_int[abs(res_int) < max(abs(res_int), na.rm=TRUE)*5e-3] <- NA
 			
-			points(ppm_map_fn(as.numeric(names(res_int))), res_int, type="l", lwd=lwd, col=col_resonance[i])
+			graphics::points(ppm_map_fn(as.numeric(names(res_int))), res_int, type="l", lwd=lwd, col=col_resonance[i])
 			
-			axis(1, res_label_x[i], res_label[i], tick=FALSE, mgp=par("mgp")[c(1L,1L,3L)], col.axis=col_resonance[i])
+			graphics::axis(1, res_label_x[i], res_label[i], tick=FALSE, mgp=graphics::par("mgp")[c(1L,1L,3L)], col.axis=col_resonance[i])
 		}
 	}
 	
@@ -656,8 +656,8 @@ plot_sparse_1d <- function(fit_data, tables=NULL, spec_idx=1, col_model=2, col_r
 				
 				# draw line with two segments colored by the opposite resonance
 				xm <- mean(x)
-				segments(x[1], y, xm, y, col=col_resonance[res_names[2]], lwd=lwd)
-				segments(xm, y, x[2], y, col=col_resonance[res_names[1]], lwd=lwd)
+				graphics::segments(x[1], y, xm, y, col=col_resonance[res_names[2]], lwd=lwd)
+				graphics::segments(xm, y, x[2], y, col=col_resonance[res_names[1]], lwd=lwd)
 				
 				# draw vertical segments indicating the multiplet pattern created by the coupling
 				count1 <- sum(resonance_couplings[[res_names[1]]] == coupling_name)
@@ -666,13 +666,13 @@ plot_sparse_1d <- function(fit_data, tables=NULL, spec_idx=1, col_model=2, col_r
 				x2multi <- x[2] - seq(0, by=1, length.out=count2+1)*abs(tables[["couplings"]][coupling_name,"hz"])/fit_data$spec_data[[spec_idx]]$ref_freq
 				ym <- y-coupling_marks*ywidth/2
 				yp <- y+coupling_marks*ywidth/2
-				segments(x1multi, rep(ym, length(x1multi)), x1multi, rep(yp, length(x1multi)), col=col_resonance[res_names[1]], lwd=2*lwd)
-				segments(x2multi, rep(ym, length(x2multi)), x2multi, rep(yp, length(x2multi)), col=col_resonance[res_names[2]], lwd=2*lwd)
+				graphics::segments(x1multi, rep(ym, length(x1multi)), x1multi, rep(yp, length(x1multi)), col=col_resonance[res_names[1]], lwd=2*lwd)
+				graphics::segments(x2multi, rep(ym, length(x2multi)), x2multi, rep(yp, length(x2multi)), col=col_resonance[res_names[2]], lwd=2*lwd)
 			
 			} else {
 			
 				x <- ppm_map_fn(coupling_range[,coupling_idx])
-				segments(x[1], y, x[2], y)
+				graphics::segments(x[1], y, x[2], y)
 			}
 		}
 	}
@@ -682,7 +682,7 @@ plot_sparse_1d <- function(fit_data, tables=NULL, spec_idx=1, col_model=2, col_r
 #'
 #' @param fit_data fit_input or fit_output structure
 #' @param omega0_plus length 3 vector giving ppm range for each dimension
-#' @param always_show_start
+#' @param always_show_start show start parameters even if fit already done
 #'
 #' @export
 plot_resonances_1d <- function(fit_data, always_show_start=FALSE, omega0_plus=0.05) {
@@ -690,19 +690,19 @@ plot_resonances_1d <- function(fit_data, always_show_start=FALSE, omega0_plus=0.
 	original_int <- unlist(lapply(fit_data$spec_data, function(spec_data) spec_data$spec_int))
 	
 	start_int <- if (!"fit_list" %in% names(fit_data) || always_show_start) {
-		start_par <- fitnmr:::pack_fit_params(fit_data$start_list, fit_data$group_list)
+		start_par <- pack_fit_params(fit_data$start_list, fit_data$group_list)
 		#print(start_par)
-		#print(fitnmr:::group_param_idx(names(start_par), fit_data$group_list, fit_data$start_list))
-		fitnmr:::fit_fn(start_par, fit_data, return_resid=FALSE)
+		#print(group_param_idx(names(start_par), fit_data$group_list, fit_data$start_list))
+		fit_fn(start_par, fit_data, return_resid=FALSE)
 	} else {
 		NULL
 	}
 	
 	fit_int <- if ("fit_list" %in% names(fit_data)) {
-		fit_par <- fitnmr:::pack_fit_params(fit_data$fit_list, fit_data$group_list)
+		fit_par <- pack_fit_params(fit_data$fit_list, fit_data$group_list)
 		#print(fit_par)
-		#print(fitnmr:::group_param_idx(names(fit_par), fit_data$group_list, fit_data$start_list))
-		fitnmr:::fit_fn(fit_par, fit_data, return_resid=FALSE)
+		#print(group_param_idx(names(fit_par), fit_data$group_list, fit_data$start_list))
+		fit_fn(fit_par, fit_data, return_resid=FALSE)
 	} else {
 		NULL
 	}
@@ -753,7 +753,7 @@ plot_resonances_1d <- function(fit_data, always_show_start=FALSE, omega0_plus=0.
 				graphics::points(omega_ppm[plot_idx], spec_fit_int[plot_idx], type="l", col="red")
 			}
 			
-			#abline(v=fit_data$fit_list$omega0[,resonance_idx,spec_i], col=rgb(0, 0, 1, 1/sqrt(sum(resonance_idx))))
+			#graphics::abline(v=fit_data$fit_list$omega0[,resonance_idx,spec_i], col=grDevices::rgb(0, 0, 1, 1/sqrt(sum(resonance_idx))))
 			if (!is.null(spec_fit_int)) {
 				fit_omega0_weights_list <- lapply(which(resonance_idx), function(idx) {
 					coupling_omega0_weights(
@@ -765,11 +765,11 @@ plot_resonances_1d <- function(fit_data, always_show_start=FALSE, omega0_plus=0.
 				})
 				fit_omega0_weights <- do.call(rbind, fit_omega0_weights_list)
 				fit_omega0_weights[,2] <- fit_omega0_weights[,2]/sum(fit_omega0_weights[,2])
-				abline(v=fit_omega0_weights[,1], col=rgb(0, 0, 1, sqrt(start_omega0_weights[,2])))
+				graphics::abline(v=fit_omega0_weights[,1], col=grDevices::rgb(0, 0, 1, sqrt(start_omega0_weights[,2])))
 			}
 			
 			if (!is.null(spec_start_int)) {
-				abline(v=start_omega0_weights[,1], col=rgb(0, 0, 1, sqrt(start_omega0_weights[,2])), lty="dashed")
+				graphics::abline(v=start_omega0_weights[,1], col=grDevices::rgb(0, 0, 1, sqrt(start_omega0_weights[,2])), lty="dashed")
 			}
 		}
 		
@@ -846,7 +846,7 @@ plot_resonances_2d <- function(fit_data, omega0_plus, resonances=unique(fit_data
 			omega0_weights_2[omega0_weights_idx[,2],1],
 			omega0_weights_1[omega0_weights_idx[,1],2]*omega0_weights_2[omega0_weights_idx[,2],2]
 		)
-		points(omega0_weights[,1], omega0_weights[,2], pch=16, col=rgb(0,0,1,sqrt(omega0_weights[,3])))
+		graphics::points(omega0_weights[,1], omega0_weights[,2], pch=16, col=grDevices::rgb(0,0,1,sqrt(omega0_weights[,3])))
 	}
 }
 
@@ -879,7 +879,7 @@ plot_resonances_3d <- function(fit_data, omega0_plus, resonances=unique(fit_data
 			range(omega_contigous[omega_contigous >= limits[i,1] & omega_contigous <= limits[i,2]])
 		}))
 	
-		par(mfcol=c(2, 3))
+		graphics::par(mfcol=c(2, 3))
 	
 		wts <- lapply(seq_along(dim(fit_spec_int[[1]])), function(i) {
 			wts <- apply(resonance_spec_int[[1]], i, mean, na.rm=TRUE)
@@ -910,7 +910,7 @@ plot_resonances_3d <- function(fit_data, omega0_plus, resonances=unique(fit_data
 			fit_spec_1d <- colSums(t(fit_spec_2d)*w_vec, na.rm=TRUE)
 			resonance_spec_1d <- colSums(t(resonance_spec_2d)*w_vec, na.rm=TRUE)
 			
-			par(mar=c(2.9, 2.9, 1.5, 1), mgp=c(1.7, 0.6, 0))
+			graphics::par(mar=c(2.9, 2.9, 1.5, 1), mgp=c(1.7, 0.6, 0))
 			
 			ppm <- as.numeric(names(input_spec_1d))
 			ylim <- range(input_spec_1d, resonance_spec_1d, fit_spec_1d, na.rm=TRUE)
@@ -918,16 +918,16 @@ plot_resonances_3d <- function(fit_data, omega0_plus, resonances=unique(fit_data
 			nucleus_name <- fit_data$nucleus_names[idx[1],peak_idx[1]]
 			omega0 <- fit_data$fit_list$omega0[idx[1],peak_idx[1],spec_i]
 			plot(ppm, input_spec_1d, type="l", xlim=rev(limits[idx[1],]), ylim=ylim, xaxs="i", main=sprintf("%s = %s ppm", nucleus_name, signif(omega0, 5)), xlab=paste(names(dimnames(input_spec_2d))[1], "(ppm)"), ylab="Weighted Intensity", font.main=1)
-			abline(h=0, col=gray(0, 0.1))
-			points(ppm, resonance_spec_1d, type="l", col="purple")
-			points(ppm, fit_spec_1d, type="l", col="red")
+			graphics::abline(h=0, col=grDevices::gray(0, 0.1))
+			graphics::points(ppm, resonance_spec_1d, type="l", col="purple")
+			graphics::points(ppm, fit_spec_1d, type="l", col="red")
 			omega0_weights_1 <- coupling_omega0_weights(
 				fit_data$fit_list$omega0[idx[1],peak_idx[1],spec_i],
 				fit_data$comb_list$coupling[[idx[1],peak_idx[1],spec_i]],
 				fit_data$fit_list$omega0_comb,
 				fit_data$spec_data[[spec_i]]$ref_freq[idx[1]]
 			)
-			abline(v=omega0_weights_1[,1], col=rgb(0,0,1,sqrt(omega0_weights_1[,2])))
+			graphics::abline(v=omega0_weights_1[,1], col=grDevices::rgb(0,0,1,sqrt(omega0_weights_1[,2])))
 			
 			zlim <- range(input_spec_2d, fit_spec_2d, na.rm=TRUE)
 			zlim <- range(resonance_spec_1d, na.rm=TRUE)
@@ -943,26 +943,26 @@ plot_resonances_3d <- function(fit_data, omega0_plus, resonances=unique(fit_data
 			
 			r2 <- fit_data$fit_list$r2[idx[1],peak_idx[1],spec_i]
 			ref_freq <- fit_data$spec_data[[spec_i]]$ref_freq[idx[1]]
-			legend(r2_pos, legend=parse(text=sprintf("R[2]*\" = %0.2f Hz\"", r2)), bty="n", x.intersp=0, text.col="red")
-			segments(omega0-r2/ref_freq, 0, omega0+r2/ref_freq, 0, col="red")
+			graphics::legend(r2_pos, legend=parse(text=sprintf("R[2]*\" = %0.2f Hz\"", r2)), bty="n", x.intersp=0, text.col="red")
+			graphics::segments(omega0-r2/ref_freq, 0, omega0+r2/ref_freq, 0, col="red")
 			sc_names <- colnames(fit_data$comb_list$coupling[[idx[1],peak_idx[1],spec_i]])[-(1:2)]
 			if (length(sc_names)) {
 				sc_values <- fit_data$fit_list$omega0_comb[sc_names]
-				legend(sc_pos, legend=sprintf("%s = %0.2f Hz", sc_names, sc_values), bty="n", x.intersp=0, text.col="blue")
+				graphics::legend(sc_pos, legend=sprintf("%s = %0.2f Hz", sc_names, sc_values), bty="n", x.intersp=0, text.col="blue")
 			}
 			
-			par(mar=c(2.9, 2.9, 0.5, 1), mgp=c(1.7, 0.6, 0))
+			graphics::par(mar=c(2.9, 2.9, 0.5, 1), mgp=c(1.7, 0.6, 0))
 			
-			#abline(v=limits[idx[1],], col="green")
+			#graphics::abline(v=limits[idx[1],], col="green")
 			
 			plot(1, 1, type="n", xlim=rev(limits[idx[1],]), ylim=rev(limits[idx[2],]), xaxs="i", yaxs="i", xlab=paste(names(dimnames(input_spec_2d))[1], "(ppm)"), ylab=paste(names(dimnames(input_spec_2d))[2], "(ppm)"))
 			contour_pipe(input_spec_2d, zlim=zlim, low_frac=low_frac, col_pos="black", col_neg="gray", add=TRUE)
-			abline(0, 1, col=gray(0, 0.1))
+			graphics::abline(0, 1, col=grDevices::gray(0, 0.1))
 			
 			#contour_pipe(start_spec_2d, zlim=zlim, low_frac=low_frac, col_pos="blue", col_neg="lightblue", add=TRUE)
 			contour_pipe(resonance_spec_2d, zlim=zlim, low_frac=low_frac, col_pos="purple", col_neg="mediumpurple1", add=TRUE)
 			contour_pipe(fit_spec_2d, zlim=zlim, low_frac=low_frac, col_pos="red", col_neg="lightpink", add=TRUE)
-			#points(t(fit_data$fit_list$omega0[idx,peak_idx,spec_i]), pch=16, col=rgb(0,0,1,1/sqrt(length(peak_idx))))
+			#graphics::points(t(fit_data$fit_list$omega0[idx,peak_idx,spec_i]), pch=16, col=grDevices::rgb(0,0,1,1/sqrt(length(peak_idx))))
 			
 			omega0_weights_2 <- coupling_omega0_weights(
 				fit_data$fit_list$omega0[idx[2],peak_idx[1],spec_i],
@@ -977,10 +977,10 @@ plot_resonances_3d <- function(fit_data, omega0_plus, resonances=unique(fit_data
 				omega0_weights_2[omega0_weights_idx[,2],1],
 				omega0_weights_1[omega0_weights_idx[,1],2]*omega0_weights_2[omega0_weights_idx[,2],2]
 			)
-			points(omega0_weights[,1], omega0_weights[,2], pch=16, col=rgb(0,0,1,sqrt(omega0_weights[,3])))
+			graphics::points(omega0_weights[,1], omega0_weights[,2], pch=16, col=grDevices::rgb(0,0,1,sqrt(omega0_weights[,3])))
 			
-			#abline(v=limits[idx[1],], col="green")
-			#abline(h=limits[idx[2],], col="green")
+			#graphics::abline(v=limits[idx[1],], col="green")
+			#graphics::abline(h=limits[idx[2],], col="green")
 		}
 	}
 }

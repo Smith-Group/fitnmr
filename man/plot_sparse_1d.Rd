@@ -19,7 +19,7 @@ plot_sparse_1d(
   bty = "n",
   always_show_start = FALSE,
   add = FALSE,
-  ppm_map = fitnmr::make_map(fitnmr::get_spec_int(fit_data, "input", spec_idx)[[1]])
+  ppm_map = make_map(get_spec_int(fit_data, "input", spec_idx)[[1]])
 )
 }
 \arguments{

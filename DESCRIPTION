@@ -3,10 +3,12 @@ Version: 0.7
 Title: FitNMR multidimensional spectrum analysis
 Authors@R: c(person("Colin", "Smith", role=c("aut", "cre"),
                     email = "colin.smith@wesleyan.edu"))
+Author: Colin Smith [aut, cre]
+Maintainer: Colin Smith <colin.smith@wesleyan.edu>
 Description: Fit multidimensional peaks in NMR spectra.
 License: GPL-3
 URL: https://github.com/smith-group/fitnmr/, https://smith-group.github.io/fitnmr/
-Imports: minpack.lm, abind
+Imports: minpack.lm, abind, Matrix, methods
 Encoding: UTF-8
 RoxygenNote: 7.2.3
 Suggests: 

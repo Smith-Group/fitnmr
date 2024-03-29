@@ -1,3 +1,4 @@
 fit_peaks_2d	fit 2D spectra from scratch with optional doublets
 refit_peaks_2d	refit 2D spectra from previous fit with optional doublets
+assign_peaks_2d transfer assignments to 2D spectra
 refit_peaks	fit spectra of any dimension with arbitrary couplings

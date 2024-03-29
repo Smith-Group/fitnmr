@@ -7,7 +7,7 @@
 split_coupling_names(name_char)
 }
 \arguments{
-\item{single}{string (character vector of length 1) with scalar coupling names}
+\item{name_char}{single string (character vector of length 1) with scalar coupling names}
 }
 \description{
 The only currently implemented way of splitting string is using whitespace

@@ -9,7 +9,7 @@ plot_resonances_1d(fit_data, always_show_start = FALSE, omega0_plus = 0.05)
 \arguments{
 \item{fit_data}{fit_input or fit_output structure}
 
-\item{always_show_start}{}
+\item{always_show_start}{show start parameters even if fit already done}
 
 \item{omega0_plus}{length 3 vector giving ppm range for each dimension}
 }

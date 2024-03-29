@@ -299,7 +299,7 @@ param_int_idx <- function(peak_idx_list, spec_data) {
 
 jac_pattern_matrix <- function(int_idx_list, nrow=max(sapply(int_idx_list, max)), param_names=names(int_idx_list)) {
 
-	new(
+	methods::new(
 		"ngCMatrix",
 		i=unlist(int_idx_list, use.names=FALSE)-1L,
 		p=c(0L, cumsum(sapply(int_idx_list, length))),
@@ -987,7 +987,7 @@ fit_jac <- function(par, fit_data, drss_dspec=NULL) {
 	if (!is.null(drss_dspec)) {
 		jac_eval <- structure(numeric(length(par)), names=names(par))
 	} else if ("jac_pattern" %in% names(fit_data)) {
-		jac_eval <- as(fit_data[["jac_pattern"]], "dsparseMatrix")
+		jac_eval <- methods::as(fit_data[["jac_pattern"]], "dsparseMatrix")
 		jac_eval@x[] <- 0
 		add_assign_col <- sparseLM::add_assign_col_inplace
 	} else {
@@ -1219,7 +1219,7 @@ optim_gr <- function(par, fit_data, cache=NULL) {
 
 	if (is.environment(cache) && length(par) == length(cache[["drss_dspec"]]) && all(par == cache[["drss_dspec"]])) {
 		drss_dspec <- cache[["drss_dspec"]]
-		print(str(drss_dspec))
+		print(utils::str(drss_dspec))
 	} else {
 		drss_dspec <- 2*fit_fn(par, fit_data)
 	}
@@ -1285,7 +1285,7 @@ perform_fit <- function(fit_input, method=c("minpack.lm", "gslnls", "sparseLM", 
 	
 		cache <- new.env(parent=emptyenv())
 		
-		systime <- system.time(fit <- optim(fit_par, fn=optim_fn, gr=optim_gr, fit_data=fit_input, cache=cache, method="L-BFGS-B", lower=fit_lower, upper=fit_upper, ...))
+		systime <- system.time(fit <- stats::optim(fit_par, fn=optim_fn, gr=optim_gr, fit_data=fit_input, cache=cache, method="L-BFGS-B", lower=fit_lower, upper=fit_upper, ...))
 		
 		fit_input[["fit_list"]] <- unpack_fit_params(fit$par, fit_input$group_list, fit_input$comb_list, default_list=fit_input$start_list)
 		fit_input[["fit_rsstrace"]] <- fit[["value"]]
@@ -2683,7 +2683,7 @@ plot_peak_df <- function(peak_df, spectra, noise_sigma=NULL, noise_cutoff=4, ome
 		}
 		
 		if (!is.null(names(spectra))) {
-			title(names(spectra)[[spec_i]])
+			graphics::title(names(spectra)[[spec_i]])
 		}
 	}
 }
@@ -2777,8 +2777,8 @@ noise_estimate <- function(x, height=TRUE, thresh=10, plot_distributions=TRUE, p
 			substitute(mu: ~ muval, list(muval=signif(fit$m$getPars()["mu"], 3)))
 		))
 		
-		legend("topleft", legend=legtext, lwd=c(1, 1), lty=c("dashed", "solid"), col="blue", bty="n", x.intersp=0.5)
-		legend("topright", legend=paste("S/N:", snval), bty="n")
+		graphics::legend("topleft", legend=legtext, lwd=c(1, 1), lty=c("dashed", "solid"), col="blue", bty="n", x.intersp=0.5)
+		graphics::legend("topright", legend=paste("S/N:", snval), bty="n")
 	}
 	
 	c(fit$m$getPars()[1:2], max_data)
