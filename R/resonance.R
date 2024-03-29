@@ -551,7 +551,7 @@ plot_sparse_1d <- function(fit_data, tables=NULL, spec_idx=1, col_model=2, col_r
 	
 	# determine initial limits
 	xlim <- rev(range(ppm_map[,2]))
-	ylim <- range(input_spec_int, start_spec_int, fit_spec_int, na.rm=TRUE)
+	ylim <- range(input_spec_int, solid_int, na.rm=TRUE)
 	
 	if (!is.null(tables[["couplings"]])) {
 	
@@ -598,14 +598,32 @@ plot_sparse_1d <- function(fit_data, tables=NULL, spec_idx=1, col_model=2, col_r
 	
 	graphics::points(ppm_map_fn(ppm), solid_int, type="l", lwd=lwd, col=col_model)
 	
+	if (!is.null(dashed_int)) {
+		graphics::points(ppm_map_fn(ppm), dashed_int, type="l", lwd=lwd, col=col_model, lty="dashed")
+	}
+	
 	if (is.null(tables)) {
 	
 		graphics::title(xlab=paste(names(fit_data$spec_data[[spec_idx]]$omega_contigous), "(ppm)"))
 	
 	} else {
 	
-		res_int_list <- lapply(seq_len(nrow(tables$resonances)), function(i) get_spec_int(fit_data, "start", spec_idx=spec_idx, peak_idx=i)[[1]])
-	
+		fit_res_int <- NULL
+		start_res_int <- lapply(seq_len(nrow(tables$resonances)), function(i) get_spec_int(fit_data, "start", spec_idx=spec_idx, peak_idx=i)[[1]])
+		if ("fit_list" %in% names(fit_data)) {
+			fit_res_int <- lapply(seq_len(nrow(tables$resonances)), function(i) get_spec_int(fit_data, "fit", spec_idx=spec_idx, peak_idx=i)[[1]])
+		}
+		
+		dashed_res_int <- NULL
+		if (is.null(fit_spec_int)) {
+			solid_res_int <- start_res_int
+		} else {
+			solid_res_int <- fit_res_int
+			if (always_show_start) {
+				dashed_res_int <- start_res_int
+			}
+		}
+		
 		res_label <- rownames(tables$resonances)
 		res_label_x <- ppm_map_fn(tables$nuclei[tables$resonances[,"x"],"omega0_ppm"])
 		
@@ -622,10 +640,17 @@ plot_sparse_1d <- function(fit_data, tables=NULL, spec_idx=1, col_model=2, col_r
 		
 		for (i in seq_len(nrow(tables$resonances))) {
 		
-			res_int <- res_int_list[[i]]
+			res_int <- solid_res_int[[i]]
 			res_int[abs(res_int) < max(abs(res_int), na.rm=TRUE)*5e-3] <- NA
 			
 			graphics::points(ppm_map_fn(as.numeric(names(res_int))), res_int, type="l", lwd=lwd, col=col_resonance[i])
+			
+			if (!is.null(dashed_res_int)) {
+				res_int_dashed <- dashed_res_int[[i]]
+				res_int_dashed[abs(res_int_dashed) < max(abs(res_int_dashed), na.rm=TRUE)*5e-3] <- NA
+				
+				graphics::points(ppm_map_fn(as.numeric(names(res_int_dashed))), res_int_dashed, type="l", lwd=lwd, col=col_resonance[i], lty="dashed")
+			}
 			
 			graphics::axis(1, res_label_x[i], res_label[i], tick=FALSE, mgp=graphics::par("mgp")[c(1L,1L,3L)], col.axis=col_resonance[i])
 		}
