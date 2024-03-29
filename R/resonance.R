@@ -1,31 +1,3 @@
-#' Create list of data frames for 
-#'
-#' The only currently implemented way of splitting string is using whitespace
-#'
-#' @param single string (character vector of length 1) with scalar coupling names
-make_comb_list_omega0 <- function(omega0_name, sc_names, obs_mhz) {
-
-	grid_list <- rep(list(c(0.5,-0.5)/obs_mhz), length(sc_names))
-	names(grid_list) <- sc_names
-	
-	offset_grid <- as.matrix(expand.grid(grid_list))
-	
-	offsets <- sapply(unique(sc_names), function(sc_name) rowSums(offset_grid[,colnames(offset_grid) == sc_name,drop=FALSE]))
-	
-	if (length(offsets) == 0) {
-		offsets <- matrix(nrow=1, ncol=0)
-	}
-	
-	lapply(seq_len(nrow(offsets)), function(i) {
-		df <- data.frame(
-			unname(c(omega0_name, colnames(offsets))), 
-			unname(c(1, offsets[i,]))
-		)
-		colnames(df) <- c("name", "factor")
-		df
-	})
-}
-
 #' Make a multiplet matrix with weights and scalar coupling coefficients
 #'
 #' @param sc_names character vector with names of scalar couplings
