@@ -39,8 +39,21 @@ reference:
   - fit_peaks
   - make_param_list
   - spec_overlap_mat
+- title: High-level fitting using resonances, nuclei, and couplings tables
+  contents:
+  - tables_to_param_list
+  - param_list_to_tables
+  - plot_sparse_1d
+  - plot_resonances_1d
+  - plot_resonances_2d
+  - plot_resonances_3d
+  - make_map
 - title: NMRPipe simulation and processing
   contents:
+  - infer_acquisition_time
+  - infer_sweep_width
+  - infer_direct
+  - infer_aliasing
   - ppm_to_pts
   - whz_to_pts
   - write_nmrdraw_peak_tab
@@ -59,3 +72,10 @@ reference:
   - comb_vec_to_param_array
   - param_array_to_comb_vec
   - omega0_comb_source_idx
+  - make_coupling_mat
+  - split_coupling_names
+  - resonance_to_param_list
+  - abind_list
+  - peak_bind
+  - spec_bind
+  - collapse_na
