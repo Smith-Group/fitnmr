@@ -39,31 +39,6 @@
 #' @name fitnmr
 NULL
 
-lineshapes <- list(
-	none=list(	
-		func="(1i*(-1 + exp(-(1i*aq*(omega - omega0 - 1i*r2)))))/(omega - omega0 - 1i*r2)",
-		domega0="(1i - 1i*exp(aq*(1i*(omega - omega0) + r2)) + aq*(-omega + omega0 + 1i*r2))/(exp(aq*(1i*(omega - omega0) + r2))*(-omega + omega0 + 1i*r2)^2)",
-		dr2="(-1 + exp(aq*(1i*(omega - omega0) + r2)) - 1i*aq*(omega - omega0 - 1i*r2))/(exp(aq*(1i*(omega - omega0) + r2))*(-omega + omega0 + 1i*r2)^2)"
-	),
-	sp1=list(	
-		func="(aq*((end - off)*pi*cos(end*pi) - exp(aq*(1i*omega - 1i*omega0 + r2))*(end - off)*pi*cos(off*pi) + aq*(1i*omega - 1i*omega0 + r2)*(sin(end*pi) - exp(aq*(1i*omega - 1i*omega0 + r2))*sin(off*pi))))/(exp(aq*(1i*omega - 1i*omega0 + r2))*((end - off)*pi + aq*(omega - omega0 - 1i*r2))*((-end + off)*pi + aq*(omega - omega0 - 1i*r2)))",
-		domega0="(aq^2*(-1i*(end - off)*pi*((end - off)^2*pi^2 - aq^2*(-omega + omega0 + 1i*r2)^2 + 2*aq*(1i*(omega - omega0) + r2))*cos(end*pi) - 2*aq*exp(aq*(1i*(omega - omega0) + r2))*(end - off)*pi*(omega - omega0 - 1i*r2)*cos(off*pi) + (1i*(end - off)^2*pi^2 - aq*(-((end - off)^2*pi^2) + aq*(-1i + aq*(omega - omega0 - 1i*r2))*(omega - omega0 - 1i*r2))*(omega - omega0 - 1i*r2))*sin(end*pi) + exp(aq*(1i*(omega - omega0) + r2))*(1i*(end - off)*pi + aq*(omega - omega0 - 1i*r2))*(-1i*aq*omega + 1i*aq*omega0 - end*pi + off*pi - aq*r2)*sin(off*pi)))/(exp(aq*(1i*(omega - omega0) + r2))*((end - off)*pi + aq*(omega - omega0 - 1i*r2))^2*((end - off)*pi + aq*(-omega + omega0 + 1i*r2))^2)",
-		dr2="(aq^2*((end - off)*pi*((end - off)^2*pi^2 - aq^2*(-omega + omega0 + 1i*r2)^2 + 2*aq*(1i*(omega - omega0) + r2))*cos(end*pi) - 2i*aq*exp(aq*(1i*(omega - omega0) + r2))*(end - off)*pi*(omega - omega0 - 1i*r2)*cos(off*pi) + (-((end - off)^2*pi^2) + 1i*aq*(omega - omega0 - 1i*r2)*((end - off)^2*pi^2 - aq^2*(-omega + omega0 + 1i*r2)^2 + aq*(1i*(omega - omega0) + r2)))*sin(end*pi) + exp(aq*(1i*(omega - omega0) + r2))*((end - off)^2*pi^2 + aq^2*(-omega + omega0 + 1i*r2)^2)*sin(off*pi)))/(exp(aq*(1i*(omega - omega0) + r2))*((end - off)*pi + aq*(omega - omega0 - 1i*r2))^2*((end - off)*pi + aq*(-omega + omega0 + 1i*r2))^2)"
-	),
-	sp2=list(
-		func="((-1i*aq*(-1 + exp(-(1i*(2*(end - off)*pi + aq*(omega - omega0 - 1i*r2))))))/(exp(2*1i*off*pi)*(2*(end - off)*pi + aq*(omega - omega0 - 1i*r2))) - (1i*aq*exp(2*1i*off*pi)*(-1 + exp(1i*(2*(end - off)*pi + aq*(-omega + omega0 + 1i*r2)))))/(2*(-end + off)*pi + aq*(omega - omega0 - 1i*r2)) + (2i*(-1 + exp(-(1i*aq*(omega - omega0 - 1i*r2)))))/(omega - omega0 - 1i*r2))/4",
-		domega0="(exp(1i*aq*(-omega + omega0 + 1i*r2))*(aq*((aq*exp(2*1i*end*pi)*(-1i - 2*end*pi + 2*off*pi + aq*(omega - omega0 - 1i*r2)))/(2*(end - off)*pi + aq*(-omega + omega0 + 1i*r2))^2 + (aq*(-1i + 2*end*pi - 2*off*pi + aq*(omega - omega0 - 1i*r2)))/(exp(2*1i*end*pi)*(2*(-end + off)*pi + aq*(-omega + omega0 + 1i*r2))^2) - 2/(omega - omega0 - 1i*r2)) + 2i/(-omega + omega0 + 1i*r2)^2) + (1i*aq^2*exp(2*1i*off*pi))/(2*(end - off)*pi + aq*(-omega + omega0 + 1i*r2))^2 + (1i*aq^2)/(exp(2*1i*off*pi)*(2*(-end + off)*pi + aq*(-omega + omega0 + 1i*r2))^2) - 2i/(-omega + omega0 + 1i*r2)^2)/4",
-		dr2="((2*(1 - exp(-(1i*aq*(omega - omega0 - 1i*r2)))))/(-omega + omega0 + 1i*r2)^2 + (2*aq)/(exp(aq*(1i*(omega - omega0) + r2))*(1i*(omega - omega0) + r2)) + aq^2*(-(exp(2*1i*off*pi)/(2*(end - off)*pi + aq*(-omega + omega0 + 1i*r2))^2) - 1/(exp(2*1i*off*pi)*(2*(-end + off)*pi + aq*(-omega + omega0 + 1i*r2))^2) + (exp(1i*(2*end*pi + aq*(-omega + omega0 + 1i*r2)))*(1 - 2i*(end - off)*pi + aq*(1i*(omega - omega0) + r2)))/(2*(end - off)*pi + aq*(-omega + omega0 + 1i*r2))^2 + (exp((-2i)*end*pi - aq*(1i*(omega - omega0) + r2))*(1 + 2i*(end - off)*pi + aq*(1i*(omega - omega0) + r2)))/(2*(-end + off)*pi + aq*(-omega + omega0 + 1i*r2))^2))/4"
-	)
-)
-
-#lineshapes_parsed <- lapply(lineshapes, function(flist) lapply(flist, function(fvec) parse(text=fvec, keep.source=FALSE)))
-
-#lineshapes_simplified_func <- lapply(lineshapes, function(lineshape_list) compile(findSubexprs(eval(parse(text=paste("quote(", lineshape_list[[1]], ")"))), simplify=TRUE), options=list(optimize=3, suppressUndefined=TRUE)))
-
-#lineshapes_simplified <- lapply(lineshapes, function(lineshape_list) compile(findSubexprs(eval(parse(text=paste("quote(list(", paste(unlist(lineshape_list), collapse=","), "))"))), simplify=TRUE), options=list(optimize=3, suppressUndefined=TRUE)))
-#lineshapes_simplified <- lapply(lineshapes, function(lineshape_list) findSubexprs(eval(parse(text=paste("quote(list(", paste(unlist(lineshape_list), collapse=","), "))"))), simplify=TRUE))
-
 fill_array <- function(x, array_dim) {
 
 	if (is.null(x)) x <- NA
@@ -183,6 +158,10 @@ pack_fit_params <- function(start_list, group_list) {
 	stopifnot(all(tapply(start_list[["m0"]][group_list[["m0"]] != 0], group_list[["m0"]][group_list[["m0"]] != 0], function(x) all(x==x[1]))))
 	stopifnot(all(tapply(start_list[["p0"]][group_list[["p0"]] != 0], group_list[["p0"]][group_list[["p0"]] != 0], function(x) all(x==x[1]))))
 	stopifnot(all(tapply(start_list[["p1"]][group_list[["p1"]] != 0], group_list[["p1"]][group_list[["p1"]] != 0], function(x) all(x==x[1]))))
+	undefined_omega0_comb <- names(which(is.na(start_list[["omega0_comb"]][group_list[["omega0_comb"]] != 0])))
+	if (length(undefined_omega0_comb) != 0) {
+		stop("The following omega0_comb values are undefined: ", paste(undefined_omega0_comb, collapse=", "))
+	}
 	stopifnot(all(tapply(start_list[["omega0_comb"]][group_list[["omega0_comb"]] != 0], group_list[["omega0_comb"]][group_list[["omega0_comb"]] != 0], function(x) all(x==x[1]))))
 	stopifnot(all(tapply(start_list[["field"]][group_list[["field"]] != 0], group_list[["field"]][group_list[["field"]] != 0], function(x) all(x==x[1]))))
 
@@ -695,7 +674,13 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 			}
 			
 			fit_func[[j]] <- list(
-				formulas=lapply(lineshapes[[fit_func_name]], function(func_text) parse(text=func_text)),
+				formulas=c(
+					lapply(lineshapes[[fit_func_name]], function(func_text) parse(text=func_text)),
+					list(
+						value=list(none=value_none, sp1=value_sp1, sp2=value_sp2)[[fit_func_name]],
+						value_deriv=list(none=value_deriv_none, sp1=value_deriv_sp1, sp2=value_deriv_sp2)[[fit_func_name]]
+					)
+				),
 				data=as.list(fit_func_data)
 			)
 		}
@@ -807,6 +792,7 @@ eval_peak_1d <- function(func_list, func_data, ref_mhz, omega, omega0, r2, p0=0,
 	
 		func <- eval(func_list$func, func_data)
 		#func <- eval(lineshapes_simplified_func$none, func_data)
+		#func <- func_list$value(func_data[["omega"]], func_data[["omega0"]], func_data[["r2"]], func_data[["aq"]], func_data[["off"]], func_data[["end"]])
 	
 	} else {
 	
@@ -819,6 +805,7 @@ eval_peak_1d <- function(func_list, func_data, ref_mhz, omega, omega0, r2, p0=0,
 			func_data[["omega0"]] <- omega0_weights[i,1]*ref_mhz*2*pi # convert ppm to rad/s
 			
 			func <- func + eval(func_list$func, func_data)*omega0_weights[i,2]
+			#func <- func + func_list$value(func_data[["omega"]], func_data[["omega0"]], func_data[["r2"]], func_data[["aq"]], func_data[["off"]], func_data[["end"]])*omega0_weights[i,2]
 		}
 	}
 	
@@ -843,16 +830,13 @@ eval_peak_1d_deriv <- function(func_list, func_data, ref_mhz, omega, omega0, r2,
 	
 	if (is.null(coupling)) {
 	
-		if (TRUE) {
-			func <- eval(func_list$func, func_data)
-			dfunc_domega0 <- eval(func_list$domega0, func_data)
-			dfunc_dr2 <- eval(func_list$dr2, func_data)
-		} else {
-			eval_vec <- eval(lineshapes_simplified$none, func_data)
-			func <- eval_vec[[1]]
-			dfunc_domega0 <- eval_vec[[2]]
-			dfunc_dr2 <- eval_vec[[3]]
-		}
+		func <- eval(func_list$func, func_data)
+		dfunc_domega0 <- eval(func_list$domega0, func_data)
+		dfunc_dr2 <- eval(func_list$dr2, func_data)
+		#eval_list <- func_list$value_deriv(func_data[["omega"]], func_data[["omega0"]], func_data[["r2"]], func_data[["aq"]], func_data[["off"]], func_data[["end"]])
+		#func <- eval_list[[1]]
+		#dfunc_domega0 <- eval_list[[2]]
+		#dfunc_dr2 <- eval_list[[3]]
 	
 		#pvec <-          exp(1i*(p0 + p1*p1_frac))
 		#dpvec_dp0 <-  1i*exp(1i*(p0 + p1*p1_frac))
@@ -878,6 +862,11 @@ eval_peak_1d_deriv <- function(func_list, func_data, ref_mhz, omega, omega0, r2,
 			dfunc_domega0_weighted <- eval(func_list$domega0, func_data)*omega0_weights[i,2]
 			dfunc_domega0 <- dfunc_domega0 + dfunc_domega0_weighted
 			dfunc_dr2 <- dfunc_dr2 + eval(func_list$dr2, func_data)*omega0_weights[i,2]
+			#eval_list <- func_list$value_deriv(func_data[["omega"]], func_data[["omega0"]], func_data[["r2"]], func_data[["aq"]], func_data[["off"]], func_data[["end"]])
+			#func <- func + eval_list[[1]]*omega0_weights[i,2]
+			#dfunc_domega0_weighted <- eval_list[[2]]*omega0_weights[i,2]
+			#dfunc_domega0 <- dfunc_domega0 + dfunc_domega0_weighted
+			#dfunc_dr2 <- dfunc_dr2 + eval_list[[3]]*omega0_weights[i,2]
 			
 			if (ncol(dfunc_dcoupling)) {
 				dfunc_dcoupling <- dfunc_dcoupling + dfunc_domega0_weighted*rep(coupling[i,-(1:2)], each=length(dfunc_domega0_weighted))
@@ -1261,7 +1250,7 @@ perform_fit <- function(fit_input, method=c("minpack.lm", "gslnls", "sparseLM", 
 	
 	if (method == "minpack.lm") {
 	
-		systime <- system.time(fit <- minpack.lm::nls.lm(fit_par, fit_lower, fit_upper, fn=fit_fn, jac=fit_jac, fit_data=fit_input, ...))
+		systime <- system.time(fit <- minpack.lm::nls.lm(fit_par, fit_lower, fit_upper, fn=fit_fn, jac=fit_jac, fit_data=fit_input, control=minpack.lm::nls.lm.control(maxiter = 200), ...))
 		
 		fit_input[["fit_list"]] <- unpack_fit_params(fit$par, fit_input$group_list, fit_input$comb_list, default_list=fit_input$start_list)
 		fit_input[["fit_rsstrace"]] <- fit$rsstrace
