@@ -62,94 +62,6 @@ split_coupling_names <- function(name_char) {
 #' @param resonance data frame with resonances
 #' @param nuclei data frame with nuclei chemical shifts and R2 rates
 #' @param data frame with scalar couplings
-resonance_to_param_list_old <- function(spec, resonance, nuclei, couplings) {
-
-	num_spec <- 1
-	num_dim <- ncol(spec$fheader)
-	
-	dim_names <- c("x", "y", "z", "a")[seq_len(num_dim)]
-	
-	comb_list_omega0 <- lapply(seq_along(dim_names), function(dim_idx) {
-		
-		# get scalar couplings for this dimension
-		res_colname <- dim_names[dim_idx]
-		sc_colname <- paste(res_colname, "_sc", sep="")
-		sc <- ""
-		if (sc_colname %in% names(resonance)) {
-			sc <- resonance[[sc_colname]]
-		}
-		sc_names <- split_coupling_names(sc)
-	
-		comb_list <- make_comb_list_omega0(resonance[[res_colname]], sc_names, spec$fheader["OBS",dim_idx])
-	})
-	
-	comb_idx_basis <- lapply(comb_list_omega0, seq_along)
-	comb_idx_mat <- expand.grid(comb_idx_basis)
-	num_peaks <- nrow(comb_idx_mat)
-	
-	omega0_comb <- lapply(seq_len(ncol(comb_idx_mat)), function(i) comb_list_omega0[[i]][comb_idx_mat[,i]])
-	omega0_comb <- t(matrix(do.call(c, omega0_comb), nrow=num_peaks))
-	
-	nuclei_names <- sapply(omega0_comb, function(x) x$name[1])
-	sc_names <- unique(do.call(c, lapply(omega0_comb, function(x) x$name[-1])))
-	#print(sc_names)
-	
-	# prepare start_list components
-	omega0_start <- nuclei[nuclei_names,"omega0_ppm"]
-	r2_start <- nuclei[nuclei_names,"r2_hz"]
-	m0_start <- resonance[["m0"]]/length(nuclei_names)
-	omega0_comb_start <- c(nuclei[unique(nuclei_names),"omega0_ppm"], couplings[sc_names,"hz"])
-	names(omega0_comb_start) <- c(unique(nuclei_names), sc_names)
-	
-	# prepare group_list components
-	omega0_group <- 0
-	r2_group <- NA
-	if ("r2_group" %in% colnames(nuclei)) {
-		r2_group <- nuclei[nuclei_names,"r2_group"]
-	}
-	m0_group <- NA
-	if ("m0_group" %in% names(resonance)) {
-		m0_group <- nuclei[["m0_group"]]
-	}
-	omega0_comb_group <- rep(NA_integer_, length(omega0_comb_start))
-	names(omega0_comb_group) <- names(omega0_comb_start)
-	if ("omega0_group" %in% colnames(nuclei)) {
-		nuclei_names_unique <- unique(nuclei_names)
-		omega0_comb_group[nuclei_names_unique] <- nuclei[nuclei_names_unique,"omega0_group"]
-	}
-	if ("group" %in% colnames(couplings)) {
-		omega0_comb_group[sc_names] <- couplings[sc_names,"group"]	
-	}
-	names(omega0_comb_group) <- names(omega0_comb_start)
-	
-	param_list <- list(
-		start_list=list(
-			omega0=array(omega0_start, dim=c(num_dim, num_peaks, num_spec)),
-			r2=array(r2_start, dim=c(num_dim, num_peaks, num_spec)),
-			m0=array(m0_start, dim=c(num_peaks, num_spec)),
-			omega0_comb=omega0_comb_start
-		),
-		group_list=list(
-			omega0=array(omega0_group, dim=c(num_dim, num_peaks, num_spec)),
-			r2=array(r2_group, dim=c(num_dim, num_peaks, num_spec)),
-			m0=array(m0_group, dim=c(num_peaks, num_spec)),
-			omega0_comb=omega0_comb_group
-		),
-		comb_list=list(
-			omega0=array(omega0_comb, dim=c(num_dim, num_peaks, num_spec))
-		),
-		resonance_names=array(rownames(resonance), dim=c(num_peaks, num_spec))
-	)
-	
-	param_list
-}
-
-#' Convert data frame of resonances into a parameter list
-#'
-#' @param spec single spectrum
-#' @param resonance data frame with resonances
-#' @param nuclei data frame with nuclei chemical shifts and R2 rates
-#' @param data frame with scalar couplings
 resonance_to_param_list <- function(spec, resonance, nuclei, couplings) {
 
 	num_spec <- 1
@@ -360,45 +272,6 @@ spec_bind <- function(...) {
 	param_list
 }
 
-tables_to_param_list_old <- function(spec_list, tables) {
-
-	resonances <- tables[["resonances"]]
-	nuclei <- tables[["nuclei"]]
-	couplings <- tables[["couplings"]]
-
-	resonance_param_list <- lapply(seq_along(spec_list), function(spec_i) {
-	
-		resonance_param_list <- lapply(seq_len(nrow(resonances)), function(resonance_i) {
-			resonance_to_param_list_old(spec_list[[spec_i]], resonances[resonance_i,,drop=FALSE], nuclei, couplings)
-		})
-	
-		param_list <- peak_bind(resonance_param_list)
-		
-		param_list
-	})
-	
-	param_list <- spec_bind(resonance_param_list)
-	
-	# create groups for nuclei with NA r2 values
-	nuclei_names <- array(sapply(param_list[["comb_list"]][["omega0"]] , function(x) x$name[1]), dim(param_list[["comb_list"]][["omega0"]]))
-	nuclei_unique_idx <- which(!duplicated(as.vector(nuclei_names)))
-	nuclei_r2_group <- param_list[["group_list"]][["r2"]][nuclei_unique_idx]
-	names(nuclei_r2_group) <- nuclei_names[nuclei_unique_idx]
-	na_idx <- is.na(nuclei_r2_group)
-	nuclei_r2_group[na_idx] <- utils::head(setdiff(seq_along(nuclei_r2_group), nuclei_r2_group[!na_idx]), sum(na_idx))
-	param_list[["group_list"]][["r2"]][] <- nuclei_r2_group[nuclei_names]
-	
-	# create groups for resonances with NA m0 values
-	resonance_unique_idx <- which(!duplicated(as.vector(param_list$resonance_names)))
-	resonance_m0_group <- param_list[["group_list"]][["m0"]][resonance_unique_idx,,drop=FALSE]
-	rownames(resonance_m0_group) <- param_list$resonance_names[resonance_unique_idx]
-	na_idx <- is.na(resonance_m0_group)
-	resonance_m0_group[na_idx] <- utils::head(setdiff(seq_along(resonance_m0_group), resonance_m0_group[!na_idx]), sum(na_idx))
-	param_list[["group_list"]][["m0"]][] <- resonance_m0_group[param_list$resonance_names,]
-	
-	param_list
-}
-
 #' Convert tables with resonance/nuclei/couplings to a parameter list
 #'
 #' @param spec_list list of spectra
@@ -452,54 +325,6 @@ tables_to_param_list <- function(spec_list, tables) {
 	}
 	
 	param_list
-}
-
-#' Convert a parameter list into a set of tables with resonance/nuclei/couplings
-#'
-#' @param param_list param_list, fit_input, or fit_output structure
-#' @param tables list with resonance/nuclei/couplings tables to update
-#'
-#' @export
-param_list_to_tables_old <- function(param_list, tables) {
-
-	if ("fit_list" %in% names(param_list)) {
-		params <- param_list[["fit_list"]]
-	} else {
-		params <- param_list[["start_list"]]
-	}
-	
-	resonances <- tables[["resonances"]]
-	nuclei <- tables[["nuclei"]]
-	couplings <- tables[["couplings"]]
-	
-	resonances_standard_columns <- c("x", "x_sc", "y", "y_sc", "z", "z_sc", "a", "a_sc")
-	
-	resonances <- resonances[,intersect(colnames(resonances), resonances_standard_columns),drop=FALSE]
-
-	m0_mat <- sapply(seq_len(ncol(params$m0)), function(i) {
-		tapply(params$m0[,i,drop=FALSE], param_list$resonance_names, sum)
-	})
-	if (!is.matrix(m0_mat)) {
-		m0_mat <- t(t(m0_mat))
-	}
-	m0_mat <- m0_mat[rownames(resonances),,drop=FALSE]
-	colnames(m0_mat) <- paste(seq_len(ncol(m0_mat)), "_m0", sep="")
-	
-	resonances <- cbind(resonances, m0_mat)
-	
-	nuclei_names <- intersect(rownames(nuclei), names(params$omega0_comb))
-	nuclei[nuclei_names,"omega0_ppm"] <- params$omega0_comb[nuclei_names]
-	peak_nuclei_names <- sapply(param_list$comb_list$omega0, function(x) x[1,1])
-	nuclei[nuclei_names,"r2_hz"] <- params$r2[match(nuclei_names, peak_nuclei_names)]
-	
-	coupling_names <- intersect(rownames(couplings), names(params$omega0_comb))
-	couplings[coupling_names,"hz"] <- params$omega0_comb[coupling_names]
-	
-	list(
-		resonances=resonances,
-		nuclei=nuclei,
-		couplings=couplings
-	)
 }
 
 #' Convert a parameter list into a set of tables with resonance/nuclei/couplings
