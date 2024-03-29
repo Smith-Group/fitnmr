@@ -26,6 +26,9 @@ make_comb_list_omega0 <- function(omega0_name, sc_names, obs_mhz) {
 	})
 }
 
+#' Make a multiplet matrix with weights and scalar coupling coefficients
+#'
+#' @param sc_names character vector with names of scalar couplings
 make_coupling_mat <- function(sc_names) {
 
 	grid_list <- rep(list(c(0.5,-0.5)), length(sc_names))
