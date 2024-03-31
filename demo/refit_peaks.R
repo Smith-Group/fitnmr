@@ -53,6 +53,8 @@ names(spec_list) <- sub("^[.]/", "", ft_files)
 }
 
 start_resonances <- read.csv(text=readLines("start_resonances.csv", warn=FALSE), row.names=1, check.names=FALSE)
+start_resonances[,"x_sc"] <- as.character(start_resonances[,"x_sc"])
+start_resonances[is.na(start_resonances[,"x_sc"]),"x_sc"] <- ""
 start_nuclei <- read.csv(text=readLines("start_nuclei.csv", warn=FALSE), row.names=1, check.names=FALSE)
 start_couplings <- read.csv(text=readLines("start_couplings.csv", warn=FALSE), row.names=1, check.names=FALSE)
 
@@ -111,7 +113,13 @@ write.csv(tables[["couplings"]], "couplings.csv", quote=FALSE)
 
 # plot output
 if (ncol(spec_list[[1]]$fheader) == 1) {
+	pdf("sparse_1d.pdf", width=10, height=4)
+	par(mar=c(5.1, 2.1, 1.1, 2.1))
+	plot_sparse_1d(fit_output, tables)
+	dev.off()
+	pdf("resonances_1d.pdf")
 	plot_resonances_1d(fit_output, omega0_plus=omega0_plus)
+	dev.off()
 } else if (ncol(spec_list[[1]]$fheader) == 2) {
 	plot_resonances_2d(fit_output, omega0_plus=omega0_plus)
 } else if (ncol(spec_list[[1]]$fheader) == 3) {
