@@ -9,6 +9,7 @@ make_coupling_mat <- function(sc_names) {
 	offset_grid <- as.matrix(expand.grid(grid_list))
 	
 	offsets <- sapply(unique(sc_names), function(sc_name) rowSums(offset_grid[,colnames(offset_grid) == sc_name,drop=FALSE]))
+	colnames(offsets) <- sub("^~", "", colnames(offsets))
 	
 	if (length(offsets) == 0) {
 		offsets <- matrix(nrow=1, ncol=0)
@@ -16,9 +17,19 @@ make_coupling_mat <- function(sc_names) {
 	
 	offset_char <- apply(offsets, 1, paste, collapse=" ")
 	
-	offset_weights <- tapply(offset_char, offset_char, length)/length(offset_char)
+	offset_weights <- rep(1/length(offset_char), length(offset_char))
 	
-	cbind(unname(offset_weights), 0, offsets[match(names(offset_weights), offset_char),,drop=FALSE])
+	for (sc_name in unique(sc_names[startsWith(sc_names, "~")])) {
+		offset_weights <- offset_weights*sign(offset_grid[,sc_name,drop=FALSE])
+	}
+	
+	offset_weights_collapsed <- tapply(offset_weights, offset_char, sum)
+	
+	coupling_mat <- cbind(unname(offset_weights_collapsed), 0, offsets[match(names(offset_weights_collapsed), offset_char),,drop=FALSE])
+	
+	#coupling_mat <- coupling_mat[rev(do.call(order, as.data.frame(coupling_mat[,-c(1L,2L),drop=FALSE]))),,drop=FALSE]
+	
+	coupling_mat[abs(coupling_mat[,1]) > 1e-6,]
 }
 
 #' Split string of scalar coupling names
@@ -871,7 +882,7 @@ plot_resonances_2d <- function(fit_data, omega0_plus, resonances=unique(fit_data
 			omega0_weights_2[omega0_weights_idx[,2],1],
 			omega0_weights_1[omega0_weights_idx[,1],2]*omega0_weights_2[omega0_weights_idx[,2],2]
 		)
-		graphics::points(omega0_weights[,1], omega0_weights[,2], pch=16, col=grDevices::rgb(0,0,1,sqrt(omega0_weights[,3])))
+		graphics::points(omega0_weights[,1], omega0_weights[,2], pch=16, col=grDevices::rgb(0,0,1,sqrt(abs(omega0_weights[,3]))))
 	}
 }
 
