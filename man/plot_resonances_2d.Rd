@@ -7,13 +7,16 @@
 plot_resonances_2d(
   fit_data,
   omega0_plus,
-  resonances = unique(fit_data$resonance_names)
+  resonances = unique(fit_data$resonance_names),
+  low_frac = 0.05
 )
 }
 \arguments{
 \item{fit_data}{fit_input or fit_output structure}
 
 \item{omega0_plus}{length 2 vector giving ppm range for each dimension}
+
+\item{low_frac}{minimum absolute value (as a fraction of maximum intensity) at which to show contours}
 }
 \description{
 Plot resonances from 2D fit

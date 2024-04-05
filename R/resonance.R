@@ -827,11 +827,10 @@ plot_resonances_1d <- function(fit_data, always_show_start=FALSE, omega0_plus=0.
 #'
 #' @param fit_data fit_input or fit_output structure
 #' @param omega0_plus length 2 vector giving ppm range for each dimension
+#' @param low_frac minimum absolute value (as a fraction of maximum intensity) at which to show contours 
 #'
 #' @export
-plot_resonances_2d <- function(fit_data, omega0_plus, resonances=unique(fit_data$resonance_names)) {
-
-	low_frac <- 0.05
+plot_resonances_2d <- function(fit_data, omega0_plus, resonances=unique(fit_data$resonance_names), low_frac=0.05) {
 
 	spec_i <- 1
 
@@ -855,7 +854,7 @@ plot_resonances_2d <- function(fit_data, omega0_plus, resonances=unique(fit_data
 		
 		zlim <- range(input_spec_int[[1]], start_spec_int[[1]], na.rm=TRUE)
 		
-		plot(1, 1, type="n", xlim=rev(limits[idx[1],]), ylim=rev(limits[idx[2],]), xaxs="i", yaxs="i", xlab=paste(names(dimnames(input_spec_int[[1]]))[1], "(ppm)"), ylab=paste(names(dimnames(input_spec_int[[1]]))[2], "(ppm)"))
+		plot(1, 1, type="n", xlim=rev(limits[idx[1],]), ylim=rev(limits[idx[2],]), xaxs="i", yaxs="i", xlab=paste(names(dimnames(input_spec_int[[1]]))[1], "(ppm)"), ylab=paste(names(dimnames(input_spec_int[[1]]))[2], "(ppm)"), main=resonance)
 		contour_pipe(input_spec_int[[1]], zlim=zlim, low_frac=low_frac, col_pos="black", col_neg="gray", add=TRUE)	
 		contour_pipe(resonance_spec_int[[1]], zlim=zlim, low_frac=low_frac, col_pos="purple", col_neg="mediumpurple1", add=TRUE)
 		contour_pipe(fit_spec_int[[1]], zlim=zlim, low_frac=low_frac, col_pos="red", col_neg="lightpink", add=TRUE)

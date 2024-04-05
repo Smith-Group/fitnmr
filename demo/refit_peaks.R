@@ -51,6 +51,7 @@ spec_list <- lapply(ft_files, read_nmrpipe, dim_order=dim_order)
 # remove ./ from spectrum labels
 names(spec_list) <- sub("^[.]/", "", ft_files)
 }
+omega0_plus <- omega0_plus[seq_len(ncol(spec_list[[1]]$fheader))]
 
 start_resonances <- read.csv(text=readLines("start_resonances.csv", warn=FALSE), row.names=1, check.names=FALSE)
 start_resonances[,"x_sc"] <- as.character(start_resonances[,"x_sc"])
@@ -118,10 +119,14 @@ if (ncol(spec_list[[1]]$fheader) == 1) {
 	plot_sparse_1d(fit_output, tables)
 	dev.off()
 	pdf("resonances_1d.pdf")
-	plot_resonances_1d(fit_output, omega0_plus=omega0_plus)
+	plot_resonances_1d(fit_output, omega0_plus=omega0_plus, always_show_start=FALSE)
 	dev.off()
 } else if (ncol(spec_list[[1]]$fheader) == 2) {
-	plot_resonances_2d(fit_output, omega0_plus=omega0_plus)
+	pdf("resonances_2d.pdf")
+	plot_resonances_2d(fit_output, omega0_plus=omega0_plus, low_frac=0.01)
+	dev.off()
 } else if (ncol(spec_list[[1]]$fheader) == 3) {
+	pdf("resonances_2d.pdf")
 	plot_resonances_3d(fit_output, omega0_plus=omega0_plus)
+	dev.off()
 }
