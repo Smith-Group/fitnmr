@@ -9,11 +9,11 @@ make_coupling_mat <- function(sc_names) {
 	offset_grid <- as.matrix(expand.grid(grid_list))
 	
 	offsets <- sapply(unique(sc_names), function(sc_name) rowSums(offset_grid[,colnames(offset_grid) == sc_name,drop=FALSE]))
-	colnames(offsets) <- sub("^~", "", colnames(offsets))
 	
 	if (length(offsets) == 0) {
 		offsets <- matrix(nrow=1, ncol=0)
 	}
+	colnames(offsets) <- sub("^~", "", colnames(offsets))
 	
 	offset_char <- apply(offsets, 1, paste, collapse=" ")
 	
@@ -29,7 +29,7 @@ make_coupling_mat <- function(sc_names) {
 	
 	#coupling_mat <- coupling_mat[rev(do.call(order, as.data.frame(coupling_mat[,-c(1L,2L),drop=FALSE]))),,drop=FALSE]
 	
-	coupling_mat[abs(coupling_mat[,1]) > 1e-6,]
+	coupling_mat[abs(coupling_mat[,1]) > 1e-6,,drop=FALSE]
 }
 
 #' Split string of scalar coupling names
