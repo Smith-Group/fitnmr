@@ -1109,7 +1109,7 @@ fit_jac <- function(par, fit_data, drss_dspec=NULL) {
 							deriv_factor <- sum(param_list[["field"]][,spec_idx])/field_factor_sum_sq*param_list[["m0"]][peak_idx,spec_idx]
 							if (is.null(drss_dspec)) {
 								#jac_eval[output_idx,idx_list[["field"]][field_eval_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["field"]][field_eval_idx,spec_idx]] - func_nd_prod*deriv_factor
-								add_assign_col(jac_eval, output_idx, idx_list[["field"]][field_eval_idx,spec_idx], e-func_nd_prod*deriv_factor)
+								add_assign_col(jac_eval, output_idx, idx_list[["field"]][field_eval_idx,spec_idx], -func_nd_prod*deriv_factor)
 							} else {
 								jac_eval[idx_list[["field"]][field_eval_idx,spec_idx]] <- jac_eval[output_idx,idx_list[["field"]][field_eval_idx,spec_idx]] - sum(func_nd_prod*deriv_factor*drss_dspec[output_idx])
 							}
