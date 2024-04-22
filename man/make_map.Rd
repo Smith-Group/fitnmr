@@ -4,7 +4,13 @@
 \alias{make_map}
 \title{Create a sparse axis}
 \usage{
-make_map(x, max_spacing = 0.125, new_spacing = 0.025)
+make_map(
+  x,
+  max_spacing = 0.125,
+  new_spacing = 0.025,
+  starts = NULL,
+  ends = NULL
+)
 }
 \description{
 Create a sparse axis

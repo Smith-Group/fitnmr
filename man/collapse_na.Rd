@@ -7,7 +7,7 @@
 collapse_na(x)
 }
 \arguments{
-\item{x}{vector with names having numeric positional values}
+\item{x}{1D array with dimnames having numeric positional values}
 }
 \description{
 Collapse strings of repeated NAs in a vector with numeric names

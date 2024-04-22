@@ -46,14 +46,12 @@ library(fitnmr)
 
 ft_files <- list.files(".", pattern="[.]ft[1-4]?$", full.names=TRUE, recursive=TRUE)
 
-if (!"spec_list" %in% ls()) {
 spec_list <- lapply(ft_files, read_nmrpipe, dim_order=dim_order)
 # remove ./ from spectrum labels
 names(spec_list) <- sub("^[.]/", "", ft_files)
-}
 omega0_plus <- omega0_plus[seq_len(ncol(spec_list[[1]]$fheader))]
 
-start_resonances <- read.csv(text=readLines("start_resonances.csv", warn=FALSE), row.names=1, check.names=FALSE)
+start_resonances <- read.csv(text=readLines("start_resonances.csv", warn=FALSE), row.names=1, check.names=FALSE, comment.char="#")
 start_resonances[,"x_sc"] <- as.character(start_resonances[,"x_sc"])
 start_resonances[is.na(start_resonances[,"x_sc"]),"x_sc"] <- ""
 start_nuclei <- read.csv(text=readLines("start_nuclei.csv", warn=FALSE), row.names=1, check.names=FALSE)
@@ -115,13 +113,17 @@ write.csv(tables[["couplings"]], "couplings.csv", quote=FALSE)
 # plot output
 if (ncol(spec_list[[1]]$fheader) == 1) {
 	pdf("sparse_1d.pdf", width=10, height=4)
-	par(mar=c(5.1, 2.1, 1.1, 2.1))
+	par(mar=c(4.1, 4.1, 1.1, 1.1))
 	plot_sparse_1d(fit_output, tables)
 	dev.off()
 	pdf("resonances_1d.pdf")
 	plot_resonances_1d(fit_output, omega0_plus=omega0_plus, always_show_start=FALSE)
 	dev.off()
 } else if (ncol(spec_list[[1]]$fheader) == 2) {
+	pdf("sparse_2d.pdf", width=10, height=10)
+	par(mar=c(4.1, 4.1, 1.1, 1.1))
+	plot_sparse_2d(fit_output, tables, low_frac=0.01)
+	dev.off()
 	pdf("resonances_2d.pdf")
 	plot_resonances_2d(fit_output, omega0_plus=omega0_plus, low_frac=0.01)
 	dev.off()

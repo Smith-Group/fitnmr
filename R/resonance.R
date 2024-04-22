@@ -363,7 +363,7 @@ param_list_to_tables <- function(param_list, tables) {
 
 #' Collapse strings of repeated NAs in a vector with numeric names
 #'
-#' @param x vector with names having numeric positional values
+#' @param x 1D array with dimnames having numeric positional values
 collapse_na <- function(x) {
 
 	if (is.null(x)) {
@@ -400,15 +400,69 @@ collapse_na <- function(x) {
 	structure(x_new, starts=starts[rle_list$value == 0], ends=ends[rle_list$value == 0])
 }
 
+#' Collapse blocks of NAs in an array with numeric dimension names
+#'
+#' @param x array with names having numeric positional values
+collapse_na_array <- function(x) {
+
+	if (is.null(x)) {
+		return(NULL)
+	}
+	
+	x_list <- lapply(seq_along(dim(x)), function(i) {
+		xl <- apply(x, i, mean, na.rm=TRUE)
+		xl[is.nan(xl)] <- NA
+		array(xl, length(xl), list(names(xl)))
+	})
+	
+	x_collapsed <- lapply(x_list, collapse_na)
+	
+	x_names <- x_names_orig <- lapply(x_collapsed, names)
+	missing_idx <- lapply(seq_along(x_names), function(i) which(! x_names[[i]] %in% dimnames(x)[[i]]))
+	
+	for (i in seq_along(x_names)) {
+		x_names[[i]][missing_idx[[i]]] <- dimnames(x)[[i]][1]
+	}
+	
+	x_new <- do.call("[", c(list(x), x_names))
+	#x_new <- do.call("[<-", c(list(x_new), missing_idx, NA))
+	
+	for (i in seq_along(x_names)) {
+		idx <- rep(list(quote(expr=)), length(dim(x)))
+		idx[[i]] <- missing_idx[[i]]
+		x_new <- do.call("[<-", c(list(x_new), idx, NA))
+	}
+	
+	dimnames(x_new) <- x_names_orig
+	
+	segments_list <- lapply(x_collapsed, function(xc) {
+		rbind(starts=attr(xc, "starts"), ends=attr(xc, "ends"))
+	})
+	
+	attr(x_new, "segments") <- segments_list
+	
+	x_new
+}
+
 #' Create a sparse axis
 #'
 #' @export
-make_map <- function(x, max_spacing=0.125, new_spacing=0.025) {
+make_map <- function(x, max_spacing=0.125, new_spacing=0.025, starts=NULL, ends=NULL) {
 
-	x <- collapse_na(drop(x))
+	if (is.null(starts) || is.null(ends)) {
+		x <- collapse_na(drop(x))
+	}
 
-	x_starts <- y_starts <- as.numeric(names(x)[attr(x, "starts")])
-	x_ends <- y_ends <- as.numeric(names(x)[attr(x, "ends")])
+	if (is.null(starts)) {
+		x_starts <- y_starts <- as.numeric(names(x)[attr(x, "starts")])
+	} else {
+		x_starts <- y_starts <- starts
+	}
+	if (is.null(starts)) {
+		x_ends <- y_ends <- as.numeric(names(x)[attr(x, "ends")])
+	} else {
+		x_ends <- y_ends <- ends
+	}
 	#print(x_starts)
 	#print(x_ends)
 	
@@ -820,6 +874,142 @@ plot_resonances_1d <- function(fit_data, always_show_start=FALSE, omega0_plus=0.
 # 		if (!is.null(spec_fit_int)) {
 # 			graphics::points(omega_ppm[plot_idx], spec_fit_int[plot_idx], type="l", col="red")
 # 		}
+	}
+}
+
+#' Plot spectrum from 2D fit
+#'
+#' @param fit_data fit_input or fit_output structure
+#' @param tables list with resonances, nuclei, and couplings tables
+#' @param spec_idx index of spectrum to plot
+#' @param col_model color for modeled peak shapes
+#' @param col_nuclei colors for nuclei
+#'
+#' @export
+plot_sparse_2d <- function(fit_data, tables=NULL, spec_idx=1, col_model=2, col_nucleus=NULL, lwd=1, tick_spacing=0.02, coupling_spacing=0.01, coupling_marks=0.009, xaxs="i", yaxs="i", low_frac=0.05, bty="n", always_show_start=FALSE, add=FALSE, ppm_map_list=NULL) {
+
+	stopifnot(length(spec_idx) == 1)
+
+	input_spec_int <- collapse_na_array(get_spec_int(fit_data, "input", spec_idx)[[1]])
+	start_spec_int <- collapse_na_array(get_spec_int(fit_data, "start", spec_idx)[[1]])
+	if ("fit_list" %in% names(fit_data)) {
+		fit_spec_int <- collapse_na_array(get_spec_int(fit_data, "fit", spec_idx)[[1]])
+	} else {
+		fit_spec_int <- NULL
+	}
+	
+	# determine which model spectra to be plotting
+	dashed_int <- NULL
+	if (is.null(fit_spec_int)) {
+		solid_int <- start_spec_int
+		solid_list <- fit_data[["start_list"]]
+	} else {
+		solid_int <- fit_spec_int
+		solid_list <- fit_data[["fit_list"]]
+		if (always_show_start) {
+			dashed_int <- start_spec_int
+		}
+	}
+	
+	# create sparse ppm map
+	ppm_x <- as.numeric(rownames(input_spec_int))
+	ppm_y <- as.numeric(colnames(input_spec_int))
+	#print(str(input_spec_int))
+	if (is.null(ppm_map_list)) {
+		ppm_map_list <- lapply(seq_along(dim(input_spec_int)), function(i) {
+			ppm <- as.numeric(dimnames(input_spec_int)[[i]])
+			segment_list <- attr(input_spec_int, "segments")
+			make_map(starts=ppm[segment_list[[i]]["starts",]], ends=ppm[segment_list[[i]]["ends",]])
+		})
+	}
+	ppm_map_fn_list <- lapply(ppm_map_list, function(ppm_map) {
+		stats::approxfun(ppm_map[,1], ppm_map[,2])
+	})
+	
+	# determine initial limits
+	xlim <- rev(range(ppm_map_list[[1]][,2]))
+	ylim <- rev(range(ppm_map_list[[2]][,2]))
+	zlim <- range(input_spec_int, solid_int, na.rm=TRUE)
+	
+	plot(1, 1, type="n", xlim=xlim, ylim=ylim, xaxs=xaxs, yaxs=xaxs, xlab=NA, ylab=NA, xaxt="n", yaxt="n", bty="7")
+	
+	input_spec_int_map <- input_spec_int
+	solid_int_map <- solid_int
+	dashed_int_map <- dashed_int
+	for (i in seq_along(dim(input_spec_int))) {
+		dimnames(input_spec_int_map)[[i]] <- ppm_map_fn_list[[i]](as.numeric(dimnames(input_spec_int_map)[[i]]))
+		dimnames(solid_int_map)[[i]] <- ppm_map_fn_list[[i]](as.numeric(dimnames(solid_int_map)[[i]]))
+		if (!is.null(dashed_int_map)) {
+			dimnames(dashed_int_map)[[i]] <- ppm_map_fn_list[[i]](as.numeric(dimnames(dashed_int_map)[[i]]))
+		}
+	}
+	
+	contour_pipe(input_spec_int_map, zlim=zlim, low_frac=low_frac, col_pos="black", col_neg="gray", add=TRUE)	
+	contour_pipe(solid_int_map, zlim=zlim, low_frac=low_frac, col_pos=col_model, add=TRUE)
+	
+	if (!is.null(dashed_int_map)) {
+		graphics::points(ppm_map_fn(ppm), dashed_int, type="l", lwd=lwd, col=col_model, lty="dashed")
+		contour_pipe(dashed_int_map, zlim=zlim, low_frac=low_frac, col_pos="blue", add=TRUE)
+	}
+	
+	if (is.null(tables)) {
+	
+		graphics::title(
+			xlab=paste(names(fit_data$spec_data[[spec_idx]]$omega_contigous)[1], "(ppm)"),
+			ylab=paste(names(fit_data$spec_data[[spec_idx]]$omega_contigous)[2], "(ppm)")
+		)
+	
+	} else {
+		
+		nuc_list <- list(intersect(rownames(tables$nuclei), tables$resonances[,"x"]), intersect(rownames(tables$nuclei), tables$resonances[,"y"]))
+		nuc_all <- intersect(rownames(tables$nuclei), unlist(nuc_list))
+		nuc_ppm_list <- lapply(nuc_list, function(nuc) tables$nuclei[nuc,"omega0_ppm"])
+		
+		nuc_ppm_map_list <- lapply(seq_along(nuc_ppm_list), function(i) {
+			ppm_map_fn_list[[i]](nuc_ppm_list[[i]])
+		})
+		
+		nuc_label_widths_list <- lapply(nuc_list, function(nuc) abs(graphics::strwidth(nuc))+0.001)
+		
+		nuc_ppm_map_list <- lapply(seq_along(nuc_ppm_map_list), function(i) {
+		
+			nuc_ppm_map <- nuc_ppm_map_list[[i]]
+			nuc_label_widths <- nuc_label_widths_list[[i]]
+			remove_overlaps(cbind(nuc_ppm_map-nuc_label_widths/2, nuc_ppm_map+nuc_label_widths/2))[,1] + nuc_label_widths/2
+		})
+		
+ 		if (is.null(col_nucleus)) {
+ 			col_nucleus <- rep(grDevices::palette()[-c(1,2)], length.out=length(nuc_all))#[rank(-tables$nuclei[nuc_all,"omega0_ppm"], ties.method="first")]
+ 			names(col_nucleus) <- nuc_all
+ 		} else if (!is.null(names(col_nucleus))) {
+ 			col_nucleus <- col_nucleus[res_label]
+ 		}
+		
+		for (i in seq_along(nuc_list[[1]])) {
+			col_i <- col_nucleus[nuc_list[[1]][i]]
+			graphics::axis(1, nuc_ppm_map_list[[1]][i], nuc_list[[1]][i], mgp=graphics::par("mgp")[c(1L,1L,3L)], col.axis=col_i, tick=FALSE, col.ticks=col_i, tcl=0.5)
+		}
+		for (i in seq_along(nuc_list[[1]])) {
+			col_i <- col_nucleus[nuc_list[[2]][i]]
+			graphics::axis(2, nuc_ppm_map_list[[2]][i], nuc_list[[2]][i], mgp=graphics::par("mgp")[c(1L,1L,3L)], col.axis=col_i, tick=FALSE, col.ticks=col_i, tcl=0.5)
+		}
+	}
+	
+	for (i in 1:2) {
+	
+		starts <- attr(ppm_map_list[[i]], "starts")
+		ends <- attr(ppm_map_list[[i]], "ends")
+	
+		all_ticks <- numeric()
+	
+		for (j in seq_along(starts)) {
+		
+			ticks <- seq(floor(starts[j]/tick_spacing), ceiling(ends[j]/tick_spacing))*tick_spacing
+			graphics::axis(i, ppm_map_fn_list[[i]](c(starts[j], ends[j])), labels=FALSE, lwd.ticks=0)
+			graphics::axis(i, ppm_map_fn_list[[i]](ticks), ticks, labels=FALSE)
+			all_ticks <- c(all_ticks, ticks)
+		}
+		graphics::axis(i, ppm_map_fn_list[[i]](all_ticks), all_ticks, tick=FALSE)
 	}
 }
 
