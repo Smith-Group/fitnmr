@@ -886,7 +886,7 @@ plot_resonances_1d <- function(fit_data, always_show_start=FALSE, omega0_plus=0.
 #' @param col_nuclei colors for nuclei
 #'
 #' @export
-plot_sparse_2d <- function(fit_data, tables=NULL, spec_idx=1, col_model=2, col_nucleus=NULL, lwd=1, tick_spacing=0.02, coupling_spacing=0.01, coupling_marks=0.009, xaxs="i", yaxs="i", low_frac=0.05, bty="n", always_show_start=FALSE, add=FALSE, ppm_map_list=NULL) {
+plot_sparse_2d <- function(fit_data, tables=NULL, spec_idx=1, spec_int=NULL, col_model=2, col_nucleus=NULL, lwd=1, tick_spacing=0.02, coupling_spacing=0.01, coupling_marks=0.009, xaxs="i", yaxs="i", low_frac=0.05, bty="n", always_show_start=FALSE, add=FALSE, ppm_map_list=NULL) {
 
 	stopifnot(length(spec_idx) == 1)
 
@@ -896,6 +896,12 @@ plot_sparse_2d <- function(fit_data, tables=NULL, spec_idx=1, col_model=2, col_n
 		fit_spec_int <- collapse_na_array(get_spec_int(fit_data, "fit", spec_idx)[[1]])
 	} else {
 		fit_spec_int <- NULL
+	}
+	
+	if (!is.null(spec_int)) {
+		rnames <- intersect(rownames(input_spec_int), rownames(spec_int))
+		cnames <- intersect(colnames(input_spec_int), colnames(spec_int))
+		input_spec_int[rnames,cnames] <- spec_int[rnames,cnames] 
 	}
 	
 	# determine which model spectra to be plotting
