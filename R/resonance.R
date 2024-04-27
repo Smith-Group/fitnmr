@@ -1023,39 +1023,41 @@ plot_sparse_2d <- function(fit_data, tables=NULL, spec_idx=1, spec_int=NULL, col
 #'
 #' @param fit_data fit_input or fit_output structure
 #' @param omega0_plus length 2 vector giving ppm range for each dimension
-#' @param low_frac minimum absolute value (as a fraction of maximum intensity) at which to show contours 
+#' @param resonances character vector with resonances to plot
+#' @param low_frac minimum absolute value (as a fraction of maximum intensity) at which to show contours
+#' @param field logical indicating whether to show modeling of field inhomogeneity as separate peaks
 #'
 #' @export
-plot_resonances_2d <- function(fit_data, omega0_plus, resonances=unique(fit_data$resonance_names), low_frac=0.05) {
+plot_resonances_2d <- function(fit_data, omega0_plus, resonances=unique(fit_data$resonance_names), low_frac=0.05, field=TRUE, proj_frac=0.2) {
+
+	mar <- par("mar")
+	mar_in <- mar*par("cin")[2]
+	pin <- par("pin")
+	din <- par("din")
+	
+	side_in <- pin[1]*proj_frac
+	top_in <- pin[2]*proj_frac
+	pin_new <- pin - c(side_in, top_in)
+	
+	widths <- c(mar_in[2]+pin_new[1], side_in+mar_in[4])
+	heights <- c(mar_in[3]+top_in, pin_new[2]+mar_in[1])
 
 	spec_i <- 1
 
 	input_spec_int <- get_spec_int(fit_data, "input", spec_i)
-	start_spec_int <- get_spec_int(fit_data, "start", spec_i)
+	#start_spec_int <- get_spec_int(fit_data, "start", spec_i)
 	fit_spec_int <- get_spec_int(fit_data, "fit", spec_i)
 	
 	for (resonance in resonances) {
+		
+		layout(matrix(c(2, 1, 0, 3), nrow=2), widths=widths, heights=heights)
+
+		par(mar=c(mar[1:2], 0, 0))
 	
 		peak_idx <- which(resonance==fit_data$resonance_names)
 		resonance_spec_int <- get_spec_int(fit_data, "fit", peak_idx=peak_idx)
 		
-		limits <- t(apply(fit_data$start_list$omega0[,peak_idx,spec_i,drop=FALSE], 1, range))+c(-omega0_plus, omega0_plus)
-	
-		limits <- t(sapply(1:2, function(i) {
-			omega_contigous <- fit_data$spec_data[[spec_i]]$omega_contigous[[i]]
-			range(omega_contigous[omega_contigous >= limits[i,1] & omega_contigous <= limits[i,2]])
-		}))
-		
 		idx <- 1:2
-		
-		zlim <- range(input_spec_int[[1]], start_spec_int[[1]], na.rm=TRUE)
-		
-		plot(1, 1, type="n", xlim=rev(limits[idx[1],]), ylim=rev(limits[idx[2],]), xaxs="i", yaxs="i", xlab=paste(names(dimnames(input_spec_int[[1]]))[1], "(ppm)"), ylab=paste(names(dimnames(input_spec_int[[1]]))[2], "(ppm)"), main=resonance)
-		contour_pipe(input_spec_int[[1]], zlim=zlim, low_frac=low_frac, col_pos="black", col_neg="gray", add=TRUE)	
-		contour_pipe(resonance_spec_int[[1]], zlim=zlim, low_frac=low_frac, col_pos="purple", col_neg="mediumpurple1", add=TRUE)
-		contour_pipe(fit_spec_int[[1]], zlim=zlim, low_frac=low_frac, col_pos="red", col_neg="lightpink", add=TRUE)
-		#contour_pipe(start_spec_int[[1]], zlim=zlim, low_frac=low_frac, col_pos="blue", col_neg="lightblue", add=TRUE)
-		#contour_pipe(start_spec_int[[1]], low_frac=low_frac, col_pos="blue", col_neg="lightblue", add=TRUE)
 		
 		omega0_weights_1 <- coupling_omega0_weights(
 			fit_data$fit_list$omega0[idx[1],peak_idx[1],spec_i],
@@ -1070,6 +1072,18 @@ plot_resonances_2d <- function(fit_data, omega0_plus, resonances=unique(fit_data
 			fit_data$fit_list$omega0_comb,
 			fit_data$spec_data[[spec_i]]$ref_freq[idx[2]]
 		)
+		
+		limits <- t(apply(fit_data$start_list$omega0[,peak_idx,spec_i,drop=FALSE], 1, range))+c(-omega0_plus, omega0_plus)
+		limits <- rbind(range(omega0_weights_1[,1]), range(omega0_weights_2[,1]))+c(-omega0_plus, omega0_plus)
+	
+		limits <- t(sapply(1:2, function(i) {
+			omega_contigous <- fit_data$spec_data[[spec_i]]$omega_contigous[[i]]
+			range(omega_contigous[omega_contigous >= limits[i,1] & omega_contigous <= limits[i,2]])
+		}))
+		
+		zlim <- range(input_spec_int[[1]], fit_spec_int[[1]], na.rm=TRUE)
+		
+		plot(1, 1, type="n", xlim=rev(limits[idx[1],]), ylim=rev(limits[idx[2],]), xaxs="i", yaxs="i", xlab=paste(names(dimnames(input_spec_int[[1]]))[1], "(ppm)"), ylab=paste(names(dimnames(input_spec_int[[1]]))[2], "(ppm)"))
 	
 		omega0_weights_idx <- expand.grid(seq_len(nrow(omega0_weights_1)), seq_len(nrow(omega0_weights_2)))
 		omega0_weights <- cbind(
@@ -1077,7 +1091,78 @@ plot_resonances_2d <- function(fit_data, omega0_plus, resonances=unique(fit_data
 			omega0_weights_2[omega0_weights_idx[,2],1],
 			omega0_weights_1[omega0_weights_idx[,1],2]*omega0_weights_2[omega0_weights_idx[,2],2]
 		)
-		graphics::points(omega0_weights[,1], omega0_weights[,2], pch=16, col=grDevices::rgb(0,0,1,sqrt(abs(omega0_weights[,3]))))
+		omega0_weights[,3] <- omega0_weights[,3]/max(omega0_weights[,3])*0.25
+		graphics::points(omega0_weights[,1], omega0_weights[,2], pch=ifelse(sign(omega0_weights[,3]*fit_data$fit_list$m0[peak_idx,spec_i]) != -1, 16, 1), lwd=1.25, cex=0.5, col=grDevices::rgb(0,0,1,sqrt(abs(omega0_weights[,3]))))
+		if (field) {
+			for (i in seq_along(fit_output$field_offsets[,spec_i])) {
+				os <- fit_output$field_offsets[i,spec_i]
+				sf <- sqrt(fit_output$fit_list$field[i,spec_i])
+				graphics::points(omega0_weights[,1]+os, omega0_weights[,2]+os, pch=ifelse(sign(omega0_weights[,3]*fit_data$fit_list$m0[peak_idx,spec_i]) != -1, 16, 1), lwd=1.25*sf, cex=0.5*sf, col=grDevices::rgb(0,0,1,sqrt(abs(omega0_weights[,3]))))
+			}
+		}
+		
+		contour_pipe(input_spec_int[[1]], zlim=zlim, low_frac=low_frac, col_pos="black", col_neg="gray", add=TRUE)	
+		contour_pipe(resonance_spec_int[[1]], zlim=zlim, low_frac=low_frac, col_pos="purple", col_neg="mediumpurple1", add=TRUE)
+		contour_pipe(fit_spec_int[[1]], zlim=zlim, low_frac=low_frac, col_pos="red", col_neg="lightpink", add=TRUE)
+		#contour_pipe(start_spec_int[[1]], zlim=zlim, low_frac=low_frac, col_pos="blue", col_neg="lightblue", add=TRUE)
+		#contour_pipe(start_spec_int[[1]], low_frac=low_frac, col_pos="blue", col_neg="lightblue", add=TRUE)
+	
+		# the weights here should probably be constructed from the 1D lineshapes to better handle antiphase elements
+		wts <- lapply(seq_along(dim(fit_spec_int[[1]])), function(i) {
+			wts <- apply(resonance_spec_int[[1]], i, mean, na.rm=TRUE)
+			wts[!is.finite(wts)] <- 0
+			wts
+		})
+		
+		idx <- 1:2
+		
+		# create 1D projection using weights from the modeled line shape in the projected dimension
+		w_vec <- numeric(dim(input_spec_int[[1]])[idx[2]])
+		names(w_vec) <- dimnames(input_spec_int[[1]])[idx[2]][[1]]
+		w_vec[names(wts[idx[2]][[1]])] <- wts[idx[2]][[1]]
+		w_vec <- w_vec/sum(w_vec, na.rm=TRUE)
+		
+		input_spec_1d <- colSums(t(input_spec_int[[1]])*w_vec, na.rm=TRUE)
+		fit_spec_1d <- colSums(t(fit_spec_int[[1]])*w_vec, na.rm=TRUE)
+		resonance_spec_1d <- colSums(t(resonance_spec_int[[1]])*w_vec, na.rm=TRUE)
+		
+		par(mar=c(0, mar[2:3], 0))
+	
+		ppm <- as.numeric(names(input_spec_1d))
+		range_idx <- abs(resonance_spec_1d) > max(abs(resonance_spec_1d))*0.25
+		plot(1, 1, type="n", xlim=rev(limits[idx[1],]), ylim=range(input_spec_1d[range_idx], fit_spec_1d[range_idx], resonance_spec_1d), xaxs="i", axes=FALSE, xlab=NA, ylab=NA, main=resonance)
+		
+		abline(h=0, col="gray")
+		points(ppm, input_spec_1d, type="l")
+		points(ppm, resonance_spec_1d, type="l", col="purple")
+		points(ppm, fit_spec_1d, type="l", col="red")
+		
+		box()
+		
+		idx <- 2:1
+		
+		# create 1D projection using weights from the modeled line shape in the projected dimension
+		w_vec <- numeric(dim(input_spec_int[[1]])[idx[2]])
+		names(w_vec) <- dimnames(input_spec_int[[1]])[idx[2]][[1]]
+		w_vec[names(wts[idx[2]][[1]])] <- wts[idx[2]][[1]]
+		w_vec <- w_vec/sum(w_vec, na.rm=TRUE)
+		
+		input_spec_1d <- colSums((input_spec_int[[1]])*w_vec, na.rm=TRUE)
+		fit_spec_1d <- colSums((fit_spec_int[[1]])*w_vec, na.rm=TRUE)
+		resonance_spec_1d <- colSums((resonance_spec_int[[1]])*w_vec, na.rm=TRUE)
+		
+		par(mar=c(mar[1], 0, 0, mar[4]))
+	
+		ppm <- as.numeric(names(input_spec_1d))
+		range_idx <- abs(resonance_spec_1d) > max(abs(resonance_spec_1d))*0.25
+		plot(1, 1, type="n", xlim=range(input_spec_1d[range_idx], fit_spec_1d[range_idx], resonance_spec_1d), ylim=rev(limits[idx[1],]), yaxs="i", axes=FALSE, xlab=NA, ylab=NA)
+		
+		abline(v=0, col="gray")
+		points(input_spec_1d, ppm, type="l")
+		points(resonance_spec_1d, ppm, type="l", col="purple")
+		points(fit_spec_1d, ppm, type="l", col="red")
+		
+		box()
 	}
 }
 
