@@ -1103,13 +1103,13 @@ plot_resonances_2d <- function(fit_data, omega0_plus, resonances=unique(fit_data
 			omega0_weights_2[omega0_weights_idx[,2],1],
 			omega0_weights_1[omega0_weights_idx[,1],2]*omega0_weights_2[omega0_weights_idx[,2],2]
 		)
-		omega0_weights[,3] <- omega0_weights[,3]/max(omega0_weights[,3])*0.25
-		graphics::points(omega0_weights[,1], omega0_weights[,2], pch=ifelse(sign(omega0_weights[,3]*fit_data$fit_list$m0[peak_idx,spec_i]) != -1, 16, 1), lwd=1.25, cex=0.5, col=grDevices::rgb(0,0,1,sqrt(abs(omega0_weights[,3]))))
+		omega0_weights[,3] <- omega0_weights[,3]/max(Mod(omega0_weights[,3]))*0.25
+		graphics::points(omega0_weights[,1], omega0_weights[,2], pch=ifelse(sign((Re(omega0_weights[,3])+Im(omega0_weights[,3]))*fit_data$fit_list$m0[peak_idx,spec_i]) != -1, 16, 1), lwd=1.25, cex=0.5, col=grDevices::rgb(0,0,1,sqrt(abs(omega0_weights[,3]))))
 		if (field) {
 			for (i in seq_along(fit_output$field_offsets[,spec_i])) {
 				os <- fit_output$field_offsets[i,spec_i]
 				sf <- sqrt(fit_output$fit_list$field[i,spec_i])
-				graphics::points(omega0_weights[,1]+os, omega0_weights[,2]+os, pch=ifelse(sign(omega0_weights[,3]*fit_data$fit_list$m0[peak_idx,spec_i]) != -1, 16, 1), lwd=1.25*sf, cex=0.5*sf, col=grDevices::rgb(0,0,1,sqrt(abs(omega0_weights[,3]))))
+				graphics::points(omega0_weights[,1]+os, omega0_weights[,2]+os, pch=ifelse(sign((Re(omega0_weights[,3])+Im(omega0_weights[,3]))*fit_data$fit_list$m0[peak_idx,spec_i]) != -1, 16, 1), lwd=1.25*sf, cex=0.5*sf, col=grDevices::rgb(0,0,1,sqrt(abs(omega0_weights[,3]))))
 			}
 		}
 		
