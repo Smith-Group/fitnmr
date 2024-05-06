@@ -400,13 +400,13 @@ coupling_omega0_weights <- function(omega0, coupling_mat=NULL, omega0_comb=NULL,
 		
 	} else {
 	
-		offset_mat <- coupling_mat[,-1,drop=FALSE]
+		offset_mat <- Re(coupling_mat[,-1,drop=FALSE])
 		if (ncol(offset_mat) > 1) {
 			for (coupling_name in colnames(offset_mat)[-1]) {
 				offset_mat[,coupling_name] <- offset_mat[,coupling_name]*omega0_comb[coupling_name]
 			}
 		}
-		cbind(omega0+rowSums(offset_mat)/ref_mhz, coupling_mat[,1])
+		data.frame(omega0=omega0+rowSums(offset_mat)/ref_mhz, weights=coupling_mat[,1])
 	}
 }
 

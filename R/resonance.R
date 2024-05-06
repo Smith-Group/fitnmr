@@ -4,23 +4,22 @@
 make_coupling_mat <- function(sc_names) {
 
 	grid_list <- rep(list(c(0.5,-0.5)), length(sc_names))
-	names(grid_list) <- sc_names
+	names(grid_list) <- sub("^~", "", sc_names)
 	
 	offset_grid <- as.matrix(expand.grid(grid_list))
 	
-	offsets <- sapply(unique(sc_names), function(sc_name) rowSums(offset_grid[,colnames(offset_grid) == sc_name,drop=FALSE]))
+	offsets <- sapply(unique(colnames(offset_grid)), function(sc_name) rowSums(offset_grid[,colnames(offset_grid) == sc_name,drop=FALSE]))
 	
 	if (length(offsets) == 0) {
 		offsets <- matrix(nrow=1, ncol=0)
 	}
-	colnames(offsets) <- sub("^~", "", colnames(offsets))
 	
 	offset_char <- apply(offsets, 1, paste, collapse=" ")
 	
 	offset_weights <- rep(1/length(offset_char), length(offset_char))
 	
-	for (sc_name in unique(sc_names[startsWith(sc_names, "~")])) {
-		offset_weights <- offset_weights*sign(offset_grid[,sc_name,drop=FALSE])
+	for (i in which(startsWith(sc_names, "~"))) {
+		offset_weights <- offset_weights*sign(offset_grid[,i,drop=FALSE])
 	}
 	
 	offset_weights_collapsed <- tapply(offset_weights, offset_char, sum)
@@ -28,6 +27,10 @@ make_coupling_mat <- function(sc_names) {
 	coupling_mat <- cbind(unname(offset_weights_collapsed), 0, offsets[match(names(offset_weights_collapsed), offset_char),,drop=FALSE])
 	
 	#coupling_mat <- coupling_mat[rev(do.call(order, as.data.frame(coupling_mat[,-c(1L,2L),drop=FALSE]))),,drop=FALSE]
+	
+	if (!is.null(attr(sc_names, "factor"))) {
+		coupling_mat[,1] <- coupling_mat[,1]*attr(sc_names, "factor")
+	}
 	
 	coupling_mat[abs(coupling_mat[,1]) > 1e-6,,drop=FALSE]
 }
@@ -39,7 +42,16 @@ make_coupling_mat <- function(sc_names) {
 #' @param name_char single string (character vector of length 1) with scalar coupling names
 split_coupling_names <- function(name_char) {
 
-	strsplit(name_char, "\\s+")[[1]]
+	sc_names <- strsplit(trimws(name_char), "\\s+")[[1]]
+	
+	scale_factor <- try(eval(parse(text=tail(sc_names, 1)), baseenv()), silent=TRUE)
+	if (class(scale_factor) != "try-error" && (is.numeric(scale_factor) || is.complex(scale_factor))) {
+		stopifnot(length(scale_factor) == 1)
+		sc_names <- sc_names[-length(sc_names)]
+		attr(sc_names, "factor") <- scale_factor
+	}
+	
+	sc_names
 }
 
 #' Convert data frame of resonances into a parameter list
@@ -620,7 +632,7 @@ plot_sparse_1d <- function(fit_data, tables=NULL, spec_idx=1, col_model=2, col_r
 	
 	if (!is.null(tables[["couplings"]])) {
 	
-		resonance_couplings <- strsplit(trimws(tables$resonances[,"x_sc"]), " +")
+		resonance_couplings <- lapply(tables$resonances[,"x_sc"], split_coupling_names)
 		names(resonance_couplings) <- rownames(tables$resonances)
 		unique_couplings <- unique(unlist(resonance_couplings))
 	
