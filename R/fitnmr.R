@@ -1178,6 +1178,10 @@ fit_jac <- function(par, fit_data, drss_dspec=NULL) {
 		}
 	}
 	
+	if ("jac_callback" %in% names(fit_data)) {
+		jac_callback()
+	}
+	
 	#print(jac_eval)
 	
 	if ("dgCMatrix" %in% class(jac_eval)) {
