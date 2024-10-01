@@ -530,7 +530,7 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 						omega_range_start <- mean(omega0_range) - fheader["sw_ppm",k]/2
 						peak_omega_eval[[k,j]] <- ((peak_omega_eval[[k,j]] - omega_range_start) %% fheader["sw_ppm",k]) + omega_range_start
 						# calculate for each 1D point a multiplication factor to reverse the sign to account for aliasing
-						peak_1d_sign[[k,j]] <- 1L-2L*as.integer(round(((peak_omega_eval[[k,j]] - spec_ppm[[k]])/fheader["sw_ppm",k]) %% 2))
+						peak_1d_sign[[k,j]] <- 1L-2L*as.integer(round((peak_omega_eval[[k,j]] - spec_ppm[[k]])/fheader["sw_ppm",k]) %% 2)
 					}
 					
 					# calculate the region of interest to include in the peak mask
