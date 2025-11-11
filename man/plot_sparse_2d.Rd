@@ -8,6 +8,7 @@ plot_sparse_2d(
   fit_data,
   tables = NULL,
   spec_idx = 1,
+  spec_int = NULL,
   col_model = 2,
   col_nucleus = NULL,
   lwd = 1,

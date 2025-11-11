@@ -44,6 +44,7 @@ reference:
   - tables_to_param_list
   - param_list_to_tables
   - plot_sparse_1d
+  - plot_sparse_2d
   - plot_resonances_1d
   - plot_resonances_2d
   - plot_resonances_3d
@@ -59,6 +60,11 @@ reference:
   - write_nmrdraw_peak_tab
   - sim_time_nd
   - nmr_pipe
+  - nmrpipe_sp
+  - nmrpipe_zf
+  - nmrpipe_ft
+  - nmrpipe_fti
+  - nmrpipe_ps
 - title: Postprocessing and assignment
   contents:
   - height_assign
@@ -79,3 +85,4 @@ reference:
   - peak_bind
   - spec_bind
   - collapse_na
+  - collapse_na_array

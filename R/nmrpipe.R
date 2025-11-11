@@ -118,6 +118,7 @@ infer_aliasing <- function(fheader, phase_tolerance=10) {
 #' | sw_ppm    | Original Sweep Width, PPM              |
 #' | direct    | Direct (1) or indirect (0) dimension   |
 #' | alias     | Aliasing (0/1) with inversion (-1)     |
+#' | mag       | Magnitude mode (direct from FDMCFLAG)  |
 #'
 #' @md
 #' @export
@@ -187,8 +188,14 @@ read_nmrpipe <- function(inFormat, dim_order=NULL, complex_data=FALSE) {
 		aq_s=infer_acquisition_time(fheader),
 		sw_ppm=infer_sweep_width(fheader),
 		direct=infer_direct(fheader),
-		alias=infer_aliasing(fheader)
+		alias=infer_aliasing(fheader),
+		magnitude=0
 	)
+	
+	# placeholder code assuming only direct dimension is magnitude mode (for HMBC spectra)
+	if (header["FDMCFLAG"]) {
+		fheader["magnitude",which(fheader["direct",] == 1)] <- 1
+	}
 	
 	fheader["DMXVAL",fheader["direct",] == 1] <- header["FDDMXVAL"]
 	
@@ -442,4 +449,192 @@ nmr_pipe <- function(in_path, out_path, ndim=1, apod=NULL, sp=rbind(off=0.5, end
 	commands[length(commands)] <- paste(commands[length(commands)], " -ov -out ", out_path, sep="")
 	
 	system(paste(commands, collapse=" | "))
+}
+
+# spectrum processing functions that closely mimic the functionality in NMRPipe
+
+shifter <- function(x, n = 1) {
+
+	if (n == 0) {
+  		x
+  	} else {
+  		c(tail(x, -n), head(x, n))
+  	}
+}
+
+#' Apply sine-based window function to a 1D FID
+#'
+#' This function aims to numerically match the NMRPipe `SP` function.
+#'
+#' See the NMRPipe documentation: https://www.nmrscience.com/ref/nmrpipe/sp.html
+#'
+#' @param fid list with `int`, `header`, and `fheader` elements containing FID data
+#' @param off equivalent to `-off` flag
+#' @param end equivalent to `-end` flag
+#' @param pow equivalent to `-pow` flag
+#' @param cval equivalent to `-c` flag
+#' @param dmx equivalent to `-dmx` flag
+#'
+#' @export
+nmrpipe_sp <- function(fid, off=0, end=1, pow=1, cval=1, dmx=FALSE) {
+
+	x <- seq(0, 1, length.out=length(fid$int))
+	
+	fid$int[] <- fid$int[] * sin( pi*off + pi*(end-off)*x )^pow
+	
+	if (dmx) {
+		fid$int[fid$header["FDDMXVAL"]+1] <- fid$int[fid$header["FDDMXVAL"]+1]*cval
+	} else {
+		fid$int[1] <- fid$int[1]*cval
+	}
+	
+	fid$header["FDF2APODCODE"] <- fid$fheader["APODCODE",1] <- 1
+	fid$header["FDF2APODQ1"] <- fid$fheader["APODQ1",1] <- off
+	fid$header["FDF2APODQ2"] <- fid$fheader["APODQ2",1] <- end
+	fid$header["FDF2APODQ3"] <- fid$fheader["APODQ3",1] <- pow
+	fid$header["FDF2C1"] <- fid$fheader["C1",1] <- cval
+	
+	fid
+}
+
+#' Apply zero filling to a 1D FID
+#'
+#' This function aims to numerically match the NMRPipe `ZF` function.
+#'
+#' See the NMRPipe documentation: https://www.nmrscience.com/ref/nmrpipe/zf.html
+#'
+#' @param fid list with `int`, `header`, and `fheader` elements containing FID data
+#' @param zf equivalent to `-zf` flag
+#' @param pad equivalent to `-pad` flag
+#' @param size equivalent to `-size` flag
+#' @param auto equivalent to `-auto` flag
+#'
+#' @export
+nmrpipe_zf <- function(fid, zf=1, pad=NULL, size=NULL, auto=FALSE) {
+	
+	stopifnot(!((!is.null(pad)) && (!is.null(size))))
+
+	if (!is.null(pad)) {
+	
+		size <- length(fid$int)+pad
+		
+	} else if (is.null(size)) {
+	
+		size <- length(fid$int)*2^zf
+	}
+			
+	if (auto) {
+		size <- 2^ceiling(log(size,2))
+	}
+	
+	pad <- size-length(fid$int)
+	
+	fid$int <- array(c(fid$int[seq_len(min(length(fid$int),size))], complex(max(0, pad))), size)
+	
+	dimnames(fid$int)[[1]] <- seq(-fid$header["FDDMXVAL"]/fid$fheader["SW",], by=1/fid$fheader["SW",], length.out=size)
+	
+	fid$header["FDF2CENTER"] <- fid$fheader["CENTER",1] <- size/2+1
+	fid$header["FDSIZE"] <- fid$fheader["SIZE",1] <- size
+	fid$header["FDF2ORIG"] <- fid$fheader["ORIG",1] <- fid$fheader["CAR",]*fid$fheader["OBS",]+(fid$fheader["CENTER",]/fid$fheader["SIZE",]-1)*fid$fheader["SW",]
+	fid$header["FDF2ZF"] <- fid$fheader["ZF",1] <- -size
+	
+	fid
+}
+
+#' Fourier transform a 1D FID
+#'
+#' This function aims to numerically match the NMRPipe `FT` function.
+#'
+#' See the NMRPipe documentation: https://www.nmrscience.com/ref/nmrpipe/ft.html
+#'
+#' @param fid list with `int`, `header`, and `fheader` elements containing FID data
+#'
+#' @export
+nmrpipe_ft <- function(fid) {
+	
+	if (fid$header["FDDMXFLAG"] <= 0 && fid$header["FDDMXVAL"] != 0) {
+		fid$int[] <- shifter(fid$int, fid$header["FDDMXVAL"])
+		fid$header["FDDMXFLAG"] <- 1
+	}
+	
+	fid$int[] <- rev(shifter(fft(fid$int), length(fid$int)/2+1))
+	
+	fid$header["FDF2FTSIZE"] <- fid$fheader["FTSIZE",1] <- length(fid$int)
+	fid$header["FDF2FTFLAG"] <- fid$fheader["FTFLAG",1] <- 1
+	
+	fid$header["FDMAX"] <- fid$header["FDDISPMAX"] <- max(Re(fid$int[]))
+	fid$header["FDMIN"] <- fid$header["FDDISPMIN"] <- min(Re(fid$int[]))
+	
+	ppm <- apply(fid$fheader, 2, function(x) (x["ORIG"]+x["SW"]*(1-seq_len(x["SIZE"])/x["SIZE"]))/x["OBS"])
+	if (!is.list(ppm)) {
+		ppm <- list(ppm)
+	}
+	fid$ppm <- ppm
+	dimnames(fid$int) <- ppm
+	
+	fid
+}
+
+#' Inverse Fourier transform a 1D spectrum
+#'
+#' This function aims to numerically match the NMRPipe `FT -inv` function.
+#'
+#' See the NMRPipe documentation: https://www.nmrscience.com/ref/nmrpipe/ft.html
+#'
+#' @param ft list with `int`, `header`, and `fheader` elements containing spectrum data
+#'
+#' @export
+nmrpipe_fti <- function(ft) {
+	
+	ft$int[] <- fft(shifter(rev(ft$int), -(length(ft$int)/2+1)), inverse=TRUE)/length(ft$int)
+	
+	ft$header["FDF2FTSIZE"] <- ft$fheader["FTSIZE",1] <- length(ft$int)
+	ft$header["FDF2FTFLAG"] <- ft$fheader["FTFLAG",1] <- 0
+	
+	ft$header["FDMAX"] <- ft$header["FDDISPMAX"] <- max(Re(ft$int[]))
+	ft$header["FDMIN"] <- ft$header["FDDISPMIN"] <- min(Re(ft$int[]))
+	
+	if (ft$header["FDDMXFLAG"] == 1 && ft$header["FDDMXVAL"] != 0) {
+		ft$int[] <- shifter(ft$int, -ft$header["FDDMXVAL"])
+		ft$header["FDDMXFLAG"] <- -1
+	}
+	
+	dimnames(ft$int)[[1]] <- seq(-ft$header["FDDMXVAL"]/ft$fheader["SW",], by=1/ft$fheader["SW",], length.out=length(ft$int))
+	
+	ft
+}
+
+#' Inverse Fourier transform a 1D spectrum
+#'
+#' This function aims to numerically match the NMRPipe `PS` function.
+#'
+#' See the NMRPipe documentation: https://www.nmrscience.com/ref/nmrpipe/ps.html
+#'
+#' @param ft list with `int`, `header`, and `fheader` elements containing spectrum data
+#' @param p0 equivalent to `-p0` flag
+#' @param p1 equivalent to `-p1` flag
+#'
+#' @export
+nmrpipe_ps <- function(ft, p0=0, p1=0) {
+	
+	ft$header["FDF2P0"] <- ft$fheader["P0",1] <- p0
+	ft$header["FDF2P1"] <- ft$fheader["P1",1] <- p1
+
+	p1_frac <- as.vector(sapply(1, function(j) {
+		frac <- seq(0, 1, length.out=ft$fheader["FTSIZE",j]+1)
+		frac <- frac[-length(frac)]
+		if (all(ft$fheader[c("X1","XN"),j] != 0)) {
+			frac <- frac[seq(ft$fheader["X1",j], ft$fheader["XN",j])]
+		}
+		frac
+	}))
+	
+	p0 <- p0*pi/180 # convert degrees to rad
+	p1 <- p1*pi/180 # convert degrees to rad
+	
+	pvec <- exp(1i*(p0+p1*p1_frac))
+	
+	ft$int[] <- ft$int[]*pvec
+	
+	ft
 }

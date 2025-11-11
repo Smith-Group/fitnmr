@@ -1,0 +1,993 @@
+---
+title: "1D Time Series Preprocessing/Two-State Fitting"
+author: "Katerina M. Blejec and Colin A. Smith"
+output:
+  bookdown::html_document2:
+    number_sections: false
+    fig_caption: true
+    fig_width: 8.666667
+    fig_height: 4
+  bookdown::word_document2:
+    number_sections: false
+    fig_caption: true
+    fig_width: 8.666667
+    reference_docx: template.docx
+pkgdown:
+  as_is: true
+vignette: >
+  %\VignetteIndexEntry{1D Time Series Preprocessing/Two-State Fitting}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+if (knitr::opts_knit$get("rmarkdown.pandoc.to") %in% c("docx", "docx+styles")) {
+  knitr::opts_chunk$set(echo = FALSE, dev = "png", dpi = 300, dev.args = list(pointsize = 10))
+} else {
+  knitr::opts_chunk$set(echo = FALSE, dev = "png", dpi = 300, dev.args = list(pointsize = 10))
+}
+
+# figure plotting functions
+figure_letter <- function(letter) {
+  	old_usr <- par("usr")
+  	if (par("xlog")) old_usr[1:2] <- 10^old_usr[1:2]
+  	if (par("ylog")) old_usr[3:4] <- 10^old_usr[3:4]
+  	old_par <- par(mar=c(0.2,0.2,0.2,0.2))
+  	plot.window(old_usr[1:2], old_usr[3:4])
+  	mtext(letter, 3, -1, adj=0, font=2)
+  	par(old_par)
+  	plot.window(old_usr[1:2], old_usr[3:4])
+}
+```
+
+To use this document to process your own data, change the `fid_dir` path below.
+
+```{r fid-directory, echo=TRUE}
+# directory with each subdirectory containing an NMRPipe formatted FID file (*.fid) and Bruker acqus file
+fid_dir <- system.file("extdata", "noesy1d", package = "fitnmr")
+#fid_dir <- "path/to/your/directory"
+```
+
+# 1D Preprocessing
+
+```{r read_fids}
+# find all the fid files within the fid directory
+fid_files <- list.files(fid_dir, "*.fid", full.names = TRUE, recursive = TRUE)
+
+# order fid files
+fid_files <- fid_files[do.call(order, read.table(text=fid_files, sep="/"))]
+
+# read all the FIDs with FitNMR if they haven't already been read
+if (!"fid_list" %in% ls()) {
+	fid_list <- suppressWarnings(lapply(fid_files, fitnmr::read_nmrpipe, complex_data=TRUE))
+	fid_list <- fid_list
+
+	fid_mat <- sapply(fid_list, `[[`, "int")
+}
+
+# extract times from acqus files
+acqus_files <- sub("[^/]+.fid", "acqus", fid_files)
+acqus_lines <- lapply(acqus_files, readLines)
+date_lines <- sapply(acqus_lines, function(x) grep("^\\$\\$ [0-9]", x, value=TRUE))
+date_text <- sub("^[^ ]+ ([^ ]+ [^ ]+ [^ ]+) .*$", "\\1", date_lines)
+seconds <- as.numeric(as.POSIXct(date_text))
+seconds <- seconds - min(seconds)
+hours <- seconds/60/60
+```
+
+```{r initial_ft, cache=TRUE}
+# perform initial Fourier transform
+
+if (!"ft_list" %in% ls()) {
+
+	ft_list <- lapply(seq_along(fid_list), function(i) {
+		
+		fid <- fid_list[[i]]
+		fid_ft <- fitnmr::nmrpipe_ft(fid)
+	})
+	
+	ft_mat <- sapply(ft_list, `[[`, "int")
+}
+```
+
+```{r phase_opt, cache=TRUE}
+# phase optimization functions
+
+nmrpipe_p1_frac <- function(fheader) {
+
+	as.vector(sapply(1, function(j) {
+		frac <- seq(0, 1, length.out=fheader["FTSIZE",j]+1)
+		frac <- frac[-length(frac)]
+		if (all(fheader[c("X1","XN"),j] != 0)) {
+			frac <- frac[seq(fheader["X1",j], fheader["XN",j])]
+		}
+		frac
+	}))
+}
+
+phase_fn <- function(int, p0=0, p1=0, p1_frac=0) {
+
+	p0 <- p0*pi/180 # convert degrees to rad
+	p1 <- p1*pi/180 # convert degrees to rad
+	
+	pvec <- exp(1i*(p0+p1*p1_frac))
+	
+	Re(int*pvec)
+}
+
+rss_fn <- function(x, spec, spec_ref, p1_frac) {
+
+	spec_diff <- phase_fn(spec, x[1], x[2], p1_frac)-spec_ref
+	
+	sum(Re(spec_diff)^2, na.rm=TRUE)
+}
+
+spec_xlim <- c(10,0)
+spec_ppm <- as.vector(ft_list[[1]]$ppm[[1]])
+
+phase_initial <- c(156, 0)
+phase_p0_range <- c(-180, 180)
+phase_p1_range <- c(-10, 10) #*.0001
+
+phase_ref_int <- ft_list[[1]]$int
+phase_ref_int[] <- 0
+phase_ref_int[spec_ppm < spec_xlim[1] & spec_ppm > spec_xlim[2]] <- NA
+
+phase_p1_frac <- nmrpipe_p1_frac(ft_list[[1]]$fheader)
+
+if (! "phase_vals" %in% ls()) {
+	phase_vals <- sapply(seq_along(ft_list), function(i) {
+		optim(phase_initial, rss_fn, method="L-BFGS-B", lower=c(phase_p0_range[1], phase_p1_range[1]), upper=c(phase_p0_range[2], phase_p1_range[2]), spec=ft_list[[i]]$int, spec_ref=phase_ref_int, p1_frac=phase_p1_frac)$par
+	})
+}
+
+if (!"ftps_list" %in% ls()) {
+
+	ftps_list <- lapply(seq_along(ft_list), function(i) {
+		
+		ft <- ft_list[[i]]
+		ftps <- fitnmr::nmrpipe_ps(ft, p0=phase_vals[1,i], p1=phase_vals[2,i])
+	})
+	
+	ftps_mat <- sapply(ftps_list, `[[`, "int")
+}
+```
+
+Free induction decay (FID) data is first converted to NMRPipe format then read by FitNMR. Times for each dataset are extracted from the `acqus` files output by Bruker TopSpin. After performing an initial Fourier transform, the zero- and first-order phases are then optimized by finding values that minimize the residual sum of squares outside the 10-0 ppm window where signals are observed. The optimized phase values are shown in Figure \@ref(fig:phases). In this sample acquired at approximately 70 °C, the phase parameters didn't vary by more than `r signif(max(diff(range(phase_vals[1,])), diff(range(phase_vals[2,]))), 2)` degrees over all the individual NMR experiments.
+
+```{r phases, fig.cap="**Automated optimization of zero- and first-order phases.** The red to purple color scheme is used in all figures to indicate the data acquisition time."}
+all_cols <- rainbow(ncol(phase_vals), end=0.80)
+
+par(mar=c(1.5, 3.1, 0.5, 0.5), oma=c(1.6, 0, 0, 0), mgp=c(1.9, 0.6, 0), mfrow=c(2, 1), cex=1)
+
+plot(hours, phase_vals[1,], col=all_cols, pch=16, cex=0.75, xlab=NA, ylab="P0 (degrees)")
+points(hours, phase_vals[1,], type="l")
+
+plot(hours, phase_vals[2,], col=all_cols, pch=16, cex=0.75, xlab=NA, ylab="P1 (degrees)")
+points(hours, phase_vals[2,], type="l")
+
+#plot(hours, colSums(Re(ftps_mat)), col=all_cols, pch=16, cex=0.5, xlab=NA, ylab="Total Intensity")
+#points(hours, colSums(Re(ftps_mat)), type="l")
+#title(xlab="Time (hours)", outer=TRUE, mgp=c(0.5, 0, 0))
+```
+
+Solvent signals are removed using an inverted Gaussian function with standard deviation of 0.5 ppm as shown in Figure \@ref(fig:spec-phased). This results in attenuation of signals within approximately 1 ppm of the solvent. The filter is applied to all spectra equally, minimizing potential impact on quantitative analysis.
+
+```{r solvent-filter, cache=TRUE}
+solvent_filter <- -dnorm(spec_ppm, fid_list[[1]]$fheader["CAR",], 0.5)
+solvent_filter <- solvent_filter-min(solvent_filter)
+solvent_filter <- solvent_filter/max(solvent_filter)
+
+if (!"ftpssf_list" %in% ls()) {
+
+	ftpssf_list <- lapply(seq_along(ftps_list), function(i) {
+		
+		ftpssf <- ftps_list[[i]]
+		ftpssf$int[] <- ftpssf$int[]*solvent_filter
+		
+		ftpssf
+	})
+	
+	ftpssf_mat <- sapply(ftpssf_list, `[[`, "int")
+}
+```
+
+```{r spec-phased, cache=TRUE, fig.height=6, fig.cap="**Spectra before (A) and after (B) solvent removal with Gaussian filter (black line).**"}
+
+# positions of x-axis tick marks
+axis_integer <- seq(floor(min(spec_ppm)), ceiling(max(spec_ppm)))
+axis_tenths <- setdiff(seq(floor(min(spec_ppm)*10),ceiling(max(spec_ppm)*10))/10, axis_integer)
+
+spec_lwd <- 0.1
+
+par(mar=c(3.1,3.1,0.5+0.5,0.5), mgp=c(1.9, 0.6, 0), mfrow=c(2, 1), cex=1)
+
+plot(1, 1, type="n", xlim=spec_xlim, ylim=range(Re(ftpssf_mat)), xlab="1H (ppm)", ylab="Intensity", xaxt="n")
+axis(1, axis_integer, TRUE)
+axis(1, axis_tenths, FALSE, lwd.ticks=0.5, tcl=-0.25)
+abline(h=0, col="gray")
+for (i in seq_len(ncol(ftpssf_mat))) {
+  points(spec_ppm, Re(ftps_mat[,i]), type="l", lwd=spec_lwd, col=all_cols[i])
+}
+
+sf_plot_idx <- solvent_filter < 0.9
+points(spec_ppm[sf_plot_idx], (solvent_filter[sf_plot_idx]-1)*abs(par("usr")[3]), type="l", lwd=0.5)
+figure_letter("A")
+
+plot(1, 1, type="n", xlim=spec_xlim, ylim=range(Re(ftpssf_mat)), xlab="1H (ppm)", ylab="Intensity", xaxt="n")
+axis(1, axis_integer, TRUE)
+axis(1, axis_tenths, FALSE, lwd.ticks=0.5, tcl=-0.25)
+abline(h=0, col="gray")
+for (i in seq_len(ncol(ftpssf_mat))) {
+  points(spec_ppm, Re(ftpssf_mat[,i]), type="l", lwd=spec_lwd, col=all_cols[i])
+}
+
+sf_plot_idx <- solvent_filter < 0.9
+points(spec_ppm[sf_plot_idx], (solvent_filter[sf_plot_idx]-1)*abs(par("usr")[3]), type="l", lwd=0.5)
+figure_letter("B")
+```
+
+After removal of solvent, the spectra are inverse Fourier transformed back into FIDs shown in Figure \@ref(fig:solvent-filtered-fid)B.
+
+```{r inverse-fft, cache=FALSE}
+if (!"ftpssffti_list" %in% ls()) {
+
+	ftpssffti_list <- lapply(seq_along(ftpssf_list), function(i) {
+		
+		ftpssf <- ftpssf_list[[i]]
+		ftpssf$int[] <- ftpssf$int[]*solvent_filter
+		ftpssffti <- fitnmr::nmrpipe_fti(ftpssf)
+		
+		ftpssffti
+	})
+	
+	ftpssffti_mat <- sapply(ftpssffti_list, `[[`, "int")
+}
+
+fid_seconds <- as.numeric(rownames(ftpssffti_mat))
+```
+
+```{r solvent-filtered-fid, cache=TRUE, fig.height=6, fig.cap="**Time domain data before (A) and after (B) solvent filtering in the frequency domain.**"}
+
+par(mar=c(3.1,3.1,0.5,0.5), mgp=c(1.9, 0.6, 0), mfrow=c(2, 1), cex=1)
+
+plot(1, 1, type="n", xlim=range(fid_seconds), ylim=max(abs(Re(sapply(fid_list, "[[", "int"))))*c(-1,1), xlab="Time (seconds)", ylab="Intensity")
+abline(h=0, v=0, col="gray")
+for (i in seq_along(fid_list)) {
+  points(fid_seconds, Re(fid_list[[i]]$int), type="l", lwd=spec_lwd, col=all_cols[i])
+}
+figure_letter("A")
+
+plot(1, 1, type="n", xlim=range(fid_seconds), ylim=max(abs(Re(ftpssffti_mat)))*c(-1,1), xlab="Time (seconds)", ylab="Intensity")
+abline(h=0, v=0, col="gray")
+for (i in seq_len(ncol(ftpssffti_mat))) {
+  points(fid_seconds, Re(ftpssffti_mat[,i]), type="l", lwd=spec_lwd, col=all_cols[i])
+}
+figure_letter("B")
+```
+
+```{r fid-1-ratio-loess-calc, cache=TRUE}
+fid_1_ratio_mat <- ftpssffti_mat/ftpssffti_mat[,1]
+
+fid_pre_idx <- seq_len(fid_list[[1]]$header["FDDMXVAL"])
+
+loess_span <- 0.05
+
+# get field inhomogeneity from first scan
+
+if (!"fid_1_ratio_loess_mat" %in% ls()) {
+
+	fid_1_ratio_loess_mat <- sapply(seq_len(ncol(ftpssffti_mat)), function(i) {
+	
+		data_re <- data.frame(x=seq_len(nrow(fid_1_ratio_mat)), y=Re(fid_1_ratio_mat[,i]))
+		# don't fit first part of FID
+		data_re <- data_re[-fid_pre_idx,]
+		loess_fit_re <- loess(y~x, data_re, span=loess_span)
+		
+		data_im <- data.frame(x=seq_len(nrow(fid_1_ratio_mat)), y=Im(fid_1_ratio_mat[,i]))
+		# don't fit first part of FID
+		data_im <- data_im[-fid_pre_idx,]
+		loess_fit_im <- loess(y~x, data_im, span=loess_span)
+		
+		loess_fit_re$fitted + loess_fit_im$fitted*1i
+	})
+}
+
+fid_seconds_loess <- fid_seconds[-fid_pre_idx]
+```
+
+To visualize shifts in field homogeneity and frequency over the experiment time course, the ratio of each FID to the first FID is calculated. This ratio has both real and imaginary components. The real and imaginary components of those those ratios are then separately smoothed with Locally Estimated Scatterplot Smoothing (LOESS) using polynomial regression spanning 5% of the points. The smoothed ratios for both components are shown in Figure \@ref(fig:fid-1-ratio-loess).
+
+```{r fid-1-ratio-loess, cache=TRUE, fig.height=6, fig.cap="**Smoothed ratios of every FID to the first FID.** Real ratios indicate line broadening and imaginary ratios indicate frequency shifts relative to the first spectrum."}
+par(mar=c(3.1,3.1,0.5,0.5), mgp=c(1.9, 0.6, 0), mfrow=c(2, 1), cex=1)
+
+plot(1, 1, type="n", xlim=range(fid_seconds), ylim=range(Re(fid_1_ratio_loess_mat)), xlab="Time (seconds)", ylab="Real Ratio")
+abline(h=c(0, 1), col="gray")
+for (i in seq_len(ncol(ftpssffti_mat))) {
+  points(fid_seconds_loess, Re(fid_1_ratio_loess_mat[,i]), type="l", lwd=spec_lwd, col=all_cols[i])
+}
+
+plot(1, 1, type="n", xlim=range(fid_seconds), ylim=range(Im(fid_1_ratio_loess_mat)), xlab="Time (seconds)", ylab="Imaginary Ratio")
+abline(h=0, col="gray")
+for (i in seq_len(ncol(ftpssffti_mat))) {
+  points(fid_seconds_loess, Im(fid_1_ratio_loess_mat[,i]), type="l", lwd=spec_lwd, col=all_cols[i])
+}
+```
+
+For the real component, a ratio less than one indicates line broadening, likely due to a decrease in field homogeneity. For the imaginary component, a ratio that starts at zero but linearly increases or decreases indicates a frequency shift, which is especially apparent in the middle of the time course (green and teal). Though appearing large, ratios in the second half of the FIDs are less significant because the FID signal (Figure \@ref(fig:solvent-filtered-fid)B) has largely decayed by that point. The broadening and frequency shifts can be visualized more directly by applying a cosine-squared window function to those ratios and Fourier transforming them into the frequency domain as shown in Figure \@ref(fig:fid-1-ratio-ft).
+
+```{r fid-1-ratio-ft-calc, cache=TRUE}
+if (!"fid_1_ratio_loess_ft" %in% ls()) {
+
+	fid_1_ratio_loess_ft <- lapply(seq_len(ncol(fid_1_ratio_loess_mat)), function(i) {
+		
+		fid <- fid_list[[1]]
+		
+		fid$int[] <- 0
+		fid$int[-fid_pre_idx] <- fid_1_ratio_loess_mat[,i]
+		fid$int[-fid_pre_idx][1] <- fid$int[-fid_pre_idx][1]*0.5
+		#fid$int[fid_pre_idx] <- fid_1_ratio_loess_mat[1,i]
+		
+		fid <- fitnmr::nmrpipe_sp(fid, off=0.5, pow=2, cval=0.5)
+		fid_zf <- fitnmr::nmrpipe_zf(fid, 2)
+		fid_zfft <- fitnmr::nmrpipe_ft(fid_zf)
+		
+		fid_zfft
+	})
+	
+	fid_1_ratio_loess_ft_mat <- sapply(fid_1_ratio_loess_ft, `[[`, "int")
+}
+
+if (!"fid_1_ratio_ft" %in% ls()) {
+
+	fid_1_ratio_ft <- lapply(seq_len(ncol(fid_1_ratio_mat)), function(i) {
+		
+		fid <- fid_list[[1]]
+		
+		fid$int[] <- fid_1_ratio_mat[,i]
+		
+		fid <- fitnmr::nmrpipe_sp(fid, off=0.5, pow=2, cval=0.5)
+		fid_zf <- fitnmr::nmrpipe_zf(fid, 2)
+		fid_zfft <- fitnmr::nmrpipe_ft(fid_zf)
+		
+		fid_zfft
+	})
+	
+	fid_1_ratio_ft_mat <- sapply(fid_1_ratio_ft, `[[`, "int")
+}
+```
+
+```{r fid-1-ratio-ft, cache=TRUE, fig.height=6, fig.cap="**Smoothed (A) and original (B) FID ratios (individual/first) transformed into the frequency domain.** The expected result for no deviation from the first spectrum is indicated by the black line. It is just the Fourier transform of the cosine-squared window function."}
+xlim <- c(1,-1)*.02
+freq_ppm <- spec_ppm-fid_list[[1]]$fheader["CAR",]
+freq_ppm_2 <- as.numeric(rownames(fid_1_ratio_ft_mat))-fid_list[[1]]$fheader["CAR",]
+
+par(mar=c(3.1,3.1,0.5,0.5), mgp=c(1.9, 0.6, 0), mfrow=c(2, 1), cex=1)
+
+plot(1, 1, type="n", xlim=xlim, ylim=range(Re(fid_1_ratio_loess_ft_mat)), xlab="Frequency (ppm)", ylab="Intensity")
+abline(h=0, v=0, col="gray")
+for (i in seq_len(ncol(fid_1_ratio_loess_ft_mat))) {
+  points(freq_ppm_2, Re(fid_1_ratio_loess_ft_mat[,i]), type="l", lwd=spec_lwd, col=all_cols[i])
+}
+points(freq_ppm_2, Re(fid_1_ratio_loess_ft_mat[,1]), type="l", lwd=spec_lwd*6)#, col=all_cols[i])
+figure_letter("A")
+
+plot(1, 1, type="n", xlim=xlim, ylim=range(Re(fid_1_ratio_ft_mat)), xlab="Frequency (ppm)", ylab="Intensity")
+abline(h=0, v=0, col="gray")
+for (i in seq_len(ncol(fid_1_ratio_ft_mat))) {
+  points(freq_ppm_2, Re(fid_1_ratio_ft_mat[,i]), type="l", lwd=spec_lwd, col=all_cols[i])
+}
+points(freq_ppm_2, Re(fid_1_ratio_ft_mat[,1]), type="l", lwd=spec_lwd*6)#, col=all_cols[i])
+figure_letter("B")
+```
+
+To compensate for the differential broadening and frequency shifts between spectra, an average FID is first calculated as a reference for all other FIDs. For each FID, a transform is then calculated that normalizes its intensity envelope and frequencies to match the average reference FID. The numerical values for that transform come from the ratio of the mean FID to the given FID. (Note that when the first FID was used as reference for visualization above, it was in the denominator of the ratio. Here, the reference average FID is now in the numerator of the ratio.) The resulting LOESS smoothed ratios are shown in Figure \@ref(fig:fid-mean-ratio-loess).
+
+```{r fid-mean-ratio-loess-calc, cache=TRUE}
+fid_mean_ratio_mat <- rowMeans(ftpssffti_mat)/ftpssffti_mat
+
+if (!"fid_mean_ratio_loess_mat" %in% ls()) {
+
+	fid_mean_ratio_loess_mat <- sapply(seq_len(ncol(ftpssffti_mat)), function(i) {
+	
+		data_re <- data.frame(x=seq_len(nrow(fid_mean_ratio_mat)), y=Re(fid_mean_ratio_mat[,i]))
+		# don't fit first part of FID
+		data_re <- data_re[-fid_pre_idx,]
+		loess_fit_re <- loess(y~x, data_re, span=loess_span)
+		
+		data_im <- data.frame(x=seq_len(nrow(fid_mean_ratio_mat)), y=Im(fid_mean_ratio_mat[,i]))
+		# don't fit first part of FID
+		data_im <- data_im[-fid_pre_idx,]
+		loess_fit_im <- loess(y~x, data_im, span=loess_span)
+		
+		loess_fit_re$fitted + loess_fit_im$fitted*1i
+	})
+}
+```
+
+```{r fid-mean-ratio-loess, cache=TRUE, fig.height=6, fig.cap="**Smoothed ratio of mean FID intensities to each experimental FID.**"}
+par(mar=c(3.1,3.1,0.5,0.5), mgp=c(1.9, 0.6, 0), mfrow=c(2, 1), cex=1)
+
+plot(1, 1, type="n", xlim=range(fid_seconds), ylim=range(Re(fid_1_ratio_loess_mat)), xlab="Time (seconds)", ylab="Real Ratio")
+abline(h=c(0, 1), col="gray")
+for (i in seq_len(ncol(ftpssffti_mat))) {
+  points(fid_seconds_loess, Re(fid_mean_ratio_loess_mat[,i]), type="l", lwd=spec_lwd, col=all_cols[i])
+}
+
+plot(1, 1, type="n", xlim=range(fid_seconds), ylim=range(Im(fid_1_ratio_loess_mat)), xlab="Time (seconds)", ylab="Imaginary Ratio")
+abline(h=0, col="gray")
+for (i in seq_len(ncol(ftpssffti_mat))) {
+  points(fid_seconds_loess, Im(fid_mean_ratio_loess_mat[,i]), type="l", lwd=spec_lwd, col=all_cols[i])
+}
+```
+
+The mean/individual FID ratios shown in Figure \@ref(fig:fid-mean-ratio-loess) are used as filters normalize the FID envelopes. The effect of normalization on each spectrum can be visualized by applying a cosine-squared window function and Fourier transforming each ratio as shown in Figure \@ref(fig:fid-mean-ratio-ft). High frequency components of the the ratios have been removed by multiplying the frequency domain ratios by a Gaussian function centered at zero frequency. The earliest spectra (red) are broadened and have artifacts added. The middle spectra (green) are shifted to the right to compensate for their leftward shift shown in Figure \@ref(fig:fid-1-ratio-ft).
+
+```{r fid-mean-ratio-ft-calc, cache=TRUE}
+if (!"fid_mean_ratio_loess_ft" %in% ls()) {
+
+	fid_mean_ratio_loess_ft <- lapply(seq_len(ncol(fid_mean_ratio_loess_mat)), function(i) {
+		
+		fid <- fid_list[[1]]
+		
+		fid$int[] <- 0
+		fid$int[-fid_pre_idx] <- fid_mean_ratio_loess_mat[,i]
+		fid$int[-fid_pre_idx][1] <- fid$int[-fid_pre_idx][1]*0.5
+		#fid$int[fid_pre_idx] <- fid_mean_ratio_loess_mat[1,i]
+		
+		fid <- fitnmr::nmrpipe_sp(fid, off=0.5, pow=2, cval=0.5)
+		fid_zf <- fitnmr::nmrpipe_zf(fid, 1)
+		fid_zfft <- fitnmr::nmrpipe_ft(fid_zf)
+		
+		fid_zfft
+	})
+	
+	fid_mean_ratio_loess_ft_mat <- sapply(fid_mean_ratio_loess_ft, `[[`, "int")
+}
+
+if (!"fid_mean_ratio_ft" %in% ls()) {
+
+	fid_mean_ratio_ft <- lapply(seq_len(ncol(fid_mean_ratio_mat)), function(i) {
+		
+		fid <- fid_list[[1]]
+		
+		fid$int[] <- fid_mean_ratio_mat[,i]
+		
+		fid <- fitnmr::nmrpipe_sp(fid, off=0.5, pow=2, cval=0.5)
+		fid_zf <- fitnmr::nmrpipe_zf(fid, 1)
+		fid_zfft <- fitnmr::nmrpipe_ft(fid_zf)
+		
+		fid_zfft
+	})
+	
+	fid_mean_ratio_ft_mat <- sapply(fid_mean_ratio_ft, `[[`, "int")
+}
+```
+
+```{r fid-mean-ratio-ft, cache=TRUE, fig.height=6, fig.cap="**Smoothed (A) and original (B) FID ratios (mean/individual) transformed into the frequency domain.** High frequency components of ratios have been suppressed by multiplying a Gaussian function with standard deviation of 0.01 ppm (black line)."}
+xlim <- c(1,-1)*.02
+freq_ppm_1 <- as.numeric(rownames(fid_mean_ratio_ft_mat))-fid_list[[1]]$fheader["CAR",]
+
+freq_filter <- dnorm(freq_ppm_1, sd=0.01)
+freq_filter <- freq_filter/max(freq_filter)
+
+fid_mean_ratio_loess_filter_mat <- Re(fid_mean_ratio_loess_ft_mat)
+fid_mean_ratio_loess_filter_mat <- fid_mean_ratio_loess_filter_mat*freq_filter
+fid_mean_ratio_loess_filter_mat <- t(t(fid_mean_ratio_loess_filter_mat)/colSums(fid_mean_ratio_loess_filter_mat))
+
+fid_mean_ratio_filter_mat <- Re(fid_mean_ratio_ft_mat)
+fid_mean_ratio_filter_mat <- fid_mean_ratio_filter_mat*freq_filter
+fid_mean_ratio_filter_mat <- t(t(fid_mean_ratio_filter_mat)/colSums(fid_mean_ratio_filter_mat))
+
+par(mar=c(3.1,3.1,0.5,0.5), mgp=c(1.9, 0.6, 0), mfrow=c(2, 1), cex=1)
+
+ylim <- range(Re(fid_mean_ratio_loess_filter_mat))
+plot(1, 1, type="n", xlim=xlim, ylim=ylim, xlab="Frequency (ppm)", ylab="Intensity")
+abline(h=0, v=0, col="gray")
+for (i in seq_len(ncol(fid_mean_ratio_loess_filter_mat))) {
+  points(freq_ppm_1, Re(fid_mean_ratio_loess_filter_mat[,i]), type="l", lwd=spec_lwd, col=all_cols[i])
+}
+#points(freq_ppm_1, Re(fid_mean_ratio_loess_filter_mat[,1]), type="l", lwd=spec_lwd*6)
+points(freq_ppm_1, 0.75*freq_filter*(-par("usr")[3])+par("usr")[3], type="l")
+figure_letter("A")
+
+ylim <- range(Re(range(Re(fid_mean_ratio_filter_mat))))
+plot(1, 1, type="n", xlim=xlim, ylim=ylim, xlab="Frequency (ppm)", ylab="Intensity")
+abline(h=0, v=0, col="gray")
+for (i in seq_len(ncol(fid_mean_ratio_filter_mat))) {
+  points(freq_ppm_1, Re(fid_mean_ratio_filter_mat[,i]), type="l", lwd=spec_lwd, col=all_cols[i])
+}
+#points(freq_ppm_1, Re(fid_mean_ratio_filter_mat[,1]), type="l", lwd=spec_lwd*6)
+points(freq_ppm_1, 0.75*freq_filter*(-par("usr")[3])+par("usr")[3], type="l")
+figure_letter("B")
+```
+
+The original FID data is filtered by multiplying the inverse Fourier transform of the smoothed frequency domain filters shown in Figure \@ref(fig:fid-mean-ratio-ft)A. (Due to multiplication by the Gaussian, the nearly identical unsmoothed ratios in shown in Figure \@ref(fig:fid-mean-ratio-ft)B could have also been used.) Because a cosine-squared window function has already been applied to the filter for visualization, no additional window function is used.
+
+```{r unfiltered-filtered-calc, cache=TRUE}
+if (!"filtered_list" %in% ls()) {
+
+	filtered_list <- lapply(seq_along(fid_list), function(i) {
+		
+		sig_fid <- ftpssffti_list[[i]]
+		sig_fid <- fitnmr::nmrpipe_zf(sig_fid)
+		sig_ft <- fitnmr::nmrpipe_ft(sig_fid)
+		sig_ft$int[] <- Re(sig_ft$int)
+		
+		filt_ft <- sig_ft
+		filt_ft$int[] <- fid_mean_ratio_loess_filter_mat[,i]
+		#filt_ft$int[] <- fid_mean_ratio_filter_mat[,i]
+		
+		sig_fid <- fitnmr::nmrpipe_fti(sig_ft)
+		filt_fid <- fitnmr::nmrpipe_fti(filt_ft)
+		
+		out_fid <- sig_fid
+		out_fid$int[] <- out_fid$int*filt_fid$int
+		
+		out_ft <- fitnmr::nmrpipe_ft(out_fid)
+	})
+	
+	filtered_mat <- sapply(filtered_list, `[[`, "int")
+}
+
+if (!"unfiltered_list" %in% ls()) {
+
+	unfiltered_list <- lapply(seq_along(fid_list), function(i) {
+		
+		sig_fid <- ftpssffti_list[[i]]
+		
+		sig_fid <- fitnmr::nmrpipe_sp(sig_fid, off=0.5, pow=2, cval=0.5)
+		sig_fid <- fitnmr::nmrpipe_zf(sig_fid)
+		sig_ft <- fitnmr::nmrpipe_ft(sig_fid)
+		sig_ft$int[] <- Re(sig_ft$int)
+		
+		#filt_ft <- sig_ft
+		#filt_ft$int[] <- fid_mean_ratio_loess_filter_mat[,i]
+		#filt_ft$int[] <- fid_mean_ratio_filter_mat[,i]
+		
+		sig_fid <- fitnmr::nmrpipe_fti(sig_ft)
+		#filt_fid <- fitnmr::nmrpipe_fti(filt_ft)
+		
+		out_fid <- sig_fid
+		#out_fid$int[] <- out_fid$int*filt_fid$int
+		
+		out_ft <- fitnmr::nmrpipe_ft(out_fid)
+	})
+	
+	unfiltered_mat <- sapply(unfiltered_list, `[[`, "int")
+}
+
+filter_mean_freq <- colSums(fid_mean_ratio_loess_filter_mat*freq_ppm_1)
+```
+
+As shown in Figure \@ref(fig:filter-data)A, the experiment-specific filters correct frequency shifts of `r paste(signif(range(filter_mean_freq), 2), collapse=" to ")` ppm. Relative to the first spectrum, the total spectrum intensities are up to `r paste0(signif((max(colSums(Re(filtered_mat)))/colSums(Re(filtered_mat))[1]-1)*100, 2), "%")` higher or `r paste0(-signif((min(colSums(Re(filtered_mat)))/colSums(Re(filtered_mat))[1]-1)*100, 2), "%")` lower. (Figure \@ref(fig:filter-data)B) As a last step in the data preprocessing, the intensities of each spectrum are normalized to compensate for the variation in total intensity.
+
+```{r filter-data, cache=TRUE, fig.cap="**Data from the calculated FID filter. A)** Frequency shift induced by the filter calculated from the weighted mean frequency in Figure \\@ref(fig:fid-mean-ratio-ft)A. **B)** Variation in the total intensity of the spectrum after applying the filter."}
+par(mar=c(3.1,3.1,0.5,0.5), mgp=c(1.9, 0.6, 0), mfrow=c(2, 1), cex=1)
+
+plot(hours, filter_mean_freq, col=all_cols, pch=16, cex=0.75, xlab="Time (hours)", ylab="Filter Frequency (ppm)      ")
+abline(h=0, col="gray")
+points(hours, filter_mean_freq, type="l")
+figure_letter("A")
+
+plot(hours, colSums(Re(filtered_mat)), col=all_cols, pch=16, cex=0.75, xlab="Time (hours)", ylab="Total Intensity")
+points(hours, colSums(Re(filtered_mat)), type="l")
+figure_letter("B")
+```
+
+A representative portion of the unfiltered and filtered spectra are shown in Figure \@ref(fig:unfiltered-filtered). The unfiltered data show different amounts of line broadening and frequency shifts that are largely removed in the filtered spectra. For instance, the peak at 3.2 ppm shows frequency shifts in the unfiltered data that go away upon filtering. The unfiltered frequency shifts obscure the appearance of right shoulders (that eventually surpass the initial intensity) on the set of three peaks around 2.94-2.90 ppm that is much clearer in the filtered spectra.
+
+```{r unfiltered-filtered, cache=TRUE, fig.height=6, fig.cap="**Spectra before (A) and after (B) filtering with smoothed FID ratios (mean/individual).** Both sets of spectra have had total intensity normalization applied."}
+filtered_mat_norm <- t(t(filtered_mat)*Re(mean(filtered_mat)/colMeans(filtered_mat)))
+
+unfiltered_mat_norm <- t(t(unfiltered_mat)*Re(mean(unfiltered_mat)/colMeans(unfiltered_mat)))
+
+spec_ppm_1 <- as.vector(filtered_list[[1]]$ppm[[1]])
+
+solvent_filter_1 <- -dnorm(spec_ppm_1, fid_list[[1]]$fheader["CAR",], 0.5)
+solvent_filter_1 <- solvent_filter_1-min(solvent_filter_1)
+solvent_filter_1 <- solvent_filter_1/max(solvent_filter_1)
+
+spec_xlim <- c(3.25,2.85)
+spec_ylim <- range(Re(unfiltered_mat_norm)[spec_ppm_1 < spec_xlim[1] & spec_ppm_1 > spec_xlim[2],])
+
+par(mar=c(3.1,3.1,0.5,0.5), mgp=c(1.9, 0.6, 0), mfrow=c(2, 1), cex=1)
+
+plot(1, 1, type="n", xlim=spec_xlim, ylim=spec_ylim, xlab="1H (ppm)", ylab="Intensity")#, xaxt="n")
+#axis(1, axis_integer, TRUE)
+#axis(1, axis_tenths, FALSE, lwd.ticks=0.5, tcl=-0.25)
+abline(h=0, col="gray")
+for (i in seq_len(ncol(unfiltered_mat_norm))) {
+  points(spec_ppm_1, Re(unfiltered_mat_norm[,i]), type="l", lwd=spec_lwd, col=all_cols[i])
+}
+
+sf_plot_idx <- solvent_filter_1 < 0.9
+points(spec_ppm_1[sf_plot_idx], (solvent_filter_1[sf_plot_idx]-1)*abs(par("usr")[3]), type="l", lwd=0.5)
+figure_letter("A")
+
+spec_ylim <- range(Re(filtered_mat_norm)[spec_ppm_1 < spec_xlim[1] & spec_ppm_1 > spec_xlim[2],])
+
+plot(1, 1, type="n", xlim=spec_xlim, ylim=spec_ylim, xlab="1H (ppm)", ylab="Intensity")#, xaxt="n")
+#axis(1, axis_integer, TRUE)
+#axis(1, axis_tenths, FALSE, lwd.ticks=0.5, tcl=-0.25)
+abline(h=0, col="gray")
+for (i in seq_len(ncol(filtered_mat_norm))) {
+  points(spec_ppm_1, Re(filtered_mat_norm[,i]), type="l", lwd=spec_lwd, col=all_cols[i])
+}
+
+sf_plot_idx <- solvent_filter_1 < 0.9
+points(spec_ppm_1[sf_plot_idx], (solvent_filter_1[sf_plot_idx]-1)*abs(par("usr")[3]), type="l", lwd=0.5)
+figure_letter("B")
+```
+
+# Rate Fitting
+
+Spectral regions can be excluded by creating a 2 x N matrix with pairs of ppm values between which data will be excluded from fitting. The excluded regions are shown in Figure \@ref(fig:exclude-regions).
+
+```{r exclude-regions-matrix, echo=TRUE}
+# consecutive pairs of numbers give starting and stopping ppm values to exclude
+exclude_ppm <- matrix(c(12.4, 10, 0, -3.7), nrow=2)
+exclude_ppm
+```
+
+```{r exclude-regions, fig.cap="**Spectral regions excluded from fitting.** Excluded regions are shown in gray between the boundaries shown in red. The y-axis limits are determined by either the whole spectrum **(A)** or just the non-excluded regions **(B)**. In this case both limits are the same."}
+ppm <- spec_ppm_1
+int <- Re(filtered_mat_norm[,1])
+
+exclude_idx <- logical(length(ppm))
+for (i in seq_len(ncol(exclude_ppm))) {
+	exclude_idx[ppm < max(exclude_ppm[,i]) & ppm > min(exclude_ppm[,i])] <- TRUE
+}
+int_excluded <- int
+int_excluded[!exclude_idx] <- NA
+int[exclude_idx] <- NA
+
+# line width for all spectra
+spec_lwd <- 0.33
+
+# x-axis limits
+xlim <- rev(range(ppm, exclude_ppm))
+
+par(mar=c(3.1,3.1,0.5,0.5), mgp=c(1.9, 0.6, 0), mfrow=c(2,1), cex=1)
+
+plot(ppm, int, type="l", lwd=spec_lwd, xlim=xlim, ylim=range(int, int_excluded, na.rm=TRUE), xaxt="n", xlab=expression(phantom()^1*H ~ (ppm)), ylab=NA)
+axis(1, axis_integer, TRUE)
+axis(1, axis_tenths, FALSE, lwd.ticks=0.5, tcl=-0.25)
+points(ppm, int_excluded, type="l", lwd=spec_lwd, col="gray", xlab=expression(phantom()^1*H ~ (ppm)), ylab=NA)
+abline(v=exclude_ppm, col="red", lwd=0.25)
+figure_letter("A")
+
+plot(ppm, int, type="l", lwd=spec_lwd, xlim=xlim, xaxt="n", xlab=expression(phantom()^1*H ~ (ppm)), ylab=NA)
+axis(1, axis_integer, TRUE)
+axis(1, axis_tenths, FALSE, lwd.ticks=0.5, tcl=-0.25)
+points(ppm, int_excluded, type="l", lwd=spec_lwd, col="gray", xlab=expression(phantom()^1*H ~ (ppm)), ylab=NA)
+abline(v=exclude_ppm, col="red", lwd=0.25)
+figure_letter("B")
+```
+
+The entire spectral time series is then fit to a two-state model with each spectrum consisting of a linear combination of two spectra whose intensities are also simultaneously fit. After that two-state fit, the population A components of each spectrum are fit to an exponential decay. This is shown in Figure \@ref(fig:update-populations).
+
+```{r two-state-fitting, fig.height=8}
+#### Spectrum model fitting utility functions ####
+
+# convert a list of parameters to a vector (pop: a vector of state A populations, int: a list of two vectors with spectrum intensities)
+pack_int_param <- function(param_list) {
+
+	int_mat <- sapply(param_list$int, function(x) x[!is.na(x)])
+	
+	c(param_list$pop, int_mat)
+}
+
+# convert a vector of parameters to a list (pop: a vector of state A populations, int: a list of two vectors with spectrum intensities)
+unpack_int_param <- function(param_vec, template) {
+
+	template$pop <- param_vec[seq_along(template$pop)]
+	
+	vec_offset <- length(template$pop)
+	
+	not_na_idx <- !is.na(template$int[[1]])
+	template$int[[1]][not_na_idx] <- param_vec[vec_offset+seq_len(sum(not_na_idx))]
+	vec_offset <- vec_offset+sum(not_na_idx)
+	
+	not_na_idx <- !is.na(template$int[[2]])
+	template$int[[2]][not_na_idx] <- param_vec[vec_offset+seq_len(sum(not_na_idx))]
+	
+	template
+}
+
+# calculate the sum of squared differences between model and data
+lsq_fn <- function(par, template, spec_int_mat) {
+
+	param_list <- unpack_int_param(par, template)
+	
+	i1 <- param_list$int[[1]]
+	i2 <- param_list$int[[2]]
+	p <- param_list$pop
+	sim_int_mat <- i1 %o% p + i2 %o% (1-p)
+	resid_mat <- spec_int_mat - sim_int_mat
+	
+	sum(resid_mat^2)
+}
+
+# calculate gradient of the sum of squared differences between model and data
+lsq_gr <- function(par, template, spec_int_mat) {
+
+	param_list <- unpack_int_param(par, template)
+	
+	i1 <- param_list$int[[1]]
+	i2 <- param_list$int[[2]]
+	p <- param_list$pop
+	sim_int_mat <- i1 %o% p + i2 %o% (1-p)
+	resid_mat <- spec_int_mat - sim_int_mat
+	
+	deriv_list <- param_list
+	
+	# D[(d - (p*i1 + (1 - p)*i2))^2, {{p, i1, i2}}]
+	deriv_list$pop <- colSums(2*(i2-i1)*resid_mat)
+	deriv_list$int[[1]] <- colSums(-2*p*t(resid_mat))
+	deriv_list$int[[2]] <- colSums(-2*(1-p)*t(resid_mat))
+	
+	pack_int_param(deriv_list)
+}
+
+
+
+
+
+#### Make Spectrum Fitting Input ####
+
+# create matrix of non-excluded spectrum intensities
+spec_int_mat <- Re(filtered_mat_norm[!exclude_idx,])
+
+# normalize spectrum intensities so that the maximum intensity is 1
+spec_int_mat <- spec_int_mat/max(abs(spec_int_mat))
+
+fit_spec <- function(spec_int_mat, seconds) {
+
+	# starting parameters in list (unpacked) format
+	par_start_list <- list(
+		pop = seq(1, 0, length.out=ncol(spec_int_mat)),
+		int = list(spec_int_mat[,1], spec_int_mat[,ncol(spec_int_mat)])
+	)
+
+	# starting parameters in vector format
+	par_start <- pack_int_param(par_start_list)
+
+	# lower limits (A populations greater than or equal to 0)
+	lower_list <- par_start_list
+	lower_list$pop[] <- 0
+	lower_list$int[[1]][] <- -Inf
+	lower_list$int[[2]][] <- -Inf
+	lower <- pack_int_param(lower_list)
+
+	# upper limits (A populations less than or equal to 0)
+	upper_list <- par_start_list
+	upper_list$pop[] <- 1
+	upper_list$int[[1]][] <- Inf
+	upper_list$int[[2]][] <- Inf
+	upper <- pack_int_param(upper_list)
+
+	# optimize basis spectra and populations simultaneously
+	optim_out <- optim(par_start, lsq_fn, lsq_gr, template=par_start_list, spec_int_mat=spec_int_mat, method="L-BFGS-B", lower=lower, upper=upper)
+
+	# get list of optimized parameters
+	par_optim_list <- unpack_int_param(optim_out$par, par_start_list)
+
+
+	#### Analyze residuals ####
+
+	sim_int_mat <- par_optim_list$int[[1]] %o% par_optim_list$pop + par_optim_list$int[[1]] %o% (1-par_optim_list$pop)
+
+	resid_mat <- spec_int_mat-sim_int_mat
+
+
+	#### Fit exponential decay ####
+
+	# data for exponential decay fitting
+	rate_data <- data.frame(seconds=seconds, pop=par_optim_list$pop)
+
+	# formula for exponential decay
+	exp_form <- pop ~ pop1*exp(-r1*seconds) + popf
+
+	rate_starts <- exp(seq(log(1/rate_data$seconds[2]), log(1/max(rate_data$seconds)), length.out=3))
+
+	# fit the exponential decay
+	rate_fit <- try(minpack.lm::nlsLM(exp_form, rate_data, c(popf=max(rate_data$pop), pop1=diff(range(rate_data$pop)), r1=rate_starts[2]), algorithm="port", lower=c(popf=-Inf, pop1=0, r1=0)), silent=TRUE)
+
+	if (class(rate_fit) != "try-error") {
+	
+		# formula for multiexponential decay
+		exp_form <- pop ~ pop1*exp(-r1*seconds) + pop2*exp(-r2*seconds) + popf
+
+		rate_starts <- exp(seq(log(1/rate_data$seconds[2]), log(1/max(rate_data$seconds)), length.out=4))
+		rate_starts[2:3] <- rate_fit$m$getPars()["r1"]*c(2, 0.5)
+
+		# fit the multiexponential decay
+		fit_start <- c(popf=max(rate_data$pop), pop1=diff(range(rate_data$pop))/2, pop2=diff(range(rate_data$pop))/2, r1=rate_starts[2], r2=rate_starts[3])
+		fit_lower <- c(popf=-Inf, pop1=0, pop2=0, r1=unname(rate_fit$m$getPars()["r1"]), r2=0)
+		fit_upper <- c(popf=Inf, pop1=Inf, pop2=Inf, r1=1/mean(diff(seconds)), r2=unname(rate_fit$m$getPars()["r1"]))
+		rate_fit_multiexp <- try(minpack.lm::nlsLM(exp_form, rate_data, fit_start, algorithm="port", lower=fit_lower, upper=fit_upper), silent=TRUE)
+	
+	} else {
+	
+		rate_fit_multiexp <- rate_fit
+	}
+	
+	list(par_optim_list=par_optim_list, rate_data=rate_data, rate_fit=rate_fit, rate_fit_multiexp=rate_fit_multiexp)
+}
+
+fit_spec_out <- fit_spec(spec_int_mat, seconds)
+
+par_optim_list <- fit_spec_out$par_optim_list
+rate_data <- fit_spec_out$rate_data
+rate_fit <- fit_spec_out$rate_fit
+
+#print(summary(rate_fit))
+
+#### Plot results from fitting ####
+
+# x-axis limits
+xlim <- rev(range(ppm[!is.na(int)]))
+
+# positions of x-axis tick marks
+axis_integer <- seq(floor(min(xlim)), ceiling(max(xlim)))
+axis_tenths <- setdiff(seq(floor(min(xlim)*10),ceiling(max(xlim)*10))/10, axis_integer)
+
+# compute spectrum using the initial population fit by the exponential decay
+spec0 <- par_optim_list$int[[1]]
+if (class(rate_fit) != "try-error") {
+	spec0 <- par_optim_list$int[[1]] * sum(rate_fit$m$getPars()[c("popf","pop1")]) + par_optim_list$int[[2]] * (1-sum(rate_fit$m$getPars()[c("popf","pop1")]))
+}
+
+# compute spectrum using the final population fit by the exponential decay
+specf <- par_optim_list$int[[2]]
+if (class(rate_fit) != "try-error") {
+	specf <- par_optim_list$int[[1]] * rate_fit$m$getPars()["popf"] + par_optim_list$int[[2]] * (1-rate_fit$m$getPars()["popf"])
+}
+
+# create a vector to map from the excluded intensities 
+full_idx <- rep(NA_integer_, length(int))
+full_idx[!exclude_idx] <- seq_along(spec0)
+
+if (FALSE) {
+
+par(mar=c(3.1,3.1,0.5,0.5), mgp=c(1.9, 0.6, 0), mfrow=c(4,1), cex=1)
+
+plot(ppm, spec_int_mat[full_idx,1], type="l", lwd=spec_lwd, xlim=xlim, ylim=range(spec_int_mat), col="blue", xaxt="n", xlab=expression(phantom()^1*H ~ (ppm)), ylab="Intensity")
+axis(1, axis_integer, TRUE)
+axis(1, axis_tenths, FALSE, lwd.ticks=0.5, tcl=-0.25)
+points(ppm, spec_int_mat[full_idx,ncol(spec_int_mat)], type="l", lwd=spec_lwd, col="purple")
+abline(h=0, col="gray", lwd=0.1)
+
+legend("topright", legend=c("First Spectrum", "Last Spectrum"), col=c("blue", "purple"), lwd=spec_lwd, bty="n")
+
+plot(ppm, spec0[full_idx], type="l", lwd=spec_lwd, xlim=xlim, ylim=range(spec_int_mat), col="blue", xaxt="n", xlab=expression(phantom()^1*H ~ (ppm)), ylab="Intensity")
+axis(1, axis_integer, TRUE)
+axis(1, axis_tenths, FALSE, lwd.ticks=0.5, tcl=-0.25)
+points(ppm, specf[full_idx], type="l", lwd=spec_lwd, col="red")
+abline(h=0, col="gray", lwd=0.1)
+
+legend("topright", legend=c("Modeled Initial Spectrum", "Modeled Final Spectrum"), col=c("blue", "red"), lwd=spec_lwd, bty="n")
+
+plot(ppm, specf[full_idx]-spec0[full_idx], type="l", lwd=spec_lwd, xlim=xlim, ylim=c(-0.1, 0.1)*5, xaxt="n", xlab=expression(phantom()^1*H ~ (ppm)), ylab="Delta Intensity")
+axis(1, axis_integer, TRUE)
+axis(1, axis_tenths, FALSE, lwd.ticks=0.5, tcl=-0.25)
+abline(h=0, col="gray", lwd=0.1)
+
+if (FALSE) {
+	plot(ppm, apply(resid_mat, 1, median)[full_idx], type="l", lwd=spec_lwd, xlim=xlim, col="black", xaxt="n", xlab=expression(phantom()^1*H ~ (ppm)), ylab="Median Residual")
+	axis(1, axis_integer, TRUE)
+	axis(1, axis_tenths, FALSE, lwd.ticks=0.5, tcl=-0.25)
+	abline(h=0, col="gray")
+}
+
+ylim <- range(rate_data$pop)
+if (class(rate_fit) != "try-error") {
+	ylim <- range(rate_data$pop, rate_fit$m$getPars()[1:2])
+}
+plot(rate_data, pch=16, ylim=ylim, xlab="Seconds", ylab="Fit Population A")
+if (class(rate_fit) != "try-error") {
+	points(rate_data$seconds, rate_fit$m$predict(), type="l", col="purple")
+
+	abline(h=sum(summary(rate_fit)$coef[c("popf","pop1"),"Estimate"]), col="blue")
+	# didn't do any propagation of uncertainty here...
+	abline(h=sum(summary(rate_fit)$coef[c("popf","pop1"),"Estimate"])+c(-1,1)*summary(rate_fit)$coef["pop1","Std. Error"], col="blue", lty="dashed")
+	abline(h=summary(rate_fit)$coef["popf","Estimate"], col="red")
+	abline(h=summary(rate_fit)$coef["popf","Estimate"]+c(-1,1)*summary(rate_fit)$coef["popf","Std. Error"], col="red", lty="dashed")
+}
+
+if (class(rate_fit) != "try-error") {
+	legend("topright", legend=parse(text=sprintf("\"k = %0.2e\" ~ s^{-1}", rate_fit$m$getPars()[3])), col=c("purple"), lwd=spec_lwd, bty="n", title=" ")
+}
+}
+```
+
+```{r update-populations, fig.height=8, fig.cap="**NMR spectra time series fit to a two-state model and then exponential decay.** **A)** First and last spectra in the time series. **B)** Modeled initial and final spectra. **C)** Differences in intensity between the modeled initial and final spectra. **D)** Expoenential fit to the population A component of the two-state fit."}
+pop_rss <- function(pop_A, spec, spec_A, spec_B) {
+
+	#print(pop_A)
+	sum(((pop_A*spec_A + (1-pop_A)*spec_B) - spec)^2)
+}
+
+pop_A_updated <- apply(spec_int_mat, 2, function(spec) {
+	optimize(pop_rss, c(-1, 2), spec, spec0, specf)$minimum
+})
+
+exp_form <- pop ~ pop1*exp(-r1*seconds) + popf
+
+exp_form_simp <- pop ~ pop1*exp(-r1*seconds) + popf
+
+rate_data_updated <- rate_data
+rate_data_updated$pop <- pop_A_updated
+
+rate_fit_updated <- minpack.lm::nlsLM(exp_form_simp, rate_data_updated, c(popf=max(rate_data_updated$pop), pop1=diff(range(rate_data_updated$pop)), r1=1/max(rate_data$seconds)), algorithm="port", lower=c(popf=-Inf, pop1=0, r1=0))
+
+#rate_fit_updated <- nls(exp_form, rate_data_updated, c(popf=max(rate_data_updated$pop), pop1=diff(range(rate_data_updated$pop)), r1=(1/max(rate_data$seconds))))#, algorithm="port", lower=c(popf=-Inf, pop1=0, r1=0))
+# unname(rate_fit$m$getPars()["r1"])
+
+#stop()
+
+par(mar=c(3.1,3.1,0.5,0.5), mgp=c(1.9, 0.6, 0), mfrow=c(4,1), cex=1)
+
+plot(ppm, spec_int_mat[full_idx,1], type="l", lwd=spec_lwd, xlim=xlim, ylim=range(spec_int_mat), col="firebrick", xaxt="n", xlab=expression(phantom()^1*H ~ (ppm)), ylab="Intensity", yaxt="n")
+axis(2, seq(0, 1, by=0.5), tick=FALSE)
+axis(2, seq(0, 1, by=0.25), label=FALSE)
+axis(1, axis_integer, TRUE)
+axis(1, axis_tenths, FALSE, lwd.ticks=0.5, tcl=-0.25)
+points(ppm, spec_int_mat[full_idx,ncol(spec_int_mat)], type="l", lwd=spec_lwd, col="darkslateblue")
+abline(h=0, col="gray", lwd=0.1)
+
+legend("topleft", legend=c("First Spectrum", "Last Spectrum"), col=c("firebrick", "darkslateblue"), lwd=spec_lwd, bty="n")
+figure_letter("A")
+
+plot(ppm, spec0[full_idx], type="l", lwd=spec_lwd, xlim=xlim, ylim=range(spec_int_mat), col="red", xaxt="n", xlab=expression(phantom()^1*H ~ (ppm)), ylab="Intensity", yaxt="n")
+axis(2, seq(0, 1, by=0.5), tick=FALSE)
+axis(2, seq(0, 1, by=0.25), label=FALSE)
+axis(1, axis_integer, TRUE)
+axis(1, axis_tenths, FALSE, lwd.ticks=0.5, tcl=-0.25)
+points(ppm, specf[full_idx], type="l", lwd=spec_lwd, col="mediumslateblue")
+abline(h=0, col="gray", lwd=0.1)
+
+legend("topleft", legend=c("Modeled Initial Spectrum (Population A)", "Modeled Final Spectrum (Population B)"), col=c("red", "mediumslateblue"), lwd=spec_lwd, bty="n")
+figure_letter("B")
+
+plot(1, 1, type="n", xlim=xlim, ylim=max(abs(specf[full_idx]-spec0[full_idx]), na.rm=TRUE)*c(-1,1), xaxt="n", xlab=expression(phantom()^1*H ~ (ppm)), ylab="Delta Intensity", yaxt="n")
+axis(1, axis_integer, TRUE)
+axis(1, axis_tenths, FALSE, lwd.ticks=0.5, tcl=-0.25)
+#axis(2, seq(-1, 1, by=0.5), tick=FALSE)
+axis(2, seq(-1, 1, by=0.25), label=TRUE)
+abline(h=0, col="gray", lwd=0.1)
+points(ppm, specf[full_idx]-spec0[full_idx], type="l", lwd=spec_lwd)
+figure_letter("C")
+
+if (FALSE) {
+	plot(ppm, apply(resid_mat, 1, median)[full_idx], type="l", lwd=spec_lwd, xlim=c(10,0), col="black", xaxt="n", xlab=expression(phantom()^1*H ~ (ppm)), ylab="Median Residual")
+	axis(1, axis_integer, TRUE)
+	axis(1, axis_tenths, FALSE, lwd.ticks=0.5, tcl=-0.25)
+	abline(h=0, col="gray")
+}
+
+ylim <- c(0, 1)
+ylim <- range(summary(rate_fit_updated)$coef[c("popf","pop1"),"Estimate"])
+#if (class(rate_fit) != "try-error") {
+#	ylim <- range(rate_data$pop, rate_fit$m$getPars()[1:2])
+#}
+plot(rate_data_updated, pch=16, ylim=ylim, xlab="Seconds", ylab="Fit Population A", yaxt="n")
+axis(2, seq(0, 1, by=0.5), tick=FALSE)
+axis(2, seq(0, 1, by=0.25), label=FALSE)
+#points(rate_data$seconds, exp(-rate_data$seconds*rate_fit$m$getPars()["r1"]), type="l", col="green")
+if (class(rate_fit) != "try-error") {
+	points(rate_data$seconds, rate_fit_updated$m$predict(), type="l", col="purple", lwd=2)
+
+	abline(h=sum(summary(rate_fit_updated)$coef[c("popf","pop1"),"Estimate"]), col="red")
+	# didn't do any propagation of uncertainty here...
+	abline(h=sum(summary(rate_fit_updated)$coef[c("popf","pop1"),"Estimate"])+c(-1,1)*summary(rate_fit_updated)$coef["pop1","Std. Error"], col="red", lty="dashed")
+	abline(h=summary(rate_fit_updated)$coef["popf","Estimate"], col="mediumslateblue")
+	abline(h=summary(rate_fit_updated)$coef["popf","Estimate"]+c(-1,1)*summary(rate_fit_updated)$coef["popf","Std. Error"], col="mediumslateblue", lty="dashed")
+}
+
+if (class(rate_fit) != "try-error") {
+	legend("topright", legend=parse(text=sprintf("\"k = \"*%s ~ s^{-1}", sub("e(-?)0?", " %*% 10^\\1", sprintf("%.2e", rate_fit$m$getPars()[3])))), col=c("purple"), lwd=2, bty="n", title=" ")
+}
+figure_letter("D")
+```

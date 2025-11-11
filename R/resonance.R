@@ -966,7 +966,7 @@ plot_sparse_2d <- function(fit_data, tables=NULL, spec_idx=1, spec_int=NULL, col
 	contour_pipe(solid_int_map, zlim=zlim, low_frac=low_frac, col_pos=col_model, add=TRUE)
 	
 	if (!is.null(dashed_int_map)) {
-		graphics::points(ppm_map_fn(ppm), dashed_int, type="l", lwd=lwd, col=col_model, lty="dashed")
+		graphics::points(ppm_map_fn_list[[i]](ppm), dashed_int, type="l", lwd=lwd, col=col_model, lty="dashed")
 		contour_pipe(dashed_int_map, zlim=zlim, low_frac=low_frac, col_pos="blue", add=TRUE)
 	}
 	

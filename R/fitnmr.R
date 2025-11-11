@@ -34,10 +34,7 @@
 #'
 #' @section Deprecated:
 #' \code{\link{extract_params}}, \code{\link{get_spec_peak_int}}
-#'
-#' @docType package
-#' @name fitnmr
-NULL
+"_PACKAGE"
 
 fill_array <- function(x, array_dim) {
 

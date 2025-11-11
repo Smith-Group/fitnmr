@@ -61,6 +61,7 @@ In addition several rows contain information inferred from the header data:\tabu
    sw_ppm \tab Original Sweep Width, PPM \cr
    direct \tab Direct (1) or indirect (0) dimension \cr
    alias \tab Aliasing (0/1) with inversion (-1) \cr
+   mag \tab Magnitude mode (direct from FDMCFLAG) \cr
 }
 }
 \description{

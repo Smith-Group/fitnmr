@@ -8,7 +8,9 @@ plot_resonances_2d(
   fit_data,
   omega0_plus,
   resonances = unique(fit_data$resonance_names),
-  low_frac = 0.05
+  low_frac = 0.05,
+  field = TRUE,
+  proj_frac = 0.2
 )
 }
 \arguments{
@@ -16,7 +18,11 @@ plot_resonances_2d(
 
 \item{omega0_plus}{length 2 vector giving ppm range for each dimension}
 
+\item{resonances}{character vector with resonances to plot}
+
 \item{low_frac}{minimum absolute value (as a fraction of maximum intensity) at which to show contours}
+
+\item{field}{logical indicating whether to show modeling of field inhomogeneity as separate peaks}
 }
 \description{
 Plot resonances from 2D fit
