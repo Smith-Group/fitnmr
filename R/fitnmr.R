@@ -2739,6 +2739,11 @@ noise_estimate <- function(x, height=TRUE, thresh=10, plot_distributions=TRUE, p
 	
 	xhist <- graphics::hist(x[idx], breaks=512, plot=FALSE)
 	
+	if (height) {
+		# rescale histogram to avoid aborting NLS due to absolute tolerance
+		xhist$density <- xhist$density/max(xhist$density)
+	}
+	
 	normdist_height_formula <- y ~ h * exp(-(x-mu)^2/(2*sigma^2))
 	normdist_formula <- y ~ 1 / (sigma*sqrt(2*pi)) * exp(-(x-mu)^2/(2*sigma^2))
 
@@ -2749,9 +2754,26 @@ noise_estimate <- function(x, height=TRUE, thresh=10, plot_distributions=TRUE, p
 	fit_lower[2] <- 0
 	
 	if (height) {
-		fit <- stats::nls(normdist_height_formula, fit_data, fit_start, algorithm="port", lower=fit_lower)
+		fit <- try(stats::nls(normdist_height_formula, fit_data, fit_start, algorithm="port", lower=fit_lower), silent = TRUE)
 	} else {
-		fit <- stats::nls(normdist_formula, fit_data, fit_start[1:2], algorithm="port", lower=fit_lower[1:2])
+		fit <- try(stats::nls(normdist_formula, fit_data, fit_start[1:2], algorithm="port", lower=fit_lower[1:2]), silent = TRUE)
+	}
+	
+	if (class(fit) == "try-error") {
+	
+		# retry starting with sigma = FWHM/2.355
+		max_idx <- which.max(xhist$density)
+		left_idx <- 1:max_idx
+		right_idx <- max_idx:length(xhist$density)
+		left_mid <- suppressWarnings(approx(xhist$density[left_idx], xhist$mids[left_idx], xhist$density[max_idx]/2))
+		right_mid <- suppressWarnings(approx(xhist$density[right_idx], xhist$mids[right_idx], xhist$density[max_idx]/2))
+		fit_start["sigma"] <- (right_mid$y-left_mid$y)/2.355
+	
+		if (height) {
+			fit <- stats::nls(normdist_height_formula, fit_data, fit_start, algorithm="port", lower=fit_lower)
+		} else {
+			fit <- stats::nls(normdist_formula, fit_data, fit_start[1:2], algorithm="port", lower=fit_lower[1:2])
+		}
 	}
 	
 	if (plot_distributions) {
