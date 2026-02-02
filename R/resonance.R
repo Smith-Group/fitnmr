@@ -44,7 +44,7 @@ split_coupling_names <- function(name_char) {
 
 	sc_names <- strsplit(trimws(name_char), "\\s+")[[1]]
 	
-	scale_factor <- try(eval(parse(text=tail(sc_names, 1)), baseenv()), silent=TRUE)
+	scale_factor <- try(eval(parse(text=utils::tail(sc_names, 1)), baseenv()), silent=TRUE)
 	if (class(scale_factor) != "try-error" && (is.numeric(scale_factor) || is.complex(scale_factor))) {
 		stopifnot(length(scale_factor) == 1)
 		sc_names <- sc_names[-length(sc_names)]
@@ -966,7 +966,6 @@ plot_sparse_2d <- function(fit_data, tables=NULL, spec_idx=1, spec_int=NULL, col
 	contour_pipe(solid_int_map, zlim=zlim, low_frac=low_frac, col_pos=col_model, add=TRUE)
 	
 	if (!is.null(dashed_int_map)) {
-		graphics::points(ppm_map_fn_list[[i]](ppm), dashed_int, type="l", lwd=lwd, col=col_model, lty="dashed")
 		contour_pipe(dashed_int_map, zlim=zlim, low_frac=low_frac, col_pos="blue", add=TRUE)
 	}
 	
@@ -1000,7 +999,7 @@ plot_sparse_2d <- function(fit_data, tables=NULL, spec_idx=1, spec_int=NULL, col
  			col_nucleus <- rep(grDevices::palette()[-c(1,2)], length.out=length(nuc_all))#[rank(-tables$nuclei[nuc_all,"omega0_ppm"], ties.method="first")]
  			names(col_nucleus) <- nuc_all
  		} else if (!is.null(names(col_nucleus))) {
- 			col_nucleus <- col_nucleus[res_label]
+ 			col_nucleus <- col_nucleus[nuc_all]
  		}
 		
 		for (i in seq_along(nuc_list[[1]])) {
@@ -1042,10 +1041,10 @@ plot_sparse_2d <- function(fit_data, tables=NULL, spec_idx=1, spec_int=NULL, col
 #' @export
 plot_resonances_2d <- function(fit_data, omega0_plus, resonances=unique(fit_data$resonance_names), low_frac=0.05, field=TRUE, proj_frac=0.2) {
 
-	mar <- par("mar")
-	mar_in <- mar*par("cin")[2]
-	pin <- par("pin")
-	din <- par("din")
+	mar <- graphics::par("mar")
+	mar_in <- mar*graphics::par("cin")[2]
+	pin <- graphics::par("pin")
+	din <- graphics::par("din")
 	
 	side_in <- pin[1]*proj_frac
 	top_in <- pin[2]*proj_frac
@@ -1062,9 +1061,9 @@ plot_resonances_2d <- function(fit_data, omega0_plus, resonances=unique(fit_data
 	
 	for (resonance in resonances) {
 		
-		layout(matrix(c(2, 1, 0, 3), nrow=2), widths=widths, heights=heights)
+		graphics::layout(matrix(c(2, 1, 0, 3), nrow=2), widths=widths, heights=heights)
 
-		par(mar=c(mar[1:2], 0, 0))
+		graphics::par(mar=c(mar[1:2], 0, 0))
 	
 		peak_idx <- which(resonance==fit_data$resonance_names)
 		resonance_spec_int <- get_spec_int(fit_data, "fit", peak_idx=peak_idx)
@@ -1106,9 +1105,9 @@ plot_resonances_2d <- function(fit_data, omega0_plus, resonances=unique(fit_data
 		omega0_weights[,3] <- omega0_weights[,3]/max(Mod(omega0_weights[,3]))*0.25
 		graphics::points(omega0_weights[,1], omega0_weights[,2], pch=ifelse(sign((Re(omega0_weights[,3])+Im(omega0_weights[,3]))*fit_data$fit_list$m0[peak_idx,spec_i]) != -1, 16, 1), lwd=1.25, cex=0.5, col=grDevices::rgb(0,0,1,sqrt(abs(omega0_weights[,3]))))
 		if (field) {
-			for (i in seq_along(fit_output$field_offsets[,spec_i])) {
-				os <- fit_output$field_offsets[i,spec_i]
-				sf <- sqrt(fit_output$fit_list$field[i,spec_i])
+			for (i in seq_along(fit_data$field_offsets[,spec_i])) {
+				os <- fit_data$field_offsets[i,spec_i]
+				sf <- sqrt(fit_data$fit_list$field[i,spec_i])
 				graphics::points(omega0_weights[,1]+os, omega0_weights[,2]+os, pch=ifelse(sign((Re(omega0_weights[,3])+Im(omega0_weights[,3]))*fit_data$fit_list$m0[peak_idx,spec_i]) != -1, 16, 1), lwd=1.25*sf, cex=0.5*sf, col=grDevices::rgb(0,0,1,sqrt(abs(omega0_weights[,3]))))
 			}
 		}
@@ -1138,18 +1137,18 @@ plot_resonances_2d <- function(fit_data, omega0_plus, resonances=unique(fit_data
 		fit_spec_1d <- colSums(t(fit_spec_int[[1]])*w_vec, na.rm=TRUE)
 		resonance_spec_1d <- colSums(t(resonance_spec_int[[1]])*w_vec, na.rm=TRUE)
 		
-		par(mar=c(0, mar[2:3], 0))
+		graphics::par(mar=c(0, mar[2:3], 0))
 	
 		ppm <- as.numeric(names(input_spec_1d))
 		range_idx <- abs(resonance_spec_1d) > max(abs(resonance_spec_1d))*0.25
 		plot(1, 1, type="n", xlim=rev(limits[idx[1],]), ylim=range(input_spec_1d[range_idx], fit_spec_1d[range_idx], resonance_spec_1d), xaxs="i", axes=FALSE, xlab=NA, ylab=NA, main=resonance)
 		
-		abline(h=0, col="gray")
-		points(ppm, input_spec_1d, type="l")
-		points(ppm, resonance_spec_1d, type="l", col="purple")
-		points(ppm, fit_spec_1d, type="l", col="red")
+		graphics::abline(h=0, col="gray")
+		graphics::points(ppm, input_spec_1d, type="l")
+		graphics::points(ppm, resonance_spec_1d, type="l", col="purple")
+		graphics::points(ppm, fit_spec_1d, type="l", col="red")
 		
-		box()
+		graphics::box()
 		
 		idx <- 2:1
 		
@@ -1163,18 +1162,18 @@ plot_resonances_2d <- function(fit_data, omega0_plus, resonances=unique(fit_data
 		fit_spec_1d <- colSums((fit_spec_int[[1]])*w_vec, na.rm=TRUE)
 		resonance_spec_1d <- colSums((resonance_spec_int[[1]])*w_vec, na.rm=TRUE)
 		
-		par(mar=c(mar[1], 0, 0, mar[4]))
+		graphics::par(mar=c(mar[1], 0, 0, mar[4]))
 	
 		ppm <- as.numeric(names(input_spec_1d))
 		range_idx <- abs(resonance_spec_1d) > max(abs(resonance_spec_1d))*0.25
 		plot(1, 1, type="n", xlim=range(input_spec_1d[range_idx], fit_spec_1d[range_idx], resonance_spec_1d), ylim=rev(limits[idx[1],]), yaxs="i", axes=FALSE, xlab=NA, ylab=NA)
 		
-		abline(v=0, col="gray")
-		points(input_spec_1d, ppm, type="l")
-		points(resonance_spec_1d, ppm, type="l", col="purple")
-		points(fit_spec_1d, ppm, type="l", col="red")
+		graphics::abline(v=0, col="gray")
+		graphics::points(input_spec_1d, ppm, type="l")
+		graphics::points(resonance_spec_1d, ppm, type="l", col="purple")
+		graphics::points(fit_spec_1d, ppm, type="l", col="red")
 		
-		box()
+		graphics::box()
 	}
 }
 

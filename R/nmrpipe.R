@@ -458,7 +458,7 @@ shifter <- function(x, n = 1) {
 	if (n == 0) {
   		x
   	} else {
-  		c(tail(x, -n), head(x, n))
+  		c(utils::tail(x, -n), utils::head(x, n))
   	}
 }
 
@@ -557,7 +557,7 @@ nmrpipe_ft <- function(fid) {
 		fid$header["FDDMXFLAG"] <- 1
 	}
 	
-	fid$int[] <- rev(shifter(fft(fid$int), length(fid$int)/2+1))
+	fid$int[] <- rev(shifter(stats::fft(fid$int), length(fid$int)/2+1))
 	
 	fid$header["FDF2FTSIZE"] <- fid$fheader["FTSIZE",1] <- length(fid$int)
 	fid$header["FDF2FTFLAG"] <- fid$fheader["FTFLAG",1] <- 1
@@ -586,7 +586,7 @@ nmrpipe_ft <- function(fid) {
 #' @export
 nmrpipe_fti <- function(ft) {
 	
-	ft$int[] <- fft(shifter(rev(ft$int), -(length(ft$int)/2+1)), inverse=TRUE)/length(ft$int)
+	ft$int[] <- stats::fft(shifter(rev(ft$int), -(length(ft$int)/2+1)), inverse=TRUE)/length(ft$int)
 	
 	ft$header["FDF2FTSIZE"] <- ft$fheader["FTSIZE",1] <- length(ft$int)
 	ft$header["FDF2FTFLAG"] <- ft$fheader["FTFLAG",1] <- 0

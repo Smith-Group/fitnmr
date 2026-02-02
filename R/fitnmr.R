@@ -1176,7 +1176,7 @@ fit_jac <- function(par, fit_data, drss_dspec=NULL) {
 	}
 	
 	if ("jac_callback" %in% names(fit_data)) {
-		jac_callback()
+		fit_data$jac_callback()
 	}
 	
 	#print(jac_eval)
@@ -2765,8 +2765,8 @@ noise_estimate <- function(x, height=TRUE, thresh=10, plot_distributions=TRUE, p
 		max_idx <- which.max(xhist$density)
 		left_idx <- 1:max_idx
 		right_idx <- max_idx:length(xhist$density)
-		left_mid <- suppressWarnings(approx(xhist$density[left_idx], xhist$mids[left_idx], xhist$density[max_idx]/2))
-		right_mid <- suppressWarnings(approx(xhist$density[right_idx], xhist$mids[right_idx], xhist$density[max_idx]/2))
+		left_mid <- suppressWarnings(stats::approx(xhist$density[left_idx], xhist$mids[left_idx], xhist$density[max_idx]/2))
+		right_mid <- suppressWarnings(stats::approx(xhist$density[right_idx], xhist$mids[right_idx], xhist$density[max_idx]/2))
 		fit_start["sigma"] <- (right_mid$y-left_mid$y)/2.355
 	
 		if (height) {
@@ -2857,4 +2857,3 @@ height_assign <- function(assigned, unknown, thresh=0.01) {
 	
 	assign_idx
 }
-
