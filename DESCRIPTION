@@ -15,6 +15,5 @@ Suggests:
     knitr,
     rmarkdown,
     bookdown,
-    gslnls,
-    sparseLM
+    gslnls
 VignetteBuilder: knitr

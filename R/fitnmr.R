@@ -1008,13 +1008,13 @@ fit_jac <- function(par, fit_data, drss_dspec=NULL) {
 
 	if (!is.null(drss_dspec)) {
 		jac_eval <- structure(numeric(length(par)), names=names(par))
-	} else if ("jac_pattern" %in% names(fit_data)) {
-		if (!requireNamespace("sparseLM", quietly=TRUE)) {
-			stop("Package 'sparseLM' is required for sparse Jacobian support. Please install it.", call.=FALSE)
-		}
-		jac_eval <- methods::as(fit_data[["jac_pattern"]], "dsparseMatrix")
-		jac_eval@x[] <- 0
-		add_assign_col <- sparseLM::add_assign_col_inplace
+	#} else if ("jac_pattern" %in% names(fit_data)) {
+	#	if (!requireNamespace("sparseLM", quietly=TRUE)) {
+	#		stop("Package 'sparseLM' is required for sparse Jacobian support. Please install it.", call.=FALSE)
+	#	}
+	#	jac_eval <- methods::as(fit_data[["jac_pattern"]], "dsparseMatrix")
+	#	jac_eval@x[] <- 0
+	#	add_assign_col <- sparseLM::add_assign_col_inplace
 	} else {
 		jac_eval <- matrix(0, nrow=fit_data$num_points, ncol=length(par), dimnames=list(NULL, names(par)))
 	}
@@ -1304,20 +1304,22 @@ perform_fit <- function(fit_input, method=c("minpack.lm", "gslnls", "sparseLM", 
 		fit_input[["fit_time"]] <- systime
 		
 	} else if (method == "sparseLM") {
-		if (!requireNamespace("sparseLM", quietly=TRUE)) {
-			stop("Package 'sparseLM' is required for method 'sparseLM'. Please install it or choose another method.", call.=FALSE)
-		}
-	
-		x <- unlist(lapply(fit_input$spec_data, "[[", "spec_int"))
-		jac <- sparse_jac(fit_par, fit_data=fit_input)
-		Jnnz <- length(jac@x)
 		
-		systime <- system.time(fit <- sparseLM::sparselm(fit_par, x, sparse_fn, sparse_jac, Jnnz, fit_data=fit_input, ...))
-		
-		fit_input[["fit_list"]] <- unpack_fit_params(fit$par, fit_input$group_list, fit_input$comb_list, default_list=fit_input$start_list)
-		fit_input[["fit_rsstrace"]] <- c(fit[["info"]]["rssinit"], fit[["info"]]["rss"])
-		fit_input[["fit_counts"]] <- fit[["info"]][c("niter", "nfunc", "nfjac", "nsys")]
-		fit_input[["fit_time"]] <- systime
+		stop("sparseLM methed requires unreleased package")
+		#if (!requireNamespace("sparseLM", quietly=TRUE)) {
+		#	stop("Package 'sparseLM' is required for method 'sparseLM'. Please install it or choose another method.", call.=FALSE)
+		#}
+		#
+		#x <- unlist(lapply(fit_input$spec_data, "[[", "spec_int"))
+		#jac <- sparse_jac(fit_par, fit_data=fit_input)
+		#Jnnz <- length(jac@x)
+		#
+		#systime <- system.time(fit <- sparseLM::sparselm(fit_par, x, sparse_fn, sparse_jac, Jnnz, fit_data=fit_input, ...))
+		#
+		#fit_input[["fit_list"]] <- unpack_fit_params(fit$par, fit_input$group_list, fit_input$comb_list, default_list=fit_input$start_list)
+		#fit_input[["fit_rsstrace"]] <- c(fit[["info"]]["rssinit"], fit[["info"]]["rss"])
+		#fit_input[["fit_counts"]] <- fit[["info"]][c("niter", "nfunc", "nfjac", "nsys")]
+		#fit_input[["fit_time"]] <- systime
 	
 	} else if (method == "L-BFGS-B") {
 	
