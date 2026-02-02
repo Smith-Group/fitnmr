@@ -1,6 +1,6 @@
 Package: fitnmr
 Version: 0.8
-Title: FitNMR Multidimensional Spectrum Analysis
+Title: Multidimensional NMR Spectrum Peak Fitting and Analysis
 Authors@R: c(person("Colin", "Smith", role=c("aut", "cre"),
                     email = "colin.smith@wesleyan.edu"))
 Author: Colin Smith [aut, cre]
