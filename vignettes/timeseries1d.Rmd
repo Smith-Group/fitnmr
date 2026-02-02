@@ -168,7 +168,7 @@ points(hours, phase_vals[2,], type="l")
 
 #plot(hours, colSums(Re(ftps_mat)), col=all_cols, pch=16, cex=0.5, xlab=NA, ylab="Total Intensity")
 #points(hours, colSums(Re(ftps_mat)), type="l")
-#title(xlab="Time (hours)", outer=TRUE, mgp=c(0.5, 0, 0))
+title(xlab="Time (hours)", outer=TRUE, mgp=c(0.5, 0, 0))
 ```
 
 Solvent signals are removed using an inverted Gaussian function with standard deviation of 0.5 ppm as shown in Figure \@ref(fig:spec-phased). This results in attenuation of signals within approximately 1 ppm of the solvent. The filter is applied to all spectra equally, minimizing potential impact on quantitative analysis.
@@ -421,7 +421,7 @@ for (i in seq_len(ncol(ftpssffti_mat))) {
 }
 ```
 
-The mean/individual FID ratios shown in Figure \@ref(fig:fid-mean-ratio-loess) are used as filters normalize the FID envelopes. The effect of normalization on each spectrum can be visualized by applying a cosine-squared window function and Fourier transforming each ratio as shown in Figure \@ref(fig:fid-mean-ratio-ft). High frequency components of the the ratios have been removed by multiplying the frequency domain ratios by a Gaussian function centered at zero frequency. The earliest spectra (red) are broadened and have artifacts added. The middle spectra (green) are shifted to the right to compensate for their leftward shift shown in Figure \@ref(fig:fid-1-ratio-ft).
+The mean/individual FID ratios shown in Figure \@ref(fig:fid-mean-ratio-loess) are used as filters to normalize the FID envelopes. The effect of normalization on each spectrum can be visualized by applying a cosine-squared window function and Fourier transforming each ratio as shown in Figure \@ref(fig:fid-mean-ratio-ft). High frequency components of the the ratios have been removed by multiplying the frequency domain ratios by a Gaussian function centered at zero frequency. The earliest spectra (red) are broadened and have artifacts added. The middle spectra (green) are shifted to the right to compensate for their leftward shift shown in Figure \@ref(fig:fid-1-ratio-ft).
 
 ```{r fid-mean-ratio-ft-calc, cache=TRUE}
 if (!"fid_mean_ratio_loess_ft" %in% ls()) {
