@@ -45,7 +45,7 @@ split_coupling_names <- function(name_char) {
 	sc_names <- strsplit(trimws(name_char), "\\s+")[[1]]
 	
 	scale_factor <- try(eval(parse(text=utils::tail(sc_names, 1)), baseenv()), silent=TRUE)
-	if (class(scale_factor) != "try-error" && (is.numeric(scale_factor) || is.complex(scale_factor))) {
+	if (!inherits(scale_factor, "try-error") && (is.numeric(scale_factor) || is.complex(scale_factor))) {
 		stopifnot(length(scale_factor) == 1)
 		sc_names <- sc_names[-length(sc_names)]
 		attr(sc_names, "factor") <- scale_factor

@@ -137,7 +137,7 @@ read_nmrpipe <- function(inFormat, dim_order=NULL, complex_data=FALSE) {
 	## Test file connection
 	readCon <- file(inFile, 'rb')
 	header_raw <- try(readBin(readCon, what='raw', n=512*4, size=1), silent=TRUE)
-	if (class(header_raw) == "try-error" || length(header_raw) != 512*4){
+	if (inherits(header_raw, "try-error") || length(header_raw) != 512*4){
 		close(readCon)
 		stop(paste('Could not read NMRPipe file:\n"', inFile, '"',	sep=''))
 	}

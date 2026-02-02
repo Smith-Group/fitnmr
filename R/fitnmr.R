@@ -2876,7 +2876,7 @@ noise_estimate <- function(x, height=TRUE, thresh=10, plot_distributions=TRUE, p
 		fit <- try(stats::nls(normdist_formula, fit_data, fit_start[1:2], algorithm="port", lower=fit_lower[1:2]), silent = TRUE)
 	}
 	
-	if (class(fit) == "try-error") {
+	if (inherits(fit, "try-error")) {
 	
 		# retry starting with sigma = FWHM/2.355
 		max_idx <- which.max(xhist$density)
