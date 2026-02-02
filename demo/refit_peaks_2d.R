@@ -49,7 +49,7 @@ plot_omega0_bounds <- TRUE
 # Computing Parameters:
 
 # number of cores to use for refitting
-mc_cores <- parallel::detectCores()
+mc_cores <- getOption("mc.cores", parallel::detectCores())
 
 
 library(fitnmr)

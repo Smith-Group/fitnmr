@@ -190,6 +190,9 @@ write.csv(input_table, file.path("refine", "start_volume.csv"), row.names=FALSE)
 The final step is to call the `refit_peaks_2d.R` script from within the `refine` directory:
 
 ```{r}
+if (Sys.getenv("_R_CHECK_LIMIT_CORES_") == "TRUE") {
+	options(mc.cores=2)
+}
 setwd("refine")
 source("refit_peaks_2d.R")
 setwd("..")
