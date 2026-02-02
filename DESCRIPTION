@@ -14,5 +14,7 @@ RoxygenNote: 7.3.3
 Suggests: 
     knitr,
     rmarkdown,
-    bookdown
+    bookdown,
+    gslnls,
+    sparseLM
 VignetteBuilder: knitr
