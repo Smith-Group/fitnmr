@@ -6,6 +6,11 @@
 \usage{
 ppm_to_pts(ppm_mat, fheader)
 }
+\arguments{
+\item{ppm_mat}{matrix of ppm values}
+
+\item{fheader}{matrix of generalized ND parameters}
+}
 \description{
 Convert PPM values to points
 }

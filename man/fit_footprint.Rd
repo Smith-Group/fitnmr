@@ -6,6 +6,11 @@
 \usage{
 fit_footprint(fit, frac = 0.12)
 }
+\arguments{
+\item{fit}{fit_output structure}
+
+\item{frac}{fraction of total intensity used to define the footprint}
+}
 \description{
 Determine the region of a spectrum containing the majority of the fit peaks
 }

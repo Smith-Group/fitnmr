@@ -31,9 +31,33 @@ plot_sparse_2d(
 
 \item{spec_idx}{index of spectrum to plot}
 
+\item{spec_int}{optional matrix to replace the input spectrum intensities}
+
 \item{col_model}{color for modeled peak shapes}
 
-\item{col_nuclei}{colors for nuclei}
+\item{col_nucleus}{colors for nuclei}
+
+\item{lwd}{line width}
+
+\item{tick_spacing}{spacing between axis ticks (ppm)}
+
+\item{coupling_spacing}{spacing between coupling annotations (fraction of plot)}
+
+\item{coupling_marks}{size of coupling tick marks (fraction of plot)}
+
+\item{xaxs}{x-axis style passed to \code{\link[graphics]{plot}}}
+
+\item{yaxs}{y-axis style passed to \code{\link[graphics]{plot}}}
+
+\item{low_frac}{minimum absolute value (as a fraction of maximum intensity) at which to show contours}
+
+\item{bty}{box type passed to \code{\link[graphics]{plot}}}
+
+\item{always_show_start}{logical indicating whether to show starting model when fit is present}
+
+\item{add}{logical indicating whether to add to existing plot}
+
+\item{ppm_map_list}{optional list of sparse axis maps created by \code{\link{make_map}}}
 }
 \description{
 Plot spectrum from 2D fit

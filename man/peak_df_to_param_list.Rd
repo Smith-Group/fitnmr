@@ -6,6 +6,11 @@
 \usage{
 peak_df_to_param_list(peak_df, spectra)
 }
+\arguments{
+\item{peak_df}{data frame of peak parameters}
+
+\item{spectra}{list of spectra}
+}
 \description{
 Convert a peak data frame to a parameter list
 }

@@ -11,6 +11,15 @@ get_spec_peak_int(
   peak_idx = seq_len(dim(fit_data$start_list$omega0)[2])
 )
 }
+\arguments{
+\item{fit_data}{fit_input or fit_output structure}
+
+\item{spec_type}{character indicating which spectra to return}
+
+\item{spec_idx}{indices of spectra to return}
+
+\item{peak_idx}{indices of peaks to include}
+}
 \description{
 Get spectra for individual peaks
 }

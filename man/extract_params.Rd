@@ -6,6 +6,11 @@
 \usage{
 extract_params(fit, expand = 0)
 }
+\arguments{
+\item{fit}{fit_output structure}
+
+\item{expand}{number of empty peaks to append}
+}
 \description{
 Extract parameters from fit object for use with make_fit_input
 }

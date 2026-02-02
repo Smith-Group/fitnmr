@@ -6,6 +6,11 @@
 \usage{
 plot_fit_1d(fit_data, always_show_start = FALSE)
 }
+\arguments{
+\item{fit_data}{fit_input or fit_output structure}
+
+\item{always_show_start}{logical indicating whether to show starting model when fit is present}
+}
 \description{
 Plot a one dimensional peak fit
 }

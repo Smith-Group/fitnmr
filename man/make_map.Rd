@@ -12,6 +12,17 @@ make_map(
   ends = NULL
 )
 }
+\arguments{
+\item{x}{numeric vector or array used to define the sparse axis}
+
+\item{max_spacing}{maximum spacing between segments before inserting a gap}
+
+\item{new_spacing}{spacing used for the inserted gap}
+
+\item{starts}{optional numeric vector of segment start positions}
+
+\item{ends}{optional numeric vector of segment end positions}
+}
 \description{
 Create a sparse axis
 }

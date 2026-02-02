@@ -11,6 +11,15 @@ plot_fit_2d(
   main = NULL
 )
 }
+\arguments{
+\item{fit_output}{fit_output structure}
+
+\item{spec_ord}{order of spectral dimensions to plot}
+
+\item{always_show_start}{logical indicating whether to show starting model when fit is present}
+
+\item{main}{optional title for the plot}
+}
 \description{
 Plot a two dimensional peak fit
 }

@@ -6,6 +6,11 @@
 \usage{
 coupling_param_idx(param_list, comb_idx_offset = 0)
 }
+\arguments{
+\item{param_list}{parameter list}
+
+\item{comb_idx_offset}{offset for combination index mapping}
+}
 \description{
 Get a list of logical arrays indicating which parameters correspond to scalar couplings
 }

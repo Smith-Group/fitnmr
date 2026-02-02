@@ -8,6 +8,8 @@ infer_aliasing(fheader, phase_tolerance = 10)
 }
 \arguments{
 \item{fheader}{matrix of generalized ND parameters}
+
+\item{phase_tolerance}{tolerance in degrees for detecting half-dwell delay}
 }
 \description{
 Infer which dimension was directly acquired

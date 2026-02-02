@@ -13,6 +13,19 @@ sim_time_nd(
   verbose = FALSE
 )
 }
+\arguments{
+\item{peak_tab}{NMRDraw peak table}
+
+\item{fheader}{matrix of generalized ND parameters}
+
+\item{rms}{RMS noise level}
+
+\item{iseed}{random seed}
+
+\item{file_path}{optional output path for the simulated FID}
+
+\item{verbose}{logical indicating whether to print the command}
+}
 \description{
 Simulate an FID using the NMRPipe SimTimeND function
 }

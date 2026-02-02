@@ -6,6 +6,11 @@
 \usage{
 write_nmrdraw_peak_tab(peak_tab, file_path)
 }
+\arguments{
+\item{peak_tab}{data frame containing peak table data}
+
+\item{file_path}{path to write the NMRDraw peak table file}
+}
 \description{
 Write an NMRDraw formatted peak table
 }

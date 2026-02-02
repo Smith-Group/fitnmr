@@ -14,6 +14,8 @@ plot_resonances_3d(
 \item{fit_data}{fit_input or fit_output structure}
 
 \item{omega0_plus}{length 3 vector giving ppm range for each dimension}
+
+\item{resonances}{character vector with resonances to plot}
 }
 \description{
 Plot resonances from 3D fit

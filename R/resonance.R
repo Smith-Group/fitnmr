@@ -59,7 +59,7 @@ split_coupling_names <- function(name_char) {
 #' @param spec single spectrum
 #' @param resonance data frame with resonances
 #' @param nuclei data frame with nuclei chemical shifts and R2 rates
-#' @param data frame with scalar couplings
+#' @param couplings data frame with scalar couplings
 resonance_to_param_list <- function(spec, resonance, nuclei, couplings) {
 
 	num_spec <- 1
@@ -139,6 +139,7 @@ resonance_to_param_list <- function(spec, resonance, nuclei, couplings) {
 #' Combine multi-dimensional arrays with lists
 #'
 #' @param ... any number of lists with dimensions or a single list of list arrrays
+#' @param rev.along dimension to reverse before binding (passed to \code{\link[abind]{abind}})
 abind_list <- function(..., rev.along=NULL) {
 
 	list_list <- list(...)
@@ -458,6 +459,11 @@ collapse_na_array <- function(x) {
 
 #' Create a sparse axis
 #'
+#' @param x numeric vector or array used to define the sparse axis
+#' @param max_spacing maximum spacing between segments before inserting a gap
+#' @param new_spacing spacing used for the inserted gap
+#' @param starts optional numeric vector of segment start positions
+#' @param ends optional numeric vector of segment end positions
 #' @export
 make_map <- function(x, max_spacing=0.125, new_spacing=0.025, starts=NULL, ends=NULL) {
 
@@ -580,7 +586,17 @@ remove_overlaps <- function(interval_mat) {
 #' @param tables list with resonances, nuclei, and couplings tables
 #' @param spec_idx index of spectrum to plot
 #' @param col_model color for modeled peak shapes
-#' @param col_resonances colors for resonances
+#' @param col_resonance colors for resonances
+#' @param lwd line width
+#' @param tick_spacing spacing between axis ticks (ppm)
+#' @param coupling_spacing spacing between coupling annotations (fraction of plot)
+#' @param coupling_marks size of coupling tick marks (fraction of plot)
+#' @param xaxs x-axis style passed to \code{\link[graphics]{plot}}
+#' @param yaxt y-axis style passed to \code{\link[graphics]{plot}}
+#' @param bty box type passed to \code{\link[graphics]{plot}}
+#' @param always_show_start logical indicating whether to show starting model when fit is present
+#' @param add logical indicating whether to add to existing plot
+#' @param ppm_map sparse axis map created by \code{\link{make_map}}
 #'
 #' @export
 plot_sparse_1d <- function(fit_data, tables=NULL, spec_idx=1, col_model=2, col_resonance=NULL, lwd=1, tick_spacing=0.02, coupling_spacing=0.01, coupling_marks=0.009, xaxs="i", yaxt="n", bty="n", always_show_start=FALSE, add=FALSE, ppm_map=make_map(get_spec_int(fit_data, "input", spec_idx)[[1]])) {
@@ -894,8 +910,20 @@ plot_resonances_1d <- function(fit_data, always_show_start=FALSE, omega0_plus=0.
 #' @param fit_data fit_input or fit_output structure
 #' @param tables list with resonances, nuclei, and couplings tables
 #' @param spec_idx index of spectrum to plot
+#' @param spec_int optional matrix to replace the input spectrum intensities
 #' @param col_model color for modeled peak shapes
-#' @param col_nuclei colors for nuclei
+#' @param col_nucleus colors for nuclei
+#' @param lwd line width
+#' @param tick_spacing spacing between axis ticks (ppm)
+#' @param coupling_spacing spacing between coupling annotations (fraction of plot)
+#' @param coupling_marks size of coupling tick marks (fraction of plot)
+#' @param xaxs x-axis style passed to \code{\link[graphics]{plot}}
+#' @param yaxs y-axis style passed to \code{\link[graphics]{plot}}
+#' @param low_frac minimum absolute value (as a fraction of maximum intensity) at which to show contours
+#' @param bty box type passed to \code{\link[graphics]{plot}}
+#' @param always_show_start logical indicating whether to show starting model when fit is present
+#' @param add logical indicating whether to add to existing plot
+#' @param ppm_map_list optional list of sparse axis maps created by \code{\link{make_map}}
 #'
 #' @export
 plot_sparse_2d <- function(fit_data, tables=NULL, spec_idx=1, spec_int=NULL, col_model=2, col_nucleus=NULL, lwd=1, tick_spacing=0.02, coupling_spacing=0.01, coupling_marks=0.009, xaxs="i", yaxs="i", low_frac=0.05, bty="n", always_show_start=FALSE, add=FALSE, ppm_map_list=NULL) {
@@ -1037,6 +1065,7 @@ plot_sparse_2d <- function(fit_data, tables=NULL, spec_idx=1, spec_int=NULL, col
 #' @param resonances character vector with resonances to plot
 #' @param low_frac minimum absolute value (as a fraction of maximum intensity) at which to show contours
 #' @param field logical indicating whether to show modeling of field inhomogeneity as separate peaks
+#' @param proj_frac fraction of plot area reserved for 1D projections
 #'
 #' @export
 plot_resonances_2d <- function(fit_data, omega0_plus, resonances=unique(fit_data$resonance_names), low_frac=0.05, field=TRUE, proj_frac=0.2) {
@@ -1182,6 +1211,7 @@ plot_resonances_2d <- function(fit_data, omega0_plus, resonances=unique(fit_data
 #'
 #' @param fit_data fit_input or fit_output structure
 #' @param omega0_plus length 3 vector giving ppm range for each dimension
+#' @param resonances character vector with resonances to plot
 #'
 #' @export
 plot_resonances_3d <- function(fit_data, omega0_plus, resonances=unique(fit_data$resonance_names)) {

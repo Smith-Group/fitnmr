@@ -6,6 +6,9 @@
 \usage{
 spec_overlap_mat(peak_int_list)
 }
+\arguments{
+\item{peak_int_list}{list of peak intensity arrays}
+}
 \description{
 Determine a matrix of fractional peak overlap
 }

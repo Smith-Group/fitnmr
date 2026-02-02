@@ -32,6 +32,57 @@ make_fit_input(
   fheader = NULL
 )
 }
+\arguments{
+\item{spectra}{list of spectra or data frame with ppm and intensity columns}
+
+\item{omega0_start}{starting omega0 values}
+
+\item{omega0_plus}{positive omega0 bounds}
+
+\item{omega0_minus}{negative omega0 bounds}
+
+\item{omega0_trunc}{optional truncation bounds for omega0}
+
+\item{r2_start}{starting r2 values}
+
+\item{m0_start}{starting m0 values}
+
+\item{m0_region}{region for m0 estimation}
+
+\item{p0_start}{starting zero-order phase values}
+
+\item{p1_start}{starting first-order phase values}
+
+\item{omega0_group}{grouping for omega0 values}
+
+\item{r2_group}{grouping for r2 values}
+
+\item{m0_group}{grouping for m0 values}
+
+\item{p0_group}{grouping for p0 values}
+
+\item{p1_group}{grouping for p1 values}
+
+\item{omega0_comb}{list of omega0 combination matrices}
+
+\item{omega0_comb_start}{starting omega0 combination values}
+
+\item{omega0_comb_group}{grouping for omega0 combinations}
+
+\item{coupling_comb}{list of coupling combination matrices}
+
+\item{resonance_names}{optional resonance names}
+
+\item{nucleus_names}{optional nucleus names}
+
+\item{field_offsets}{matrix of field offsets}
+
+\item{field_start}{starting field values}
+
+\item{field_group}{grouping for field values}
+
+\item{fheader}{optional fheader matrix when spectra is a data frame}
+}
 \description{
 Prepare input data structure for peak fitting
 }

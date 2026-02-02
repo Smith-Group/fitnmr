@@ -6,6 +6,9 @@
 \usage{
 param_list_to_arg_list(param_list)
 }
+\arguments{
+\item{param_list}{parameter list}
+}
 \description{
 Convert a list of parameters for use with make_fit_input
 }

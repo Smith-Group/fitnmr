@@ -23,6 +23,8 @@ plot_resonances_2d(
 \item{low_frac}{minimum absolute value (as a fraction of maximum intensity) at which to show contours}
 
 \item{field}{logical indicating whether to show modeling of field inhomogeneity as separate peaks}
+
+\item{proj_frac}{fraction of plot area reserved for 1D projections}
 }
 \description{
 Plot resonances from 2D fit

@@ -19,6 +19,31 @@ fit_peak_cluster(
   plot_fit_stages = FALSE
 )
 }
+\arguments{
+\item{spec_list}{list of spectra}
+
+\item{cs_start}{matrix of starting chemical shifts}
+
+\item{spec_ord}{order of spectral dimensions}
+
+\item{f_alpha_thresh}{alpha threshold for F-test}
+
+\item{omega0_plus}{omega0 bounds for each dimension}
+
+\item{r2_start}{starting r2 values}
+
+\item{r2_bounds}{numeric vector of length 2 with r2 bounds}
+
+\item{sc_start}{starting scalar coupling values}
+
+\item{sc_bounds}{numeric vector of length 2 with scalar coupling bounds}
+
+\item{plot_main_prefix}{optional prefix for plot titles}
+
+\item{peak_num_offset}{offset added to peak numbers in plots}
+
+\item{plot_fit_stages}{logical indicating whether to plot intermediate fits}
+}
 \description{
 Fit a cluster nearby peaks starting from a seed table of chemical shifts
 }

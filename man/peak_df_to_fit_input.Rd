@@ -6,6 +6,13 @@
 \usage{
 peak_df_to_fit_input(peak_df, spectra, ...)
 }
+\arguments{
+\item{peak_df}{data frame of peak parameters}
+
+\item{spectra}{list of spectra}
+
+\item{...}{additional arguments passed to \code{\link{make_fit_input}}}
+}
 \description{
 Convert a peak data frame to fit input
 }

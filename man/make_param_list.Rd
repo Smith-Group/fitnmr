@@ -15,6 +15,23 @@ make_param_list(
   same_coupling = FALSE
 )
 }
+\arguments{
+\item{spec_list}{list of spectra}
+
+\item{cs_mat}{matrix of chemical shifts}
+
+\item{fit_prev}{optional previous fit parameters}
+
+\item{r2_start}{starting r2 values}
+
+\item{m0_start}{starting m0 values}
+
+\item{sc_start}{starting scalar coupling values}
+
+\item{same_r2}{logical indicating whether to tie r2 across dimensions}
+
+\item{same_coupling}{logical indicating whether to tie coupling across dimensions}
+}
 \description{
 Make a parameter list for a set of spectra and chemical shifts
 }

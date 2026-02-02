@@ -15,6 +15,23 @@ nmr_pipe(
   ext = NULL
 )
 }
+\arguments{
+\item{in_path}{input file path}
+
+\item{out_path}{output file path}
+
+\item{ndim}{number of dimensions}
+
+\item{apod}{optional apodization argument matrix}
+
+\item{sp}{optional sine-bell argument matrix}
+
+\item{zf}{optional zero-fill argument matrix}
+
+\item{ps}{optional phase correction argument matrix}
+
+\item{ext}{optional extraction argument matrix}
+}
 \description{
 Process an FID with NMRPipe
 }

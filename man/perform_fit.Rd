@@ -10,6 +10,13 @@ perform_fit(
   ...
 )
 }
+\arguments{
+\item{fit_input}{fit_input structure}
+
+\item{method}{fitting method}
+
+\item{...}{additional arguments passed to the fitting routine}
+}
 \description{
 Perform a fit with an input data structure
 }

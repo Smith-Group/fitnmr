@@ -6,6 +6,9 @@
 \usage{
 read_nmrdraw_peak_tab(file_path)
 }
+\arguments{
+\item{file_path}{path to the NMRDraw peak table file}
+}
 \description{
 Read an NMRDraw formatted peak table
 }

@@ -31,7 +31,27 @@ plot_sparse_1d(
 
 \item{col_model}{color for modeled peak shapes}
 
-\item{col_resonances}{colors for resonances}
+\item{col_resonance}{colors for resonances}
+
+\item{lwd}{line width}
+
+\item{tick_spacing}{spacing between axis ticks (ppm)}
+
+\item{coupling_spacing}{spacing between coupling annotations (fraction of plot)}
+
+\item{coupling_marks}{size of coupling tick marks (fraction of plot)}
+
+\item{xaxs}{x-axis style passed to \code{\link[graphics]{plot}}}
+
+\item{yaxt}{y-axis style passed to \code{\link[graphics]{plot}}}
+
+\item{bty}{box type passed to \code{\link[graphics]{plot}}}
+
+\item{always_show_start}{logical indicating whether to show starting model when fit is present}
+
+\item{add}{logical indicating whether to add to existing plot}
+
+\item{ppm_map}{sparse axis map created by \code{\link{make_map}}}
 }
 \description{
 Plot spectrum from 1D fit

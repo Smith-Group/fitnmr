@@ -13,7 +13,7 @@ resonance_to_param_list(spec, resonance, nuclei, couplings)
 
 \item{nuclei}{data frame with nuclei chemical shifts and R2 rates}
 
-\item{data}{frame with scalar couplings}
+\item{couplings}{data frame with scalar couplings}
 }
 \description{
 Convert data frame of resonances into a parameter list

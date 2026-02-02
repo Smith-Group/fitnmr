@@ -6,6 +6,11 @@
 \usage{
 whz_to_pts(whz_mat, fheader)
 }
+\arguments{
+\item{whz_mat}{matrix of widths in Hz}
+
+\item{fheader}{matrix of generalized ND parameters}
+}
 \description{
 Convert widths in Hz into points
 }

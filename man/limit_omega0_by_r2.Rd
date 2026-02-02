@@ -6,6 +6,11 @@
 \usage{
 limit_omega0_by_r2(fit_input, factor = 1.5)
 }
+\arguments{
+\item{fit_input}{fit_input structure}
+
+\item{factor}{multiplier applied to r2 to set omega0 bounds}
+}
 \description{
 Add upper/lower limits based on the r2 value
 }

@@ -8,6 +8,8 @@ abind_list(..., rev.along = NULL)
 }
 \arguments{
 \item{...}{any number of lists with dimensions or a single list of list arrrays}
+
+\item{rev.along}{dimension to reverse before binding (passed to \code{\link[abind]{abind}})}
 }
 \description{
 Combine multi-dimensional arrays with lists

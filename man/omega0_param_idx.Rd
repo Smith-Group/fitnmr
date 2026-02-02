@@ -11,6 +11,15 @@ omega0_param_idx(
   specs = seq_len(dim(param_list[["group_list"]][["omega0"]])[3])
 )
 }
+\arguments{
+\item{param_list}{parameter list}
+
+\item{dims}{dimensions to include}
+
+\item{peaks}{peaks to include}
+
+\item{specs}{spectra to include}
+}
 \description{
 Get a list of logical arrays indicating which parameters correspond to peak positions
 }

@@ -42,6 +42,7 @@ infer_direct <- function(fheader) {
 #' Infer which dimension was directly acquired
 #'
 #' @param fheader matrix of generalized ND parameters
+#' @param phase_tolerance tolerance in degrees for detecting half-dwell delay
 infer_aliasing <- function(fheader, phase_tolerance=10) {
 
 	# assume everything except direct dimension aliases
@@ -275,6 +276,7 @@ read_nmrdraw_peak_tab_old <- function(filepath) {
 
 #' Read an NMRDraw formatted peak table
 #'
+#' @param file_path path to the NMRDraw peak table file
 #' @export
 read_nmrdraw_peak_tab <- function(file_path) {
 
@@ -299,6 +301,8 @@ names(peak_tab_formats) <- c("INDEX", "X_AXIS", "Y_AXIS", "DX", "DY", "X_PPM", "
 
 #' Write an NMRDraw formatted peak table
 #'
+#' @param peak_tab data frame containing peak table data
+#' @param file_path path to write the NMRDraw peak table file
 #' @export
 write_nmrdraw_peak_tab <- function(peak_tab, file_path) {
 
@@ -320,6 +324,8 @@ write_nmrdraw_peak_tab <- function(peak_tab, file_path) {
 
 #' Convert PPM values to points
 #'
+#' @param ppm_mat matrix of ppm values
+#' @param fheader matrix of generalized ND parameters
 #' @export
 ppm_to_pts <- function(ppm_mat, fheader) {
 
@@ -334,6 +340,9 @@ ppm_to_pts <- function(ppm_mat, fheader) {
 }
 
 #' Convert widths in Hz into points
+#'
+#' @param whz_mat matrix of widths in Hz
+#' @param fheader matrix of generalized ND parameters
 whz_to_pts <- function(whz_mat, fheader) {
 
 	wpoints_mat <- t(t(whz_mat)/fheader["SW",]*fheader["FTSIZE",])
@@ -354,6 +363,12 @@ collapse_args <- function(named_args) {
 
 #' Simulate an FID using the NMRPipe SimTimeND function
 #'
+#' @param peak_tab NMRDraw peak table
+#' @param fheader matrix of generalized ND parameters
+#' @param rms RMS noise level
+#' @param iseed random seed
+#' @param file_path optional output path for the simulated FID
+#' @param verbose logical indicating whether to print the command
 #' @export
 sim_time_nd <- function(peak_tab, fheader, rms=0, iseed=stats::runif(1,max=.Machine$integer.max), file_path=NULL, verbose=FALSE) {
 
@@ -405,6 +420,14 @@ sim_time_nd <- function(peak_tab, fheader, rms=0, iseed=stats::runif(1,max=.Mach
 
 #' Process an FID with NMRPipe
 #'
+#' @param in_path input file path
+#' @param out_path output file path
+#' @param ndim number of dimensions
+#' @param apod optional apodization argument matrix
+#' @param sp optional sine-bell argument matrix
+#' @param zf optional zero-fill argument matrix
+#' @param ps optional phase correction argument matrix
+#' @param ext optional extraction argument matrix
 #' @export
 nmr_pipe <- function(in_path, out_path, ndim=1, apod=NULL, sp=rbind(off=0.5, end=1.0, pow=1, c=0.5), zf=rbind(auto=""), ps=rbind(p0=0, p1=0, di=""), ext=NULL) {
 

@@ -14,6 +14,8 @@ param_values(params, idx_list) <- value
 
 \item{idx_list}{a list with the same structure as \code{params} but with logical
 vectors indicating which values should be return/set}
+
+\item{value}{replacement values (for setter)}
 }
 \value{
 a vector of parameter values or the modified parameter list

@@ -28,11 +28,15 @@ plot_peak_df(
 
 \item{noise_cutoff}{numeric value used to calculate the lowest contour level according to \code{noise_sigma*noise_cutoff}.}
 
+\item{omega0_plus}{omega0 bounds for plotting}
+
 \item{cex}{numeric value by which to scale blue points and labels.}
 
 \item{lwd}{numeric value giving width of contour lines.}
 
 \item{label}{logical indicating whether to draw text labels and connecting lines.}
+
+\item{label_col}{color for text labels}
 
 \item{p0}{zero order phase for plotting modeled peaks.}
 

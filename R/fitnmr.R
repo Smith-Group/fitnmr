@@ -409,6 +409,31 @@ coupling_omega0_weights <- function(omega0, coupling_mat=NULL, omega0_comb=NULL,
 
 #' Prepare input data structure for peak fitting
 #'
+#' @param spectra list of spectra or data frame with ppm and intensity columns
+#' @param omega0_start starting omega0 values
+#' @param omega0_plus positive omega0 bounds
+#' @param omega0_minus negative omega0 bounds
+#' @param omega0_trunc optional truncation bounds for omega0
+#' @param r2_start starting r2 values
+#' @param m0_start starting m0 values
+#' @param m0_region region for m0 estimation
+#' @param p0_start starting zero-order phase values
+#' @param p1_start starting first-order phase values
+#' @param omega0_group grouping for omega0 values
+#' @param r2_group grouping for r2 values
+#' @param m0_group grouping for m0 values
+#' @param p0_group grouping for p0 values
+#' @param p1_group grouping for p1 values
+#' @param omega0_comb list of omega0 combination matrices
+#' @param omega0_comb_start starting omega0 combination values
+#' @param omega0_comb_group grouping for omega0 combinations
+#' @param coupling_comb list of coupling combination matrices
+#' @param resonance_names optional resonance names
+#' @param nucleus_names optional nucleus names
+#' @param field_offsets matrix of field offsets
+#' @param field_start starting field values
+#' @param field_group grouping for field values
+#' @param fheader optional fheader matrix when spectra is a data frame
 #' @export
 make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omega0_plus, omega0_trunc=NULL, r2_start=NULL, m0_start=NULL, m0_region=(omega0_plus+omega0_minus)/2, p0_start=0, p1_start=0, omega0_group=NULL, r2_group=NULL, m0_group=NULL, p0_group=0, p1_group=0, omega0_comb=NULL, omega0_comb_start=NULL, omega0_comb_group=NULL, coupling_comb=NULL, resonance_names=NULL, nucleus_names=NULL, field_offsets=numeric(), field_start=numeric(), field_group=0, fheader=NULL) {
 
@@ -1233,6 +1258,9 @@ optim_gr <- function(par, fit_data, cache=NULL) {
 
 #' Perform a fit with an input data structure
 #'
+#' @param fit_input fit_input structure
+#' @param method fitting method
+#' @param ... additional arguments passed to the fitting routine
 #' @export
 perform_fit <- function(fit_input, method=c("minpack.lm", "gslnls", "sparseLM", "L-BFGS-B"), ...) {
 
@@ -1326,6 +1354,10 @@ fit_jac_nlfb <- function(par, fit_data) {
 
 #' Get arrays of spectral intensities for input, starting parameters, and fit peaks
 #'
+#' @param fit_data fit_input or fit_output structure
+#' @param spec_type character indicating which spectra to return
+#' @param spec_idx indices of spectra to return
+#' @param peak_idx indices of peaks to include (for start/fit)
 #' @export
 get_spec_int <- function(fit_data, spec_type=c("input", "start", "fit"), spec_idx=seq_along(fit_data$spec_data), peak_idx=seq_len(dim(fit_data$start_list$omega0)[2])) {
 
@@ -1384,6 +1416,8 @@ get_spec_int <- function(fit_data, spec_type=c("input", "start", "fit"), spec_id
 
 #' Plot a one dimensional peak fit
 #'
+#' @param fit_data fit_input or fit_output structure
+#' @param always_show_start logical indicating whether to show starting model when fit is present
 #' @export
 plot_fit_1d <- function(fit_data, always_show_start=FALSE) {
 
@@ -1430,6 +1464,10 @@ plot_fit_1d <- function(fit_data, always_show_start=FALSE) {
 
 #' Plot a two dimensional peak fit
 #'
+#' @param fit_output fit_output structure
+#' @param spec_ord order of spectral dimensions to plot
+#' @param always_show_start logical indicating whether to show starting model when fit is present
+#' @param main optional title for the plot
 #' @export
 plot_fit_2d <- function(fit_output, spec_ord=seq_len(dim(fit_output$start_list$omega0)[1]), always_show_start=FALSE, main=NULL) {
 
@@ -1547,6 +1585,9 @@ contour_pipe <- function(data_mat, nlevels=10, zlim=range(data_mat, na.rm=TRUE),
 }
 
 #' Extract parameters from fit object for use with make_fit_input
+#'
+#' @param fit fit_output structure
+#' @param expand number of empty peaks to append
 extract_params <- function(fit, expand=0) {
 
 	fit_params <- fit$fit_list
@@ -1588,6 +1629,9 @@ extract_params <- function(fit, expand=0) {
 }
 
 #' Determine the region of a spectrum containing the majority of the fit peaks
+#'
+#' @param fit fit_output structure
+#' @param frac fraction of total intensity used to define the footprint
 fit_footprint <- function(fit, frac=0.12) {
 
 	fit_spec_int <- fitnmr::get_spec_int(fit, "fit")
@@ -1616,6 +1660,8 @@ fit_footprint <- function(fit, frac=0.12) {
 
 #' Add upper/lower limits based on the r2 value
 #'
+#' @param fit_input fit_input structure
+#' @param factor multiplier applied to r2 to set omega0 bounds
 #' @export
 limit_omega0_by_r2 <- function(fit_input, factor=1.5) {
 
@@ -1643,6 +1689,10 @@ limit_omega0_by_r2 <- function(fit_input, factor=1.5) {
 
 #' Update bounds on fitting parameters
 #'
+#' @param fit_input fit_input structure
+#' @param omega0_r2_factor optional factor for omega0 bounds based on r2
+#' @param r2_bounds optional numeric vector of length 2
+#' @param sc_bounds optional numeric vector of length 2
 #' @export
 update_fit_bounds <- function(fit_input, omega0_r2_factor=NULL, r2_bounds=NULL, sc_bounds=NULL) {
 
@@ -1676,6 +1726,11 @@ omega0_bound_distance <- function(fit_output) {
 }
 
 #' Get spectra for individual peaks
+#'
+#' @param fit_data fit_input or fit_output structure
+#' @param spec_type character indicating which spectra to return
+#' @param spec_idx indices of spectra to return
+#' @param peak_idx indices of peaks to include
 get_spec_peak_int <- function(fit_data, spec_type=c("start", "fit"), spec_idx=seq_along(fit_data$spec_data), peak_idx=seq_len(dim(fit_data$start_list$omega0)[2])) {
 
 	spec_type <- match.arg(spec_type)
@@ -1695,6 +1750,8 @@ get_spec_peak_int <- function(fit_data, spec_type=c("start", "fit"), spec_idx=se
 }
 
 #' Determine a matrix of fractional peak overlap
+#'
+#' @param peak_int_list list of peak intensity arrays
 spec_overlap_mat <- function(peak_int_list) {
 
 	norm_peak_int_list <- lapply(peak_int_list, function(x) abs(x)/sum(abs(x), na.rm=TRUE))
@@ -1712,6 +1769,17 @@ spec_overlap_mat <- function(peak_int_list) {
 
 #' Fit peaks from a table of chemical shifts
 #'
+#' @param spec_list list of spectra
+#' @param cs_mat matrix of chemical shifts
+#' @param fit_prev optional previous fit parameters
+#' @param spec_ord order of spectral dimensions
+#' @param omega0_plus omega0 bounds for each dimension
+#' @param r2_start starting r2 values
+#' @param r2_bounds numeric vector of length 2 with r2 bounds
+#' @param sc_start starting scalar coupling values
+#' @param sc_bounds numeric vector of length 2 with scalar coupling bounds
+#' @param positive_only logical indicating whether to constrain m0 to be positive
+#' @param plot_fit_stages logical indicating whether to plot intermediate fits
 #' @export
 fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plus=c(0.075, 0.75), r2_start=5, r2_bounds=c(0.5, 20), sc_start=NULL, sc_bounds=c(0, Inf), positive_only=TRUE, plot_fit_stages=TRUE) {
 
@@ -1861,6 +1929,14 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 
 #' Make a parameter list for a set of spectra and chemical shifts
 #'
+#' @param spec_list list of spectra
+#' @param cs_mat matrix of chemical shifts
+#' @param fit_prev optional previous fit parameters
+#' @param r2_start starting r2 values
+#' @param m0_start starting m0 values
+#' @param sc_start starting scalar coupling values
+#' @param same_r2 logical indicating whether to tie r2 across dimensions
+#' @param same_coupling logical indicating whether to tie coupling across dimensions
 #' @export
 make_param_list <- function(spec_list, cs_mat, fit_prev=NULL, r2_start=5, m0_start=1, sc_start=NULL, same_r2=FALSE, same_coupling=FALSE) {
 
@@ -1998,6 +2074,10 @@ make_param_list <- function(spec_list, cs_mat, fit_prev=NULL, r2_start=5, m0_sta
 
 #' Get a list of logical arrays indicating which parameters correspond to peak positions
 #'
+#' @param param_list parameter list
+#' @param dims dimensions to include
+#' @param peaks peaks to include
+#' @param specs spectra to include
 #' @export
 omega0_param_idx <- function(param_list, dims=seq_len(dim(param_list[["group_list"]][["omega0"]])[1]), peaks=seq_len(dim(param_list[["group_list"]][["omega0"]])[2]), specs=seq_len(dim(param_list[["group_list"]][["omega0"]])[3])) {
 	
@@ -2022,6 +2102,8 @@ omega0_param_idx <- function(param_list, dims=seq_len(dim(param_list[["group_lis
 
 #' Get a list of logical arrays indicating which parameters correspond to scalar couplings
 #'
+#' @param param_list parameter list
+#' @param comb_idx_offset offset for combination index mapping
 #' @export
 coupling_param_idx <- function(param_list, comb_idx_offset=0) {
 	
@@ -2052,6 +2134,9 @@ coupling_param_idx <- function(param_list, comb_idx_offset=0) {
 }
 
 #' Get the first index in the omega0 array corresponding to each TRUE value in omega0_idx
+#'
+#' @param param_list parameter list
+#' @param omega0_idx logical index list for omega0 parameters
 omega0_comb_source_idx <- function(param_list, omega0_idx=omega0_param_idx(param_list)) {
 
 	source_idx <- param_values(param_list[["group_list"]], omega0_idx)
@@ -2084,6 +2169,7 @@ omega0_comb_source_idx <- function(param_list, omega0_idx=omega0_param_idx(param
 #' @param params a list of fitting parameters
 #' @param idx_list a list with the same structure as \code{params} but with logical
 #' vectors indicating which values should be return/set
+#' @param value replacement values (for setter)
 #' @return a vector of parameter values or the modified parameter list
 #' @export
 param_values <- function(params, idx_list) {
@@ -2113,6 +2199,7 @@ param_values <- function(params, idx_list) {
 
 #' Convert a list of parameters for use with make_fit_input
 #'
+#' @param param_list parameter list
 #' @export
 param_list_to_arg_list <- function(param_list) {
 
@@ -2134,6 +2221,18 @@ param_list_to_arg_list <- function(param_list) {
 
 #' Fit a cluster nearby peaks starting from a seed table of chemical shifts
 #'
+#' @param spec_list list of spectra
+#' @param cs_start matrix of starting chemical shifts
+#' @param spec_ord order of spectral dimensions
+#' @param f_alpha_thresh alpha threshold for F-test
+#' @param omega0_plus omega0 bounds for each dimension
+#' @param r2_start starting r2 values
+#' @param r2_bounds numeric vector of length 2 with r2 bounds
+#' @param sc_start starting scalar coupling values
+#' @param sc_bounds numeric vector of length 2 with scalar coupling bounds
+#' @param plot_main_prefix optional prefix for plot titles
+#' @param peak_num_offset offset added to peak numbers in plots
+#' @param plot_fit_stages logical indicating whether to plot intermediate fits
 #' @export
 fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001, omega0_plus=c(0.075, 0.75), r2_start=5, r2_bounds=c(0.5, 20), sc_start=NULL, sc_bounds=c(0, Inf), plot_main_prefix=NULL, peak_num_offset=0, plot_fit_stages=FALSE) {
 
@@ -2580,6 +2679,8 @@ param_list_to_peak_df <- function(param_list, spec_names=NULL) {
 
 #' Convert a peak data frame to a parameter list
 #'
+#' @param peak_df data frame of peak parameters
+#' @param spectra list of spectra
 #' @export
 peak_df_to_param_list <- function(peak_df, spectra) {
 
@@ -2617,6 +2718,9 @@ peak_df_to_param_list <- function(peak_df, spectra) {
 
 #' Convert a peak data frame to fit input
 #'
+#' @param peak_df data frame of peak parameters
+#' @param spectra list of spectra
+#' @param ... additional arguments passed to \code{\link{make_fit_input}}
 #' @export
 peak_df_to_fit_input <- function(peak_df, spectra, ...) {
 
@@ -2635,9 +2739,11 @@ peak_df_to_fit_input <- function(peak_df, spectra, ...) {
 #' @param spectra list of spectra corresponding to the volumes found in \code{peak_df}.
 #' @param noise_sigma numeric vector of noise levels associated with each spectrum. If \code{NULL}, it is calculated with \code{\link{noise_estimate}}.
 #' @param noise_cutoff numeric value used to calculate the lowest contour level according to \code{noise_sigma*noise_cutoff}.
+#' @param omega0_plus omega0 bounds for plotting
 #' @param cex numeric value by which to scale blue points and labels.
 #' @param lwd numeric value giving width of contour lines.
 #' @param label logical indicating whether to draw text labels and connecting lines.
+#' @param label_col color for text labels
 #' @param p0 zero order phase for plotting modeled peaks.
 #' @param p1 first order phase for plotting modeled peaks.
 #' @param add logical indicating whether to suppress generation of a new plot and add to an existing plot.

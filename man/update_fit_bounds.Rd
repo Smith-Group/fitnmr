@@ -11,6 +11,15 @@ update_fit_bounds(
   sc_bounds = NULL
 )
 }
+\arguments{
+\item{fit_input}{fit_input structure}
+
+\item{omega0_r2_factor}{optional factor for omega0 bounds based on r2}
+
+\item{r2_bounds}{optional numeric vector of length 2}
+
+\item{sc_bounds}{optional numeric vector of length 2}
+}
 \description{
 Update bounds on fitting parameters
 }
