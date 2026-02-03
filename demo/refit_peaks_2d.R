@@ -50,6 +50,9 @@ plot_omega0_bounds <- TRUE
 
 # number of cores to use for refitting
 mc_cores <- getOption("mc.cores", parallel::detectCores())
+if (.Platform$OS.type == "windows") {
+	mc_cores <- 1L
+}
 
 
 library(fitnmr)
