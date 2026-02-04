@@ -31,6 +31,10 @@ knitr::opts_chunk$set(
 #knitr::opts_chunk$set(optipng = "-o7 -strip all")
 #knitr::knit_hooks$set(optipng = knitr::hook_optipng)
 options(digits=5, width=90)
+check_limit_cores <- tolower(Sys.getenv("_R_CHECK_LIMIT_CORES_", ""))
+if (nzchar(check_limit_cores) && (check_limit_cores != "false")) {
+	options(mc.cores=2)
+}
 ```
 
 FitNMR enables fully automated peak fitting of 2D NMR spectra. This document shows how the 2D fitting can be done with very little manual code entry using three convenience scripts, `fit_peaks_2d.R`, `refit_peaks_2d.R`, and `assign_peaks_2d.R`, that are included with FitNMR. For a description of how a similar workflow can be accomplished using `R` code and more details about algorithms, see the "Automated 2D Peak Fitting Code" document. The directory containing the three demo scripts that will be used here can be found by running the following from within R:
@@ -190,9 +194,6 @@ write.csv(input_table, file.path("refine", "start_volume.csv"), row.names=FALSE)
 The final step is to call the `refit_peaks_2d.R` script from within the `refine` directory:
 
 ```{r}
-if (Sys.getenv("_R_CHECK_LIMIT_CORES_") == "TRUE") {
-	options(mc.cores=2)
-}
 setwd("refine")
 source("refit_peaks_2d.R")
 setwd("..")
