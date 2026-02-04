@@ -1,5 +1,7 @@
 destination: ../smith-group.github.io/fitnmr
 url: https://smith-group.github.io/fitnmr/
+template:
+  bootstrap: 5
 authors:
   Colin Smith:
     href: http://smithlab.wesleyan.edu
