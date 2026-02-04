@@ -5,7 +5,10 @@ Authors@R: c(person("Colin", "Smith", role=c("aut", "cre"),
                     email = "colin.smith@wesleyan.edu"))
 Author: Colin Smith [aut, cre]
 Maintainer: Colin Smith <colin.smith@wesleyan.edu>
-Description: Fit multidimensional peaks in NMR spectra.
+Description: Fit multidimensional peaks in NMR spectra using analytical
+    lineshape modeling and multiplet fitting methods (Dudley et al. (2020)
+    <doi:10.1016/j.jmr.2020.106773>; Syed et al. (2024)
+    <doi:10.5194/mr-5-103-2024>).
 License: GPL-3
 URL: https://github.com/smith-group/fitnmr/, https://smith-group.github.io/fitnmr/
 Imports: minpack.lm, abind, Matrix, methods

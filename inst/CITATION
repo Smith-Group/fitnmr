@@ -1,0 +1,33 @@
+citHeader("To cite fitnmr and the methods it implements, please use:")
+
+bibentry(
+  bibtype = "Article",
+  title = "Resolving overlapped signals with automated FitNMR analytical peak modeling",
+  author = c(
+    person(c("Joshua", "A."), "Dudley"),
+    person("Sojeong", "Park"),
+    person(c("Meagan", "E."), "MacDonald"),
+    person("Emanual", "Fetene"),
+    person(c("Colin", "A."), "Smith")
+  ),
+  journal = "Journal of Magnetic Resonance",
+  year = "2020",
+  volume = "318",
+  pages = "106773",
+  doi = "10.1016/j.jmr.2020.106773"
+)
+
+bibentry(
+  bibtype = "Article",
+  title = "Analysis of chi angle distributions in free amino acids via multiplet fitting of proton scalar couplings",
+  author = c(
+    person(c("Nabiha", "R."), "Syed"),
+    person(c("Nafisa", "B."), "Masud"),
+    person(c("Colin", "A."), "Smith")
+  ),
+  journal = "Magnetic Resonance",
+  year = "2024",
+  volume = "5",
+  pages = "103-120",
+  doi = "10.5194/mr-5-103-2024"
+)
