@@ -35,6 +35,13 @@ check_limit_cores <- tolower(Sys.getenv("_R_CHECK_LIMIT_CORES_", ""))
 if (nzchar(check_limit_cores) && (check_limit_cores != "false")) {
 	options(mc.cores=2)
 }
+if (Sys.getenv("IN_PKGDOWN") == "" && ! interactive()) {
+  knitr::opts_chunk$set(fig.retina = 1)
+}
+```
+
+```{r results = if (Sys.getenv("IN_PKGDOWN")=="" && !interactive()) "asis" else "hide", echo = FALSE}
+cat("**Note:** A high-resolution version of this document is [available online](https://smith-group.github.io/fitnmr/articles/peak2d_scripts.html).")
 ```
 
 FitNMR enables fully automated peak fitting of 2D NMR spectra. This document shows how the 2D fitting can be done with very little manual code entry using three convenience scripts, `fit_peaks_2d.R`, `refit_peaks_2d.R`, and `assign_peaks_2d.R`, that are included with FitNMR. For a description of how a similar workflow can be accomplished using `R` code and more details about algorithms, see the "Automated 2D Peak Fitting Code" document. The directory containing the three demo scripts that will be used here can be found by running the following from within R:
@@ -58,7 +65,11 @@ pdf <- function(file, width=7, height=7, pointsize=12) {
 	width <- min(width, 7)
 	height <- min(height, 7)
 	
-	grDevices::png(file, width, height, "in", pointsize, res=192)
+	if (Sys.getenv("IN_PKGDOWN") == "" && ! interactive()) {
+		grDevices::png(file, width, height, "in", pointsize, res=96)
+	} else {
+		grDevices::png(file, width, height, "in", pointsize, res=192)
+	}
 }
 
 update_cex <- function(file, cex) {

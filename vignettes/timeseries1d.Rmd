@@ -21,7 +21,9 @@ vignette: >
 ---
 
 ```{r setup, include=FALSE}
-if (knitr::opts_knit$get("rmarkdown.pandoc.to") %in% c("docx", "docx+styles")) {
+if (Sys.getenv("IN_PKGDOWN") == "" && ! interactive()) {
+  knitr::opts_chunk$set(echo = FALSE, dev = "png", fig.retina = 1, dev.args = list(pointsize = 10))
+} else if (knitr::opts_knit$get("rmarkdown.pandoc.to") %in% c("docx", "docx+styles")) {
   knitr::opts_chunk$set(echo = FALSE, dev = "png", dpi = 300, dev.args = list(pointsize = 10))
 } else {
   knitr::opts_chunk$set(echo = FALSE, dev = "png", dpi = 300, dev.args = list(pointsize = 10))
@@ -38,6 +40,10 @@ figure_letter <- function(letter) {
   	par(old_par)
   	plot.window(old_usr[1:2], old_usr[3:4])
 }
+```
+
+```{r results = if (Sys.getenv("IN_PKGDOWN")=="" && !interactive()) "asis" else "hide", echo = FALSE}
+cat("**Note:** A high-resolution version of this document is [available online](https://smith-group.github.io/fitnmr/articles/timeseries1d.html).")
 ```
 
 To use this document to process your own data, change the `fid_dir` path below.

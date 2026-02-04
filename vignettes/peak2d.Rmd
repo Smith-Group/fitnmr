@@ -20,6 +20,13 @@ knitr::opts_chunk$set(
 #knitr::opts_chunk$set(optipng = "-o7 -strip all")
 #knitr::knit_hooks$set(optipng = knitr::hook_optipng)
 options(digits=5, width=90)
+if (Sys.getenv("IN_PKGDOWN") == "" && ! interactive()) {
+  knitr::opts_chunk$set(fig.retina = 1)
+}
+```
+
+```{r results = if (Sys.getenv("IN_PKGDOWN")=="" && !interactive()) "asis" else "hide", echo = FALSE}
+cat("**Note:** A high-resolution version of this document is [available online](https://smith-group.github.io/fitnmr/articles/peak2d.html).")
 ```
 
 FitNMR enables fully automated peak fitting of 2D NMR spectra. This document demonstrates how fitting can be done using `R` code, various stages of the algorithm, and some of the ways that the results can be visualized. For a description of how a similar workflow can be accomplished using prewritten `R` scripts that process all the spectra you put in a given directory, see the "Automated 2D Peak Fitting Scripts" document.
