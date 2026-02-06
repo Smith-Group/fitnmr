@@ -18,5 +18,7 @@ Suggests:
     knitr,
     rmarkdown,
     bookdown,
-    gslnls
+    gslnls,
+    testthat (>= 3.0.0)
 VignetteBuilder: knitr
+Config/testthat/edition: 3
