@@ -1,5 +1,5 @@
 if (!requireNamespace("HamiltonianMultiplet", quietly = TRUE)) {
-	source(file.path("..", "..", "R", "DiffHamiltonian.R"))
+	source(file.path("..", "..", "R", "HamiltonianMultiplet.R"))
 } else {
 	library(HamiltonianMultiplet)
 }

@@ -1,5 +1,5 @@
 if (!requireNamespace("HamiltonianMultiplet", quietly = TRUE)) {
-	source(file.path("..", "..", "R", "DiffHamiltonian.R"))
+	source(file.path("..", "..", "R", "HamiltonianMultiplet.R"))
 } else {
 	library(HamiltonianMultiplet)
 }
@@ -31,8 +31,8 @@ test_that("analytical derivatives match finite differences", {
 		df_ana <- base[[paste0("dFreq_", lbl)]]
 		dI_ana <- base[[paste0("dInt_", lbl)]]
 
-		expect_equal(df_ana, df_num, tolerance = 1e-4, scale = 1)
-		expect_equal(dI_ana, dI_num, tolerance = 1e-4, scale = 1)
+		expect_equal(df_ana, df_num, tolerance = 1e-4)
+		expect_equal(dI_ana, dI_num, tolerance = 1e-4)
 	}
 
 	# reset params
