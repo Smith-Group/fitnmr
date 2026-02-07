@@ -830,7 +830,8 @@ plot_sparse_1d <- function(fit_data, tables=NULL, spec_idx=1, col_model=2, col_r
 				solid_list[["omega0"]][,idx,spec_idx],
 				fit_data[["comb_list"]][["coupling"]][[1,idx,spec_idx]], 
 				solid_list[["omega0_comb"]], 
-				fit_data[["spec_data"]][[spec_idx]][["ref_freq"]]
+				fit_data[["spec_data"]][[spec_idx]][["ref_freq"]],
+				fit_data[["spinsystems"]]
 			)
 		})
 		names(solid_omega0_weights_list) <- fit_data$resonance_names
@@ -1050,7 +1051,8 @@ plot_resonances_1d <- function(fit_data, always_show_start=FALSE, omega0_plus=0.
 					fit_data[["start_list"]][["omega0"]][,idx,spec_i],
 					fit_data[["comb_list"]][["coupling"]][[1,idx,spec_i]], 
 					fit_data[["start_list"]][["omega0_comb"]], 
-					fit_data[["spec_data"]][[spec_i]][["ref_freq"]]
+					fit_data[["spec_data"]][[spec_i]][["ref_freq"]],
+					fit_data[["spinsystems"]]
 				)
 			})
 			#print(start_omega0_weights_list)
@@ -1077,7 +1079,8 @@ plot_resonances_1d <- function(fit_data, always_show_start=FALSE, omega0_plus=0.
 						fit_data[["fit_list"]][["omega0"]][,idx,spec_i],
 						fit_data[["comb_list"]][["coupling"]][[1,idx,spec_i]], 
 						fit_data[["fit_list"]][["omega0_comb"]], 
-						fit_data[["spec_data"]][[spec_i]][["ref_freq"]]
+						fit_data[["spec_data"]][[spec_i]][["ref_freq"]],
+						fit_data[["spinsystems"]]
 					)
 				})
 				fit_omega0_weights <- do.call(rbind, fit_omega0_weights_list)
@@ -1302,14 +1305,16 @@ plot_resonances_2d <- function(fit_data, omega0_plus, resonances=unique(fit_data
 			fit_data$fit_list$omega0[idx[1],peak_idx[1],spec_i],
 			fit_data$comb_list$coupling[[idx[1],peak_idx[1],spec_i]],
 			fit_data$fit_list$omega0_comb,
-			fit_data$spec_data[[spec_i]]$ref_freq[idx[1]]
+			fit_data$spec_data[[spec_i]]$ref_freq[idx[1]],
+			fit_data$spinsystems
 		)
 		
 		omega0_weights_2 <- coupling_omega0_weights(
 			fit_data$fit_list$omega0[idx[2],peak_idx[1],spec_i],
 			fit_data$comb_list$coupling[[idx[2],peak_idx[1],spec_i]],
 			fit_data$fit_list$omega0_comb,
-			fit_data$spec_data[[spec_i]]$ref_freq[idx[2]]
+			fit_data$spec_data[[spec_i]]$ref_freq[idx[2]],
+			fit_data$spinsystems
 		)
 		
 		limits <- t(apply(fit_data$start_list$omega0[,peak_idx,spec_i,drop=FALSE], 1, range))+c(-omega0_plus, omega0_plus)
@@ -1481,7 +1486,8 @@ plot_resonances_3d <- function(fit_data, omega0_plus, resonances=unique(fit_data
 				fit_data$fit_list$omega0[idx[1],peak_idx[1],spec_i],
 				fit_data$comb_list$coupling[[idx[1],peak_idx[1],spec_i]],
 				fit_data$fit_list$omega0_comb,
-				fit_data$spec_data[[spec_i]]$ref_freq[idx[1]]
+				fit_data$spec_data[[spec_i]]$ref_freq[idx[1]],
+				fit_data$spinsystems
 			)
 			graphics::abline(v=omega0_weights_1[,1], col=grDevices::rgb(0,0,1,sqrt(omega0_weights_1[,2])))
 			
@@ -1524,7 +1530,8 @@ plot_resonances_3d <- function(fit_data, omega0_plus, resonances=unique(fit_data
 				fit_data$fit_list$omega0[idx[2],peak_idx[1],spec_i],
 				fit_data$comb_list$coupling[[idx[2],peak_idx[1],spec_i]],
 				fit_data$fit_list$omega0_comb,
-				fit_data$spec_data[[spec_i]]$ref_freq[idx[2]]
+				fit_data$spec_data[[spec_i]]$ref_freq[idx[2]],
+				fit_data$spinsystems
 			)
 			
 			omega0_weights_idx <- expand.grid(seq_len(nrow(omega0_weights_1)), seq_len(nrow(omega0_weights_2)))
