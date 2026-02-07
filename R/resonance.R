@@ -54,6 +54,150 @@ split_coupling_names <- function(name_char) {
 	sc_names
 }
 
+#' Update HamiltonianMultiplet parameters from input data
+#'
+#' @param spinsystems named list of HamiltonianMultiplet objects
+#' @param omega0 array of chemical shifts (ppm)
+#' @param omega0_comb named vector of coupling values (Hz)
+#' @param coupling_values named vector of coupling values (Hz)
+#' @param nucleus_names array of nucleus names aligned with omega0
+#' @param ref_freq numeric vector of reference frequencies (MHz)
+#' @param spec_idx spectrum index to use for chemical shift conversions
+set_spinsystem_params <- function(spinsystems, omega0, omega0_comb, coupling_values=NULL, nucleus_names, ref_freq, spec_idx=1) {
+
+	if (is.null(spinsystems) || !length(spinsystems)) {
+		return(invisible(NULL))
+	}
+	if (is.null(nucleus_names)) {
+		return(invisible(NULL))
+	}
+
+	omega0_map <- list()
+	for (dim_idx in seq_along(ref_freq)) {
+		omega0_vals <- as.vector(omega0[dim_idx,,spec_idx]) * ref_freq[[dim_idx]]
+		omega0_names <- as.vector(nucleus_names[dim_idx,])
+		omega0_map <- c(omega0_map, tapply(omega0_vals, omega0_names, function(x) x[[1]]))
+	}
+
+	for (ss_name in names(spinsystems)) {
+		ss <- spinsystems[[ss_name]]
+		labels <- ss$get_param_labels()
+		params <- structure(numeric(length(labels)), .Names = labels)
+		for (lbl in labels) {
+			if (!is.null(omega0_map) && lbl %in% names(omega0_map)) {
+				params[[lbl]] <- omega0_map[[lbl]]
+			} else if (!is.null(omega0_comb) && lbl %in% names(omega0_comb)) {
+				params[[lbl]] <- omega0_comb[[lbl]]
+			} else if (!is.null(coupling_values) && lbl %in% names(coupling_values)) {
+				params[[lbl]] <- coupling_values[[lbl]]
+			} else {
+				params[[lbl]] <- 0
+			}
+		}
+		ss$set_params(params)
+	}
+
+	invisible(NULL)
+}
+
+#' Update HamiltonianMultiplet parameters from fit data
+#'
+#' @param fit_data fit_input or fit_output structure
+#' @param spec_idx spectrum index to use for chemical shift conversions
+update_spinsystem_params <- function(fit_data, spec_idx=1) {
+
+	if ("fit_list" %in% names(fit_data)) {
+		param_list <- fit_data[["fit_list"]]
+	} else {
+		param_list <- fit_data[["start_list"]]
+	}
+
+	ref_freq <- fit_data[["spec_data"]][[spec_idx]][["ref_freq"]]
+	coupling_values <- fit_data[["couplings"]]
+	if (is.data.frame(coupling_values) && "hz" %in% colnames(coupling_values)) {
+		coupling_values <- setNames(coupling_values[,"hz"], rownames(coupling_values))
+	}
+
+	set_spinsystem_params(
+		fit_data[["spinsystems"]],
+		param_list[["omega0"]],
+		param_list[["omega0_comb"]],
+		coupling_values,
+		fit_data[["nucleus_names"]],
+		ref_freq,
+		spec_idx
+	)
+}
+
+#' Read resonance, nuclei, coupling, and spin system tables
+#'
+#' @param resonances_file path to resonances CSV file
+#' @param nuclei_file path to nuclei CSV file
+#' @param couplings_file path to couplings CSV file
+#' @param comment.char comment character passed to \code{\link[utils]{read.csv}}
+#'
+#' @export
+read_resonance_tables <- function(resonances_file = "start_resonances.csv",
+                                  nuclei_file = "start_nuclei.csv",
+                                  couplings_file = "start_couplings.csv",
+                                  comment.char = "") {
+
+	resonances <- read.csv(text = readLines(resonances_file, warn = FALSE),
+		row.names = 1, check.names = FALSE, comment.char = comment.char)
+	nuclei <- read.csv(text = readLines(nuclei_file, warn = FALSE),
+		row.names = 1, check.names = FALSE, comment.char = comment.char)
+	couplings <- read.csv(text = readLines(couplings_file, warn = FALSE),
+		row.names = 1, check.names = FALSE, comment.char = comment.char)
+
+	sc_cols <- grep("_sc$", colnames(resonances), value = TRUE)
+	for (col in sc_cols) {
+		resonances[[col]] <- as.character(resonances[[col]])
+		resonances[[col]][is.na(resonances[[col]])] <- ""
+	}
+
+	ss_cols <- grep("_ss$", colnames(resonances), value = TRUE)
+	if (length(ss_cols) > 0) {
+		for (col in ss_cols) {
+			resonances[[col]] <- as.character(resonances[[col]])
+			resonances[[col]][is.na(resonances[[col]])] <- ""
+		}
+	}
+
+	spin_names <- character(0)
+	if (length(ss_cols) > 0) {
+		spin_names <- unique(unlist(resonances[ss_cols], use.names = FALSE))
+		spin_names <- trimws(spin_names)
+		spin_names <- spin_names[nzchar(spin_names)]
+	}
+
+	spin_dir <- dirname(resonances_file)
+	spinsystems <- list()
+	if (length(spin_names) > 0) {
+		for (spin_name in spin_names) {
+			spin_path <- file.path(spin_dir, paste0("spinsystem_", spin_name, ".csv"))
+			if (!file.exists(spin_path)) {
+				stop("Missing spin system file: ", spin_path)
+			}
+			spin_df <- read.csv(text = readLines(spin_path, warn = FALSE),
+				header = FALSE, check.names = FALSE, comment.char = comment.char,
+				stringsAsFactors = FALSE)
+			spin_mat <- as.matrix(spin_df)
+			dimnames(spin_mat) <- NULL
+			spinsystems[[spin_name]] <- spin_mat
+		}
+	}
+
+	# make sure names of nuclei and couplings are all unique
+	stopifnot(length(unique(c(rownames(nuclei), rownames(couplings)))) == nrow(nuclei) + nrow(couplings))
+
+	list(
+		resonances = resonances,
+		nuclei = nuclei,
+		couplings = couplings,
+		spinsystems = spinsystems
+	)
+}
+
 #' Convert data frame of resonances into a parameter list
 #'
 #' @param spec single spectrum
@@ -80,6 +224,24 @@ resonance_to_param_list <- function(spec, resonance, nuclei, couplings) {
 		
 		make_coupling_mat(sc_names)
 	})
+
+	spinsystem_names <- lapply(seq_along(dim_names), function(dim_idx) {
+		ss_colname <- paste(dim_names[dim_idx], "_ss", sep = "")
+		if (ss_colname %in% names(resonance)) {
+			val <- resonance[[ss_colname]]
+			val <- as.character(val)
+			val[is.na(val)] <- ""
+			val
+		} else {
+			""
+		}
+	})
+	for (dim_idx in seq_along(dim_names)) {
+		if (nzchar(spinsystem_names[[dim_idx]])) {
+			attr(comb_list_coupling[[dim_idx]], "hamiltonian") <- spinsystem_names[[dim_idx]]
+			attr(comb_list_coupling[[dim_idx]], "operator") <- resonance[[dim_names[dim_idx]]]
+		}
+	}
 	
 	num_peaks <- 1
 	
@@ -282,6 +444,7 @@ tables_to_param_list <- function(spec_list, tables) {
 	resonances <- tables[["resonances"]]
 	nuclei <- tables[["nuclei"]]
 	couplings <- tables[["couplings"]]
+	spinsystems <- tables[["spinsystems"]]
 
 	resonance_param_list <- lapply(seq_along(spec_list), function(spec_i) {
 	
@@ -296,6 +459,8 @@ tables_to_param_list <- function(spec_list, tables) {
 	})
 	
 	param_list <- spec_bind(resonance_param_list)
+	param_list[["spinsystems"]] <- spinsystems
+	param_list[["couplings"]] <- couplings
 	
 	# find unique nucleus names
 	nucleus_names <- param_list[["nucleus_names"]]

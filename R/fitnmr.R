@@ -389,7 +389,7 @@ param_array_to_comb_vec <- function(param_array, comb_array, group_vec=NULL, res
 	}
 }
 
-coupling_omega0_weights <- function(omega0, coupling_mat=NULL, omega0_comb=NULL, ref_mhz=NULL) {
+coupling_omega0_weights <- function(omega0, coupling_mat=NULL, omega0_comb=NULL, ref_mhz=NULL, spinsystems=NULL) {
 
 	if (is.null(coupling_mat)) {
 	
@@ -403,7 +403,30 @@ coupling_omega0_weights <- function(omega0, coupling_mat=NULL, omega0_comb=NULL,
 				offset_mat[,coupling_name] <- offset_mat[,coupling_name]*omega0_comb[coupling_name]
 			}
 		}
-		data.frame(omega0=omega0+rowSums(offset_mat)/ref_mhz, weights=coupling_mat[,1])
+		offset_ppm <- rowSums(offset_mat) / ref_mhz
+		coupling_weights <- coupling_mat[,1]
+
+		ham_name <- attr(coupling_mat, "hamiltonian")
+		if (!is.null(ham_name) && nzchar(ham_name)) {
+			if (is.null(spinsystems) || !length(spinsystems) || !ham_name %in% names(spinsystems)) {
+				stop("Hamiltonian '", ham_name, "' not found in spinsystems")
+			}
+			operator <- attr(coupling_mat, "operator")
+			if (is.null(operator) || !nzchar(operator)) {
+				stop("Missing operator label for Hamiltonian '", ham_name, "'")
+			}
+
+			base <- spinsystems[[ham_name]]$multiplet(state_label = operator)
+			base_freq_ppm <- base$frequency / ref_mhz
+			base_weights <- base$intensity
+
+			data.frame(
+				omega0 = rep(base_freq_ppm, each = length(offset_ppm)) + rep(offset_ppm, times = length(base_freq_ppm)),
+				weights = rep(base_weights, each = length(offset_ppm)) * rep(coupling_weights, times = length(base_weights))
+			)
+		} else {
+			data.frame(omega0=omega0+offset_ppm, weights=coupling_weights)
+		}
 	}
 }
 
@@ -428,6 +451,8 @@ coupling_omega0_weights <- function(omega0, coupling_mat=NULL, omega0_comb=NULL,
 #' @param omega0_comb_start starting omega0 combination values
 #' @param omega0_comb_group grouping for omega0 combinations
 #' @param coupling_comb list of coupling combination matrices
+#' @param spinsystems optional named list of spin system label matrices
+#' @param couplings optional couplings table or named vector of coupling values
 #' @param resonance_names optional resonance names
 #' @param nucleus_names optional nucleus names
 #' @param field_offsets matrix of field offsets
@@ -435,7 +460,7 @@ coupling_omega0_weights <- function(omega0, coupling_mat=NULL, omega0_comb=NULL,
 #' @param field_group grouping for field values
 #' @param fheader optional fheader matrix when spectra is a data frame
 #' @export
-make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omega0_plus, omega0_trunc=NULL, r2_start=NULL, m0_start=NULL, m0_region=(omega0_plus+omega0_minus)/2, p0_start=0, p1_start=0, omega0_group=NULL, r2_group=NULL, m0_group=NULL, p0_group=0, p1_group=0, omega0_comb=NULL, omega0_comb_start=NULL, omega0_comb_group=NULL, coupling_comb=NULL, resonance_names=NULL, nucleus_names=NULL, field_offsets=numeric(), field_start=numeric(), field_group=0, fheader=NULL) {
+make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omega0_plus, omega0_trunc=NULL, r2_start=NULL, m0_start=NULL, m0_region=(omega0_plus+omega0_minus)/2, p0_start=0, p1_start=0, omega0_group=NULL, r2_group=NULL, m0_group=NULL, p0_group=0, p1_group=0, omega0_comb=NULL, omega0_comb_start=NULL, omega0_comb_group=NULL, coupling_comb=NULL, spinsystems=NULL, couplings=NULL, resonance_names=NULL, nucleus_names=NULL, field_offsets=numeric(), field_start=numeric(), field_group=0, fheader=NULL) {
 
 	if (is.data.frame(spectra)) {
 		fheader <- fheader
@@ -446,6 +471,12 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 		dimnames(spec_int) <- spec_ppm
 		spectra <- list(list(int=spec_int, ppm=spec_ppm, fheader=fheader, dim_idx=1))
 		#print(str(spectra))
+	}
+
+	if (!is.null(spinsystems)) {
+		spinsystems <- lapply(spinsystems, function(label_matrix) {
+			HamiltonianMultiplet$new(label_matrix)
+		})
 	}
 	
 	n_dimensions <- ncol(spectra[[1]][["fheader"]])
@@ -525,6 +556,20 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 		spec_ppm <- spectra[[i]][["ppm"]]
 		
 		fheader <- spectra[[i]][["fheader"]]
+
+		coupling_values <- couplings
+		if (is.data.frame(coupling_values) && "hz" %in% colnames(coupling_values)) {
+			coupling_values <- setNames(coupling_values[,"hz"], rownames(coupling_values))
+		}
+		set_spinsystem_params(
+			spinsystems,
+			omega0_start,
+			omega0_comb_start,
+			coupling_values,
+			nucleus_names,
+			unname(fheader["OBS",]),
+			i
+		)
 		
 		if (any(fheader["alias",] != 0) || !is.null(omega0_trunc)) {
 			peak_omega_eval <- array(list(), dim=dim(omega0_start)[1:2])
@@ -538,7 +583,7 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 			for (k in seq_along(spec_ppm)) {
 			
 				# get range of 1D peak ppm values
-				omega0_weights <- coupling_omega0_weights(omega0_start[k,j,i], coupling_comb[[k,j,i]], omega0_comb_start, fheader["OBS",k])
+				omega0_weights <- coupling_omega0_weights(omega0_start[k,j,i], coupling_comb[[k,j,i]], omega0_comb_start, fheader["OBS",k], spinsystems)
 				omega0_range <- range(omega0_weights[,1])
 				
 				if (any(fheader["alias",] != 0) || !is.null(omega0_trunc)) {
@@ -637,7 +682,7 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 					peak_p1_frac[[k,j]] <- spec_p1_frac[[k]]
 				
 					# get range of 1D peak ppm values
-					omega0_weights <- coupling_omega0_weights(omega0_start[k,j,i], coupling_comb[[k,j,i]], omega0_comb_start, fheader["OBS",k])
+					omega0_weights <- coupling_omega0_weights(omega0_start[k,j,i], coupling_comb[[k,j,i]], omega0_comb_start, fheader["OBS",k], spinsystems)
 					omega0_range <- range(omega0_weights[,1])
 					# determine which omega values are within the truncation region
 					peak_trunc_idx[[k,j]] <- which(peak_omega_eval[[k,j]] >= omega0_range[1]-omega0_trunc[k,j,i] & peak_omega_eval[[k,j]] <= omega0_range[2]+omega0_trunc[k,j,i])
@@ -790,6 +835,8 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 		start_list=start_list,
 		group_list=group_list,
 		comb_list=comb_list,
+		spinsystems=spinsystems,
+		couplings=couplings,
 		resonance_names=resonance_names,
 		nucleus_names=nucleus_names,
 		field_offsets=field_offsets,
@@ -799,7 +846,7 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 	)
 }
 
-eval_peak_1d <- function(func_list, func_data, ref_mhz, omega, omega0, r2, p0=0, p1=0, p1_frac=0, coupling=NULL, omega0_comb=NULL) {
+eval_peak_1d <- function(func_list, func_data, ref_mhz, omega, omega0, r2, p0=0, p1=0, p1_frac=0, coupling=NULL, omega0_comb=NULL, spinsystems=NULL) {
 
 	func_data <- c(list(
 		omega=omega*ref_mhz*2*pi, # convert ppm to rad/s
@@ -820,7 +867,7 @@ eval_peak_1d <- function(func_list, func_data, ref_mhz, omega, omega0, r2, p0=0,
 	
 		func <- complex(length(omega))
 		
-		omega0_weights <- coupling_omega0_weights(omega0, coupling, omega0_comb, ref_mhz)
+		omega0_weights <- coupling_omega0_weights(omega0, coupling, omega0_comb, ref_mhz, spinsystems)
 		
 		for (i in seq_len(nrow(omega0_weights))) {
 		
@@ -836,7 +883,7 @@ eval_peak_1d <- function(func_list, func_data, ref_mhz, omega, omega0, r2, p0=0,
 	Re(func*pvec)
 }
 
-eval_peak_1d_deriv <- function(func_list, func_data, ref_mhz, omega, omega0, r2, p0=0, p1=0, p1_frac=0, coupling=NULL, omega0_comb=NULL) {
+eval_peak_1d_deriv <- function(func_list, func_data, ref_mhz, omega, omega0, r2, p0=0, p1=0, p1_frac=0, coupling=NULL, omega0_comb=NULL, spinsystems=NULL) {
 
 	func_data <- c(list(
 		omega=omega*ref_mhz*2*pi, # convert ppm to rad/s
@@ -874,7 +921,7 @@ eval_peak_1d_deriv <- function(func_list, func_data, ref_mhz, omega, omega0, r2,
 		dfunc_dcoupling <- matrix(complex(1), nrow=length(omega), ncol=ncol(coupling)-2)
 		colnames(dfunc_dcoupling) <- colnames(coupling)[-(1:2)]
 		
-		omega0_weights <- coupling_omega0_weights(omega0, coupling, omega0_comb, ref_mhz)
+		omega0_weights <- coupling_omega0_weights(omega0, coupling, omega0_comb, ref_mhz, spinsystems)
 		
 		for (i in seq_len(nrow(omega0_weights))) {
 		
@@ -940,6 +987,8 @@ fit_fn <- function(par, fit_data, return_resid=TRUE) {
 				param_list[["omega0"]] <- param_list[["omega0"]]+fit_data$field_offsets[field_idx,spec_idx]
 			}
 			field_weight <- field_weight/(sum(param_list[["field"]][,spec_idx]) + 1)
+			
+			update_spinsystem_params(fit_data, spec_idx)
 		
 			for (peak_idx in seq_len(dim(fit_data[["start_list"]][["omega0"]])[2])) {
 			
@@ -979,7 +1028,8 @@ fit_fn <- function(par, fit_data, return_resid=TRUE) {
 						param_list[["p1"]][dim_idx,peak_idx,spec_idx],
 						p1_frac,
 						fit_data[["comb_list"]][["coupling"]][[dim_idx,peak_idx,spec_idx]],
-						param_list[["omega0_comb"]]
+						param_list[["omega0_comb"]],
+						fit_data[["spinsystems"]]
 					) * sign_factor
 				})
 			
@@ -1044,6 +1094,8 @@ fit_jac <- function(par, fit_data, drss_dspec=NULL) {
 			field_factor_sum <- (sum(param_list[["field"]][,spec_idx]) + 1)
 			field_factor_sum_sq <- field_factor_sum^2
 			field_weight <- field_weight/field_factor_sum_sq
+			
+			update_spinsystem_params(fit_data, spec_idx)
 		
 			for (peak_idx in seq_len(dim(fit_data[["start_list"]][["omega0"]])[2])) {
 			
@@ -1083,7 +1135,8 @@ fit_jac <- function(par, fit_data, drss_dspec=NULL) {
 						param_list[["p1"]][dim_idx,peak_idx,spec_idx],
 						p1_frac,
 						fit_data[["comb_list"]][["coupling"]][[dim_idx,peak_idx,spec_idx]],
-						param_list[["omega0_comb"]]
+						param_list[["omega0_comb"]],
+						fit_data[["spinsystems"]]
 					) * sign_factor
 				})
 			
@@ -2206,7 +2259,7 @@ param_values <- function(params, idx_list) {
 param_list_to_arg_list <- function(param_list) {
 
 	for (i in seq_along(param_list)) {
-		if (! names(param_list)[i] %in% c("resonance_names", "nucleus_names")) {
+		if (! names(param_list)[i] %in% c("resonance_names", "nucleus_names", "spinsystems", "couplings")) {
 			names(param_list[[i]]) <- paste(names(param_list[[i]]), sub("_list", "", names(param_list)[i]), sep="_")
 		}
 	}
@@ -2215,6 +2268,12 @@ param_list_to_arg_list <- function(param_list) {
 	}
 	if ("nucleus_names" %in% names(param_list)) {
 		param_list[["nucleus_names"]] <- list(nucleus_names=param_list[["nucleus_names"]])
+	}
+	if ("spinsystems" %in% names(param_list)) {
+		param_list[["spinsystems"]] <- list(spinsystems=param_list[["spinsystems"]])
+	}
+	if ("couplings" %in% names(param_list)) {
+		param_list[["couplings"]] <- list(couplings=param_list[["couplings"]])
 	}
 	names(param_list) <- NULL
 
