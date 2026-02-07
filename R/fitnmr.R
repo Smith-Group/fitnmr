@@ -912,6 +912,133 @@ eval_peak_1d_deriv <- function(func_list, func_data, ref_mhz, omega, omega0, r2,
 	#foo <- eval(lineshapes_simplified$none, func_data)
 	#print(foo)
 	
+	ham_name <- if (is.null(coupling)) NULL else attr(coupling, "hamiltonian")
+	if (!is.null(ham_name) && nzchar(ham_name)) {
+		if (is.null(spinsystems) || !length(spinsystems) || !ham_name %in% names(spinsystems)) {
+			stop("Hamiltonian '", ham_name, "' not found in spinsystems")
+		}
+		operator <- attr(coupling, "operator")
+		if (is.null(operator) || !nzchar(operator)) {
+			stop("Missing operator label for Hamiltonian '", ham_name, "'")
+		}
+
+		base <- spinsystems[[ham_name]]$multiplet(state_label = operator)
+		base_freq_ppm <- base$frequency / ref_mhz
+		base_int <- base$intensity
+
+		# Keep raw weak-coupling coefficients for derivatives, and a scaled copy for offsets.
+		coeff_mat <- Re(coupling[,-1,drop=FALSE])
+		offset_mat <- coeff_mat
+		if (ncol(offset_mat) > 1) {
+			for (coupling_name in colnames(offset_mat)[-1]) {
+				offset_mat[,coupling_name] <- offset_mat[,coupling_name]*omega0_comb[coupling_name]
+			}
+		}
+		offset_ppm <- rowSums(offset_mat) / ref_mhz
+		weak_weights <- coupling[,1]
+		weak_names <- colnames(coeff_mat)[-1]
+
+		# Strong-coupling derivatives come back with make.names()-safe columns.
+		strong_labels_raw <- intersect(sub("^dFreq_", "", grep("^dFreq_", names(base), value = TRUE)),
+			sub("^dInt_", "", grep("^dInt_", names(base), value = TRUE)))
+		all_labels <- spinsystems[[ham_name]]$get_param_labels()
+		label_map <- setNames(all_labels, make.names(all_labels))
+		strong_labels <- unname(label_map[strong_labels_raw])
+
+		func <- complex(length(omega))
+		dfunc_domega0 <- complex(length(omega))
+		dfunc_dr2 <- complex(length(omega))
+		# d/dJ for weak couplings (per coupling label).
+		dfunc_dcoupling <- matrix(0+0i, nrow=length(omega), ncol=length(weak_names))
+		colnames(dfunc_dcoupling) <- weak_names
+
+		# d/domega0 for strong-coupling shift labels.
+		dfunc_domega0_name <- matrix(0+0i, nrow=length(omega), ncol=length(strong_labels))
+		colnames(dfunc_domega0_name) <- strong_labels
+		# d/dparam contributions via multiplet intensity changes.
+		dfunc_dstrong <- matrix(0+0i, nrow=length(omega), ncol=length(strong_labels))
+		colnames(dfunc_dstrong) <- strong_labels
+
+		for (k in seq_along(base_freq_ppm)) {
+			for (j in seq_along(offset_ppm)) {
+				line_omega0 <- base_freq_ppm[[k]] + offset_ppm[[j]]
+				line_weight <- base_int[[k]] * weak_weights[[j]]
+
+				func_data[["omega0"]] <- line_omega0*ref_mhz*2*pi # convert ppm to rad/s
+
+				func_line <- eval(func_list$func, func_data)
+				dfunc_domega0_line <- eval(func_list$domega0, func_data)
+				dfunc_dr2_line <- eval(func_list$dr2, func_data)
+
+				func <- func + func_line * line_weight
+				dfunc_domega0 <- dfunc_domega0 + dfunc_domega0_line * line_weight
+				dfunc_dr2 <- dfunc_dr2 + dfunc_dr2_line * line_weight
+
+				# Weak-coupling derivatives affect line positions via coefficients (not scaled offsets).
+				if (length(weak_names)) {
+					for (c_idx in seq_along(weak_names)) {
+						dfunc_dcoupling[, c_idx] <- dfunc_dcoupling[, c_idx] +
+							dfunc_domega0_line * line_weight * coeff_mat[j, weak_names[[c_idx]]]
+					}
+				}
+
+				# strong parameter derivatives (frequency and intensity)
+				if (length(strong_labels)) {
+					dI_raw <- unname(as.numeric(base[k, paste0("dInt_", strong_labels_raw)]))
+					ss <- spinsystems[[ham_name]]
+					shift_labels <- ss$shift_labels
+					dF_raw <- unname(as.numeric(base[k, paste0("dFreq_", strong_labels_raw)]))
+					# Multiplet dInt for shifts is with respect to Hz shifts; scale to ppm params.
+					scale_vec <- sapply(seq_along(strong_labels), function(s_idx) {
+						if (strong_labels[[s_idx]] %in% shift_labels) {
+							ref_mhz
+						} else {
+							1
+						}
+					})
+					dI_vec <- dI_raw * scale_vec
+					dF_vec_ppm <- sapply(seq_along(strong_labels), function(s_idx) {
+						if (strong_labels[[s_idx]] %in% shift_labels) {
+							dF_raw[[s_idx]]
+						} else {
+							dF_raw[[s_idx]] / ref_mhz
+						}
+					})
+					for (s_idx in seq_along(strong_labels)) {
+						dfunc_dstrong[, s_idx] <- dfunc_dstrong[, s_idx] + func_line * weak_weights[[j]] * dI_vec[[s_idx]]
+						dfunc_domega0_name[, s_idx] <- dfunc_domega0_name[, s_idx] + dfunc_domega0_line * line_weight * dF_vec_ppm[[s_idx]]
+					}
+				}
+			}
+		}
+
+		pvec <- exp(1i*(p0 + p1*p1_frac))
+		dpvec_dp0 <- 1i*pvec
+		dpvec_dp1 <- dpvec_dp0*p1_frac
+
+		func_re <- Re(func*pvec)
+		# In the strong-coupling branch, omega0 derivatives are carried in label-specific columns.
+		dfunc_domega0_re <- rep(0, length(omega))
+		dfunc_dr2_re <- Re(dfunc_dr2*pvec)*2*pi # convert rad/s back to Hz
+		dfunc_dp0_re <- Re(func*dpvec_dp0)*pi/180 # convert rad back to degrees
+		dfunc_dp1_re <- Re(func*dpvec_dp1)*pi/180 # convert rad back to degrees
+		dfunc_dcoupling_re <- Re(dfunc_dcoupling*pvec)*2*pi # convert rad/s back to Hz
+		dfunc_domega0_name_re <- Re(dfunc_domega0_name*pvec)*ref_mhz*2*pi
+		dfunc_dstrong_re <- Re(dfunc_dstrong*pvec)
+
+		extra <- cbind(dfunc_domega0_name_re + dfunc_dstrong_re, dfunc_dcoupling_re)
+		colnames(extra) <- c(colnames(dfunc_domega0_name_re), colnames(dfunc_dcoupling_re))
+
+		return(cbind(
+			f=func_re,
+			omega0=dfunc_domega0_re,
+			r2=dfunc_dr2_re,
+			p0=dfunc_dp0_re,
+			p1=dfunc_dp1_re,
+			extra
+		))
+	}
+
 	if (is.null(coupling)) {
 	
 		func <- eval(func_list$func, func_data)
@@ -1111,6 +1238,13 @@ fit_jac <- function(par, fit_data, drss_dspec=NULL) {
 			field_weight <- field_weight/field_factor_sum_sq
 			
 			update_spinsystem_params(fit_data, spec_idx, param_list)
+			
+			# Map nucleus names to omega0 group indices (per dimension) for strong-coupling derivatives.
+			omega0_group_map <- lapply(seq_len(dim(fit_data$nucleus_names)[1]), function(dim_idx) {
+				names_vec <- fit_data$nucleus_names[dim_idx, ]
+				group_vec <- idx_list[["omega0"]][dim_idx, , spec_idx]
+				tapply(group_vec, names_vec, function(x) x[[1]])
+			})
 		
 			for (peak_idx in seq_len(dim(fit_data[["start_list"]][["omega0"]])[2])) {
 			
@@ -1246,10 +1380,16 @@ fit_jac <- function(par, fit_data, drss_dspec=NULL) {
 						# find which coupling matrices are not null
 						var_idx <- which(!sapply(fit_data$comb_list[[var_name]][,peak_idx,spec_idx], is.null))
 						for (idx in var_idx) {
-							# get the names of couplings from columns 6 and onwards
-							coupling_names <- colnames(deriv_1d_evals[[idx]])[-(1:5)]
-							# loop over couplings that are being optimized
-							for (coupling_name in coupling_names[!is.na(idx_list[["omega0_comb"]][coupling_names])]) {
+							# Split extra columns into coupling vs. omega0 (shift) derivatives.
+							extra_cols <- colnames(deriv_1d_evals[[idx]])[-(1:5)]
+							all_coupling_names <- names(param_list[["omega0_comb"]])
+							all_omega_names <- unique(as.vector(fit_data$nucleus_names))
+							coupling_names <- intersect(extra_cols, all_coupling_names)
+							omega0_names <- intersect(extra_cols, all_omega_names)
+
+							# Loop over couplings that are being optimized.
+							valid_coupling_names <- coupling_names[!is.na(idx_list[["omega0_comb"]][coupling_names])]
+							for (coupling_name in valid_coupling_names) {
 								# expand the 1D derivative to cover nD points and account for volume
 								deriv_nd_prod <- deriv_1d_evals[[idx]][nd_idx[,idx],coupling_name]*param_list[["m0"]][peak_idx,spec_idx]
 								# multiply 1D function from other dimensions
@@ -1258,10 +1398,26 @@ fit_jac <- function(par, fit_data, drss_dspec=NULL) {
 								}
 								# accumulate the nD derivative and account for weight in field inhomogeneity
 								if (is.null(drss_dspec)) {
-									#jac_eval[output_idx,idx_list[["omega0_comb"]][coupling_name]] <- jac_eval[output_idx,idx_list[["omega0_comb"]][coupling_name]] + deriv_nd_prod*field_weight
 									add_assign_col(jac_eval, output_idx, idx_list[["omega0_comb"]][coupling_name], deriv_nd_prod*field_weight)
 								} else {
 									jac_eval[idx_list[["omega0_comb"]][coupling_name]] <- jac_eval[idx_list[["omega0_comb"]][coupling_name]] + sum(deriv_nd_prod*field_weight*drss_dspec[output_idx])
+								}
+							}
+
+							# Loop over strong-coupling omega0 derivatives.
+							for (omega0_name in omega0_names) {
+								if (is.null(omega0_group_map[[idx]][[omega0_name]]) || is.na(omega0_group_map[[idx]][[omega0_name]])) {
+									next
+								}
+								omega0_group_idx <- omega0_group_map[[idx]][[omega0_name]]
+								deriv_nd_prod <- deriv_1d_evals[[idx]][nd_idx[,idx],omega0_name]*param_list[["m0"]][peak_idx,spec_idx]
+								for (i in seq_len(ncol(nd_idx))[-idx]) {
+									deriv_nd_prod <- deriv_nd_prod*deriv_1d_evals[[i]][nd_idx[,i],"f"]
+								}
+								if (is.null(drss_dspec)) {
+									add_assign_col(jac_eval, output_idx, omega0_group_idx, deriv_nd_prod*field_weight)
+								} else {
+									jac_eval[omega0_group_idx] <- jac_eval[omega0_group_idx] + sum(deriv_nd_prod*field_weight*drss_dspec[output_idx])
 								}
 							}
 						}
