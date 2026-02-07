@@ -952,7 +952,7 @@ eval_peak_1d_deriv <- function(func_list, func_data, ref_mhz, omega, omega0, r2,
 			#dfunc_domega0 <- dfunc_domega0 + dfunc_domega0_weighted
 			#dfunc_dr2 <- dfunc_dr2 + eval_list[[3]]*omega0_weights[i,2]
 			
-			if (ncol(dfunc_dcoupling)) {
+			if (ncol(dfunc_dcoupling) && i <= nrow(coupling)) {
 				dfunc_dcoupling <- dfunc_dcoupling + dfunc_domega0_weighted*rep(coupling[i,-(1:2)], each=length(dfunc_domega0_weighted))
 			}
 		}
