@@ -87,7 +87,7 @@ fill_group <- function(x, array_dim, na_dim1_same=FALSE) {
 	x
 }
 
-fill_comb_group <- function(x, omega0_array, coupling_array) {
+fill_comb_group <- function(x, omega0_array, coupling_array, comb_names=NULL) {
 
 	omega0_not_null_idx <- which(!sapply(omega0_array, is.null))
 	coupling_not_null_idx <- which(!sapply(coupling_array, is.null))
@@ -103,6 +103,18 @@ fill_comb_group <- function(x, omega0_array, coupling_array) {
 		} else {
 			x <- as.integer(x)
 		}
+
+		if (!is.null(comb_names) && length(comb_names)) {
+			if (is.null(x_names)) {
+				x_names <- comb_names
+			}
+			if (length(x) < length(comb_names)) {
+				x <- c(x, rep(NA_integer_, length(comb_names) - length(x)))
+			}
+			if (length(x) == length(comb_names)) {
+				x_names <- comb_names
+			}
+		}
 	
 		all_comb <- do.call(rbind, omega0_array[omega0_not_null_idx])
 		
@@ -111,6 +123,9 @@ fill_comb_group <- function(x, omega0_array, coupling_array) {
 			max_comb_idx <- max(all_comb[,1])
 			stopifnot(seq_len(max_comb_idx) %in% all_comb[,1])
 			
+			if (length(x) > max_comb_idx) {
+				max_comb_idx <- length(x)
+			}
 			x <- rep_len(x, max_comb_idx)
 		}
 	
@@ -513,7 +528,7 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 	
 	coupling_comb <- fill_array_list(coupling_comb, dim(omega0_start))
 	
-	omega0_comb_group <- fill_comb_group(omega0_comb_group, omega0_comb, coupling_comb)
+	omega0_comb_group <- fill_comb_group(omega0_comb_group, omega0_comb, coupling_comb, names(omega0_comb_start))
 	
 	if (!is.matrix(field_offsets)) {
 		field_offsets <- matrix(field_offsets, nrow=length(field_offsets), ncol=n_spectra)
@@ -988,7 +1003,7 @@ fit_fn <- function(par, fit_data, return_resid=TRUE) {
 			}
 			field_weight <- field_weight/(sum(param_list[["field"]][,spec_idx]) + 1)
 			
-			update_spinsystem_params(fit_data, spec_idx)
+			update_spinsystem_params(fit_data, spec_idx, param_list)
 		
 			for (peak_idx in seq_len(dim(fit_data[["start_list"]][["omega0"]])[2])) {
 			
@@ -1095,7 +1110,7 @@ fit_jac <- function(par, fit_data, drss_dspec=NULL) {
 			field_factor_sum_sq <- field_factor_sum^2
 			field_weight <- field_weight/field_factor_sum_sq
 			
-			update_spinsystem_params(fit_data, spec_idx)
+			update_spinsystem_params(fit_data, spec_idx, param_list)
 		
 			for (peak_idx in seq_len(dim(fit_data[["start_list"]][["omega0"]])[2])) {
 			

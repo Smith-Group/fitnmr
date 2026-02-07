@@ -104,12 +104,15 @@ set_spinsystem_params <- function(spinsystems, omega0, omega0_comb, coupling_val
 #'
 #' @param fit_data fit_input or fit_output structure
 #' @param spec_idx spectrum index to use for chemical shift conversions
-update_spinsystem_params <- function(fit_data, spec_idx=1) {
+#' @param param_list optional parameter list (start_list or fit_list)
+update_spinsystem_params <- function(fit_data, spec_idx=1, param_list=NULL) {
 
-	if ("fit_list" %in% names(fit_data)) {
-		param_list <- fit_data[["fit_list"]]
-	} else {
-		param_list <- fit_data[["start_list"]]
+	if (is.null(param_list)) {
+		if ("fit_list" %in% names(fit_data)) {
+			param_list <- fit_data[["fit_list"]]
+		} else {
+			param_list <- fit_data[["start_list"]]
+		}
 	}
 
 	ref_freq <- fit_data[["spec_data"]][[spec_idx]][["ref_freq"]]
@@ -461,6 +464,37 @@ tables_to_param_list <- function(spec_list, tables) {
 	param_list <- spec_bind(resonance_param_list)
 	param_list[["spinsystems"]] <- spinsystems
 	param_list[["couplings"]] <- couplings
+
+	# ensure all couplings referenced by spin systems are included in omega0_comb
+	if (!is.null(spinsystems) && length(spinsystems) &&
+		!is.null(couplings) && nrow(couplings) > 0 && "hz" %in% colnames(couplings)) {
+		coupling_labels <- unique(unlist(lapply(spinsystems, function(label_matrix) {
+			mat <- as.matrix(label_matrix)
+			mat[!is.na(mat) & nzchar(mat) & row(mat) != col(mat)]
+		}), use.names = FALSE))
+		coupling_labels <- unique(trimws(coupling_labels))
+		coupling_labels <- coupling_labels[nzchar(coupling_labels)]
+		if (length(coupling_labels)) {
+			all_couplings <- setNames(couplings[,"hz"], rownames(couplings))
+			missing <- setdiff(coupling_labels, names(param_list[["start_list"]][["omega0_comb"]]))
+			missing <- intersect(missing, names(all_couplings))
+			if (length(missing)) {
+				param_list[["start_list"]][["omega0_comb"]] <- c(
+					param_list[["start_list"]][["omega0_comb"]],
+					all_couplings[missing]
+				)
+				add_group <- rep(NA_integer_, length(missing))
+				names(add_group) <- missing
+				if ("group" %in% colnames(couplings)) {
+					add_group[missing] <- couplings[missing, "group"]
+				}
+				param_list[["group_list"]][["omega0_comb"]] <- c(
+					param_list[["group_list"]][["omega0_comb"]],
+					add_group
+				)
+			}
+		}
+	}
 	
 	# find unique nucleus names
 	nucleus_names <- param_list[["nucleus_names"]]
