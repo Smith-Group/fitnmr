@@ -95,7 +95,8 @@ HamiltonianMultiplet <- R6::R6Class(
 				l = transitions$l,
 				frequency = Re(freqs),
 				intensity = Re(intens),
-				derivs
+				derivs,
+				check.names = FALSE
 			)
 			if (intensity_tol > 0) {
 				out <- out[abs(out$intensity) > intensity_tol, , drop = FALSE]

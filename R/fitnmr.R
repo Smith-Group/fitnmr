@@ -938,12 +938,11 @@ eval_peak_1d_deriv <- function(func_list, func_data, ref_mhz, omega, omega0, r2,
 		weak_weights <- coupling[,1]
 		weak_names <- colnames(coeff_mat)[-1]
 
-		# Strong-coupling derivatives come back with make.names()-safe columns.
-		strong_labels_raw <- intersect(sub("^dFreq_", "", grep("^dFreq_", names(base), value = TRUE)),
-			sub("^dInt_", "", grep("^dInt_", names(base), value = TRUE)))
-		all_labels <- spinsystems[[ham_name]]$get_param_labels()
-		label_map <- setNames(all_labels, make.names(all_labels))
-		strong_labels <- unname(label_map[strong_labels_raw])
+		strong_labels <- intersect(
+			sub("^dFreq_", "", grep("^dFreq_", names(base), value = TRUE)),
+			sub("^dInt_", "", grep("^dInt_", names(base), value = TRUE))
+		)
+		strong_labels_raw <- strong_labels
 
 		func <- complex(length(omega))
 		dfunc_domega0 <- complex(length(omega))
