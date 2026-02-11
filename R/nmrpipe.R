@@ -657,7 +657,7 @@ nmrpipe_fti <- function(ft) {
 	ft
 }
 
-#' Inverse Fourier transform a 1D spectrum
+#' Change phases of a 1D spectrum
 #'
 #' This function aims to numerically match the NMRPipe `PS` function.
 #'

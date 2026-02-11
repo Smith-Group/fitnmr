@@ -24,6 +24,8 @@ make_fit_input(
   omega0_comb_start = NULL,
   omega0_comb_group = NULL,
   coupling_comb = NULL,
+  spinsystems = NULL,
+  couplings = NULL,
   resonance_names = NULL,
   nucleus_names = NULL,
   field_offsets = numeric(),
@@ -70,6 +72,10 @@ make_fit_input(
 \item{omega0_comb_group}{grouping for omega0 combinations}
 
 \item{coupling_comb}{list of coupling combination matrices}
+
+\item{spinsystems}{optional named list of spin system label matrices}
+
+\item{couplings}{optional couplings table or named vector of coupling values}
 
 \item{resonance_names}{optional resonance names}
 

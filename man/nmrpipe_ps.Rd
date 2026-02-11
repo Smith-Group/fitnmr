@@ -2,7 +2,7 @@
 % Please edit documentation in R/nmrpipe.R
 \name{nmrpipe_ps}
 \alias{nmrpipe_ps}
-\title{Inverse Fourier transform a 1D spectrum}
+\title{Change phases of a 1D spectrum}
 \usage{
 nmrpipe_ps(ft, p0 = 0, p1 = 0)
 }
