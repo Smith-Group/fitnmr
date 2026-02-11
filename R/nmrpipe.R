@@ -575,12 +575,31 @@ nmrpipe_zf <- function(fid, zf=1, pad=NULL, size=NULL, auto=FALSE) {
 #' @export
 nmrpipe_ft <- function(fid) {
 	
+	fourier_shift_theorem <- TRUE
+	
+	if (fourier_shift_theorem) {
+		fid$int[] <- stats::fft(fid$int)
+	}
+	
 	if (fid$header["FDDMXFLAG"] <= 0 && fid$header["FDDMXVAL"] != 0) {
-		fid$int[] <- shifter(fid$int, fid$header["FDDMXVAL"])
+		if (!fourier_shift_theorem) {
+			fid$int[] <- shifter(fid$int, fid$header["FDDMXVAL"])
+		}
 		fid$header["FDDMXFLAG"] <- 1
 	}
 	
-	fid$int[] <- rev(shifter(stats::fft(fid$int), length(fid$int)/2+1))
+	if (!fourier_shift_theorem) {
+		fid$int[] <- stats::fft(fid$int)
+	}
+	
+	fid$int[] <- rev(shifter(fid$int[], length(fid$int[]) %/% 2 + 1L))
+	
+	if (fourier_shift_theorem && fid$header["FDDMXVAL"] != 0) {
+		d <- fid$header["FDDMXVAL"]
+		N <- length(fid$int[])
+		k <- 0:(N - 1)
+		fid$int[] <- fid$int[] * exp(-2i * pi * k * d / N)
+	}
 	
 	fid$header["FDF2FTSIZE"] <- fid$fheader["FTSIZE",1] <- length(fid$int)
 	fid$header["FDF2FTFLAG"] <- fid$fheader["FTFLAG",1] <- 1
@@ -609,7 +628,16 @@ nmrpipe_ft <- function(fid) {
 #' @export
 nmrpipe_fti <- function(ft) {
 	
-	ft$int[] <- stats::fft(shifter(rev(ft$int), -(length(ft$int)/2+1)), inverse=TRUE)/length(ft$int)
+	fourier_shift_theorem <- TRUE
+	
+	if (fourier_shift_theorem && ft$header["FDDMXFLAG"] == 1 && ft$header["FDDMXVAL"] != 0) {
+		d <- ft$header["FDDMXVAL"]
+		N <- length(ft$int[])
+		k <- 0:(N - 1)
+		ft$int[] <- ft$int[] * exp(2i * pi * k * d / N)
+	}
+	
+	ft$int[] <- stats::fft(shifter(rev(ft$int), -(length(ft$int) %/% 2 + 1L)), inverse=TRUE)/length(ft$int)
 	
 	ft$header["FDF2FTSIZE"] <- ft$fheader["FTSIZE",1] <- length(ft$int)
 	ft$header["FDF2FTFLAG"] <- ft$fheader["FTFLAG",1] <- 0
@@ -618,7 +646,9 @@ nmrpipe_fti <- function(ft) {
 	ft$header["FDMIN"] <- ft$header["FDDISPMIN"] <- min(Re(ft$int[]))
 	
 	if (ft$header["FDDMXFLAG"] == 1 && ft$header["FDDMXVAL"] != 0) {
-		ft$int[] <- shifter(ft$int, -ft$header["FDDMXVAL"])
+		if (!fourier_shift_theorem) {
+			ft$int[] <- shifter(ft$int, -ft$header["FDDMXVAL"])
+		}
 		ft$header["FDDMXFLAG"] <- -1
 	}
 	
