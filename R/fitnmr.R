@@ -2542,9 +2542,11 @@ fit_peak_iter <- function(spectra, noise_sigma=NULL, noise_cutoff=15, f_alpha=1e
 	if (is.character(plot_fit)) {
 	
 		grDevices::pdf(plot_fit)
+		on.exit(grDevices::dev.off(), add=TRUE)
+		oldpar <- graphics::par(no.readonly=TRUE)
+		on.exit(graphics::par(oldpar), add=TRUE)
 		graphics::par(mar=c(2.9, 2.9, 1.5, 1), mgp=c(1.7, 0.6, 0))
 		plot_fit <- TRUE
-		on.exit(grDevices::dev.off())
 	
 	} else {
 	

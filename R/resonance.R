@@ -1082,6 +1082,10 @@ plot_sparse_2d <- function(fit_data, tables=NULL, spec_idx=1, spec_int=NULL, col
 #' @export
 plot_resonances_2d <- function(fit_data, omega0_plus, resonances=unique(fit_data$resonance_names), low_frac=0.05, field=TRUE, proj_frac=0.2) {
 
+	oldpar <- graphics::par(no.readonly=TRUE)
+	on.exit(graphics::par(oldpar), add=TRUE)
+	on.exit(graphics::layout(1), add=TRUE)
+
 	mar <- graphics::par("mar")
 	mar_in <- mar*graphics::par("cin")[2]
 	pin <- graphics::par("pin")
@@ -1229,6 +1233,9 @@ plot_resonances_2d <- function(fit_data, omega0_plus, resonances=unique(fit_data
 #'   per resonance).
 #' @export
 plot_resonances_3d <- function(fit_data, omega0_plus, resonances=unique(fit_data$resonance_names)) {
+
+	oldpar <- graphics::par(no.readonly=TRUE)
+	on.exit(graphics::par(oldpar), add=TRUE)
 
 	low_frac <- 0.05
 
