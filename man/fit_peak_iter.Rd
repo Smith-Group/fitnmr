@@ -18,7 +18,8 @@ fit_peak_iter(
   fit_list = list(),
   plot_fit = FALSE,
   plot_fit_stages = FALSE,
-  iter_callback = NULL
+  iter_callback = NULL,
+  verbose = TRUE
 )
 }
 \arguments{
@@ -49,6 +50,8 @@ fit_peak_iter(
 \item{plot_fit_stages}{logical indicating whether to plot each stage of fitting within the iterations.}
 
 \item{iter_callback}{function called after each iteration with two arguments: \code{iter} and \code{iter_max}}
+
+\item{verbose}{logical indicating whether to print progress updates}
 }
 \value{
 List of fit objects returned by \code{\link{fit_peak_cluster}}, one for each iteration. They are appended to \code{fit_list} if supplied.

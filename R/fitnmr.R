@@ -1251,7 +1251,6 @@ optim_gr <- function(par, fit_data, cache=NULL) {
 
 	if (is.environment(cache) && length(par) == length(cache[["drss_dspec"]]) && all(par == cache[["drss_dspec"]])) {
 		drss_dspec <- cache[["drss_dspec"]]
-		print(utils::str(drss_dspec))
 	} else {
 		drss_dspec <- 2*fit_fn(par, fit_data)
 	}
@@ -2262,11 +2261,12 @@ param_list_to_arg_list <- function(param_list) {
 #' @param plot_main_prefix optional prefix for plot titles
 #' @param peak_num_offset offset added to peak numbers in plots
 #' @param plot_fit_stages logical indicating whether to plot intermediate fits
+#' @param verbose logical indicating whether to print progress updates
 #' @return Usually a fit-output `list` (including `fit_list`) for the accepted
 #'   peak cluster. In edge cases where no acceptable fit is retained, returns
 #'   modeled intensity matrix/matrices used for subtraction.
 #' @export
-fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001, omega0_plus=c(0.075, 0.75), r2_start=5, r2_bounds=c(0.5, 20), sc_start=NULL, sc_bounds=c(0, Inf), plot_main_prefix=NULL, peak_num_offset=0, plot_fit_stages=FALSE) {
+fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001, omega0_plus=c(0.075, 0.75), r2_start=5, r2_bounds=c(0.5, 20), sc_start=NULL, sc_bounds=c(0, Inf), plot_main_prefix=NULL, peak_num_offset=0, plot_fit_stages=FALSE, verbose=TRUE) {
 
 	cs_new <- cs_start
 	fit_output <- NULL
@@ -2293,7 +2293,9 @@ fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001
 		
 		# terminate search if any peak had zero volume in every spectrum
 		if (any(rowSums(trial_fit_output$fit_list$m0) == 0)) {
-			cat(" Terminating search because fit produced zero volume", sep="\n")
+			if (verbose) {
+				cat(" Terminating search because fit produced zero volume", sep="\n")
+			}
 			if (is.null(fit_output)) {
 				if (length(spec_list) > 1) {
 					fit_output <- trial_input_spec_int
@@ -2383,7 +2385,9 @@ fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001
 		}
 		f_p_trace <- c(f_p_trace, f_alpha)
 		
-		cat(sprintf(" %2i -> %2i fit parameters: F = %0.1f (p = %g)", num_params, trial_num_params, f_val, f_alpha), sep="\n")
+		if (verbose) {
+			cat(sprintf(" %2i -> %2i fit parameters: F = %0.1f (p = %g)", num_params, trial_num_params, f_val, f_alpha), sep="\n")
+		}
 		
 		if (is.finite(f_alpha) && f_alpha < f_alpha_thresh)  {
 		
@@ -2407,9 +2411,13 @@ fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001
 		} else {
 		
 			if (is.finite(f_alpha)) {
-				cat(sprintf(" Terminating search because F-test p-value > %g", f_alpha_thresh), sep="\n")
+				if (verbose) {
+					cat(sprintf(" Terminating search because F-test p-value > %g", f_alpha_thresh), sep="\n")
+				}
 			} else {
-				cat(" Terminating search because too few points available to fit", sep="\n")
+				if (verbose) {
+					cat(" Terminating search because too few points available to fit", sep="\n")
+				}
 				f_alpha <- 1
 			}
 			if (is.null(fit_output)) {
@@ -2499,10 +2507,11 @@ fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001
 #' @param plot_fit logical indicating whether produce a fit cluster plot for each iteration.
 #' @param plot_fit_stages logical indicating whether to plot each stage of fitting within the iterations.
 #' @param iter_callback function called after each iteration with two arguments: \code{iter} and \code{iter_max}
+#' @param verbose logical indicating whether to print progress updates
 #' @return List of fit objects returned by \code{\link{fit_peak_cluster}}, one for each iteration. They are appended to \code{fit_list} if supplied.
 #'
 #' @export
-fit_peak_iter <- function(spectra, noise_sigma=NULL, noise_cutoff=15, f_alpha=1e-3, iter_max=100, omega0_plus=c(0.075, 0.75), r2_start=5, r2_bounds=c(0.5, 20), sc_start=c(6, NA), sc_bounds=c(2, 12), fit_list=list(), plot_fit=FALSE, plot_fit_stages=FALSE, iter_callback=NULL) {
+fit_peak_iter <- function(spectra, noise_sigma=NULL, noise_cutoff=15, f_alpha=1e-3, iter_max=100, omega0_plus=c(0.075, 0.75), r2_start=5, r2_bounds=c(0.5, 20), sc_start=c(6, NA), sc_bounds=c(2, 12), fit_list=list(), plot_fit=FALSE, plot_fit_stages=FALSE, iter_callback=NULL, verbose=TRUE) {
 
 	if (is.null(noise_sigma)) {
 		noise_sigma <- sapply(spectra, function(x) fitnmr::noise_estimate(x$int, plot_distributions=FALSE))["sigma",]
@@ -2550,7 +2559,9 @@ fit_peak_iter <- function(spectra, noise_sigma=NULL, noise_cutoff=15, f_alpha=1e
 			break
 		}
 	
-		cat(paste("Fit iteration ", iter, ":", sep=""), sep="\n")
+		if (verbose) {
+			cat(paste("Fit iteration ", iter, ":", sep=""), sep="\n")
+		}
 		
 		spec_max_idx <- which.max(spec_max_val)
 		max_idx <- which(spec_sub_list[[spec_max_idx]]$int == spec_max_val[spec_max_idx], arr.ind=TRUE)[1,,drop=FALSE]
@@ -2559,7 +2570,7 @@ fit_peak_iter <- function(spectra, noise_sigma=NULL, noise_cutoff=15, f_alpha=1e
 		if (plot_fit) {
 			plot_main_prefix <- paste("Fit", fit_num)
 		}
-		fit_output <- fitnmr::fit_peak_cluster(spec_sub_list, max_cs, spec_ord=1:2, f_alpha_thresh=f_alpha, omega0_plus=omega0_plus, r2_start=r2_start, r2_bounds=r2_bounds, sc_start=sc_start, sc_bounds=sc_bounds, plot_main_prefix=plot_main_prefix, peak_num_offset=peak_num_offset, plot_fit_stages=plot_fit_stages)
+		fit_output <- fitnmr::fit_peak_cluster(spec_sub_list, max_cs, spec_ord=1:2, f_alpha_thresh=f_alpha, omega0_plus=omega0_plus, r2_start=r2_start, r2_bounds=r2_bounds, sc_start=sc_start, sc_bounds=sc_bounds, plot_main_prefix=plot_main_prefix, peak_num_offset=peak_num_offset, plot_fit_stages=plot_fit_stages, verbose=verbose)
 		
 		if ("fit_list" %in% names(fit_output)) {
 

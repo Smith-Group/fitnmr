@@ -16,7 +16,8 @@ fit_peak_cluster(
   sc_bounds = c(0, Inf),
   plot_main_prefix = NULL,
   peak_num_offset = 0,
-  plot_fit_stages = FALSE
+  plot_fit_stages = FALSE,
+  verbose = TRUE
 )
 }
 \arguments{
@@ -43,6 +44,8 @@ fit_peak_cluster(
 \item{peak_num_offset}{offset added to peak numbers in plots}
 
 \item{plot_fit_stages}{logical indicating whether to plot intermediate fits}
+
+\item{verbose}{logical indicating whether to print progress updates}
 }
 \value{
 Usually a fit-output `list` (including `fit_list`) for the accepted
