@@ -6,13 +6,25 @@
 HamiltonianMultiplet <- R6::R6Class(
 	"HamiltonianMultiplet",
 	public = list(
+		#' @field n Number of spins in the system.
 		n = NULL,
+		#' @field shift_labels Character vector of shift labels (diagonal of label_matrix).
 		shift_labels = NULL,
+		#' @field coupling_labels Matrix of coupling labels (off-diagonal of label_matrix).
 		coupling_labels = NULL,
+		#' @field params Named numeric vector of parameter values.
 		params = NULL,
+		#' @field ops List of spin operators.
 		ops = NULL,
+		#' @field dH List of Hamiltonian derivative matrices by parameter label.
 		dH = NULL,
+		#' @field cache Internal cache of eigendecomposition results.
 		cache = NULL,
+		#' @description
+		#' Create a HamiltonianMultiplet from labels and parameters.
+		#' @param label_matrix Square matrix or data.frame of shift (diagonal) and coupling labels.
+		#' @param params Named numeric vector or list of parameter values.
+		#' @return A new HamiltonianMultiplet object.
 		initialize = function(label_matrix, params = NULL) {
 			parsed <- private$parse_label_matrix(label_matrix)
 			self$n <- parsed$n
@@ -26,6 +38,9 @@ HamiltonianMultiplet <- R6::R6Class(
 			self$dH <- private$build_dH()
 			self$cache <- list(dirty = TRUE, E = NULL, V = NULL, mvals = NULL)
 		},
+		#' @description
+		#' Update parameter values and mark the cache dirty if changed.
+		#' @param params Named numeric vector or list of parameter values.
 		set_params = function(params) {
 			params <- private$normalize_params(params)
 			old <- self$params[names(params)]
@@ -34,15 +49,30 @@ HamiltonianMultiplet <- R6::R6Class(
 				self$cache$dirty <- TRUE
 			}
 		},
+		#' @description
+		#' Return sorted unique parameter labels.
 		get_param_labels = function() {
 			sort(unique(c(self$shift_labels, self$coupling_labels[upper.tri(self$coupling_labels)])))
 		},
+		#' @description
+		#' Return the Hamiltonian matrix for current parameters.
 		hamiltonian = function() {
 			private$build_H(self$params)
 		},
+		#' @description
+		#' Return the operator matrix for a label expression.
+		#' @param label Operator label string.
 		operator = function(label) {
 			private$parse_operator_sum(label)
 		},
+		#' @description
+		#' Return a data.frame of transitions, intensities, and derivatives.
+		#' @param state_label Operator label string for the prepared state.
+		#' @param detect_label Operator label string for detection. Defaults to \code{"allx"}.
+		#' @param intensity_tol Minimum absolute intensity to keep in the output.
+		#' @param coherence Allowed coherence order(s) (integer vector) or NULL for all.
+		#' @param coherence_tol Tolerance for matching coherence orders.
+		#' @param normalize Logical; if TRUE, normalize intensities.
 		multiplet = function(state_label,
 		                     detect_label = "allx",
 		                     intensity_tol = 0.1,
