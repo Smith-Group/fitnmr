@@ -1236,7 +1236,7 @@ plot_sparse_2d <- function(fit_data, tables=NULL, spec_idx=1, spec_int=NULL, col
 			col_i <- col_nucleus[nuc_list[[1]][i]]
 			graphics::axis(1, nuc_ppm_map_list[[1]][i], nuc_list[[1]][i], mgp=graphics::par("mgp")[c(1L,1L,3L)], col.axis=col_i, tick=FALSE, col.ticks=col_i, tcl=0.5)
 		}
-		for (i in seq_along(nuc_list[[1]])) {
+		for (i in seq_along(nuc_list[[2]])) {
 			col_i <- col_nucleus[nuc_list[[2]][i]]
 			graphics::axis(2, nuc_ppm_map_list[[2]][i], nuc_list[[2]][i], mgp=graphics::par("mgp")[c(1L,1L,3L)], col.axis=col_i, tick=FALSE, col.ticks=col_i, tcl=0.5)
 		}
