@@ -83,6 +83,11 @@ make_fit_input(
 
 \item{fheader}{optional fheader matrix when spectra is a data frame}
 }
+\value{
+A `fit_input` `list` containing `spec_data`, parameter lists
+  (`start_list`, `group_list`, `comb_list`), parameter bounds
+  (`lower_list`, `upper_list`), naming metadata, and `num_points`.
+}
 \description{
 Prepare input data structure for peak fitting
 }

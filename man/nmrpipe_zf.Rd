@@ -17,6 +17,10 @@ nmrpipe_zf(fid, zf = 1, pad = NULL, size = NULL, auto = FALSE)
 
 \item{auto}{equivalent to `-auto` flag}
 }
+\value{
+A modified FID `list` with zero-filled `int` data and updated
+  `header`/`fheader` metadata.
+}
 \description{
 This function aims to numerically match the NMRPipe `ZF` function.
 }

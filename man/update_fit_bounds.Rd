@@ -20,6 +20,9 @@ update_fit_bounds(
 
 \item{sc_bounds}{optional numeric vector of length 2}
 }
+\value{
+A modified `fit_input` list with updated parameter bounds.
+}
 \description{
 Update bounds on fitting parameters
 }

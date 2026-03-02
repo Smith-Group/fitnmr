@@ -11,6 +11,10 @@ ppm_to_pts(ppm_mat, fheader)
 
 \item{fheader}{matrix of generalized ND parameters}
 }
+\value{
+A numeric matrix of point indices with the same dimensions as
+  `ppm_mat`, with column names converted from `*_PPM` to `*_AXIS`.
+}
 \description{
 Convert PPM values to points
 }

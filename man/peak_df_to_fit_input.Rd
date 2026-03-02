@@ -13,6 +13,10 @@ peak_df_to_fit_input(peak_df, spectra, ...)
 
 \item{...}{additional arguments passed to \code{\link{make_fit_input}}}
 }
+\value{
+A `fit_input` list ready for optimization, as produced by
+  `make_fit_input()`.
+}
 \description{
 Convert a peak data frame to fit input
 }

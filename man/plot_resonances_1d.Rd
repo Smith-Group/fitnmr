@@ -13,6 +13,9 @@ plot_resonances_1d(fit_data, always_show_start = FALSE, omega0_plus = 0.05)
 
 \item{omega0_plus}{length 3 vector giving ppm range for each dimension}
 }
+\value{
+No return value, called for side effects (draws one or more plots).
+}
 \description{
 Plot resonances from 1D fit
 }

@@ -9,6 +9,10 @@ param_list_to_arg_list(param_list)
 \arguments{
 \item{param_list}{parameter list}
 }
+\value{
+A flattened, named `list` of arguments suitable for `do.call()` with
+  `make_fit_input()`.
+}
 \description{
 Convert a list of parameters for use with make_fit_input
 }

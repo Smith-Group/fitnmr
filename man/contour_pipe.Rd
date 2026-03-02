@@ -44,6 +44,9 @@ contour_pipe(
 
 \item{frame.plot}{a logical indicating whether a box should be drawn around the plot.}
 }
+\value{
+No return value, called for side effects (draws contour lines).
+}
 \description{
 Plot a two dimensional contour plot
 }

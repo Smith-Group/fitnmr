@@ -11,6 +11,10 @@ param_list_to_tables(param_list, tables)
 
 \item{tables}{list with resonance/nuclei/couplings tables to update}
 }
+\value{
+A named `list` with updated `resonances`, `nuclei`, and `couplings`
+  data frames.
+}
 \description{
 Convert a parameter list into a set of tables with resonance/nuclei/couplings
 }

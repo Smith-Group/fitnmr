@@ -44,6 +44,9 @@ plot_peak_df(
 
 \item{add}{logical indicating whether to suppress generation of a new plot and add to an existing plot.}
 }
+\value{
+No return value, called for side effects (draws plots).
+}
 \description{
 Plot fits for series of spectra with parameters from a peak data frame
 }

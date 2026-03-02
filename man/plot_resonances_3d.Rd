@@ -17,6 +17,10 @@ plot_resonances_3d(
 
 \item{resonances}{character vector with resonances to plot}
 }
+\value{
+No return value, called for side effects (draws one set of projections
+  per resonance).
+}
 \description{
 Plot resonances from 3D fit
 }

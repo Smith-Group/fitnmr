@@ -276,6 +276,8 @@ spec_bind <- function(...) {
 #' @param spec_list list of spectra
 #' @param tables list with resonance/nuclei/couplings tables
 #'
+#' @return A parameter `list` containing `start_list`, `group_list`,
+#'   `comb_list`, and associated naming vectors used by fitting functions.
 #' @export
 tables_to_param_list <- function(spec_list, tables) {
 
@@ -331,6 +333,8 @@ tables_to_param_list <- function(spec_list, tables) {
 #' @param param_list param_list, fit_input, or fit_output structure
 #' @param tables list with resonance/nuclei/couplings tables to update
 #'
+#' @return A named `list` with updated `resonances`, `nuclei`, and `couplings`
+#'   data frames.
 #' @export
 param_list_to_tables <- function(param_list, tables) {
 
@@ -464,6 +468,9 @@ collapse_na_array <- function(x) {
 #' @param new_spacing spacing used for the inserted gap
 #' @param starts optional numeric vector of segment start positions
 #' @param ends optional numeric vector of segment end positions
+#' @return A two-column numeric matrix mapping original coordinates (column 1) to
+#'   sparse-axis coordinates (column 2), with `starts` and `ends` attributes
+#'   giving segment boundaries.
 #' @export
 make_map <- function(x, max_spacing=0.125, new_spacing=0.025, starts=NULL, ends=NULL) {
 
@@ -598,6 +605,7 @@ remove_overlaps <- function(interval_mat) {
 #' @param add logical indicating whether to add to existing plot
 #' @param ppm_map sparse axis map created by \code{\link{make_map}}
 #'
+#' @return No return value, called for side effects (draws a plot).
 #' @export
 plot_sparse_1d <- function(fit_data, tables=NULL, spec_idx=1, col_model=2, col_resonance=NULL, lwd=1, tick_spacing=0.02, coupling_spacing=0.01, coupling_marks=0.009, xaxs="i", yaxt="n", bty="n", always_show_start=FALSE, add=FALSE, ppm_map=make_map(get_spec_int(fit_data, "input", spec_idx)[[1]])) {
 
@@ -802,6 +810,7 @@ plot_sparse_1d <- function(fit_data, tables=NULL, spec_idx=1, col_model=2, col_r
 #' @param omega0_plus length 3 vector giving ppm range for each dimension
 #' @param always_show_start show start parameters even if fit already done
 #'
+#' @return No return value, called for side effects (draws one or more plots).
 #' @export
 plot_resonances_1d <- function(fit_data, always_show_start=FALSE, omega0_plus=0.05) {
 
@@ -925,6 +934,7 @@ plot_resonances_1d <- function(fit_data, always_show_start=FALSE, omega0_plus=0.
 #' @param add logical indicating whether to add to existing plot
 #' @param ppm_map_list optional list of sparse axis maps created by \code{\link{make_map}}
 #'
+#' @return No return value, called for side effects (draws a plot).
 #' @export
 plot_sparse_2d <- function(fit_data, tables=NULL, spec_idx=1, spec_int=NULL, col_model=2, col_nucleus=NULL, lwd=1, tick_spacing=0.02, coupling_spacing=0.01, coupling_marks=0.009, xaxs="i", yaxs="i", low_frac=0.05, bty="n", always_show_start=FALSE, add=FALSE, ppm_map_list=NULL) {
 
@@ -1067,6 +1077,8 @@ plot_sparse_2d <- function(fit_data, tables=NULL, spec_idx=1, spec_int=NULL, col
 #' @param field logical indicating whether to show modeling of field inhomogeneity as separate peaks
 #' @param proj_frac fraction of plot area reserved for 1D projections
 #'
+#' @return No return value, called for side effects (draws one plot layout per
+#'   resonance).
 #' @export
 plot_resonances_2d <- function(fit_data, omega0_plus, resonances=unique(fit_data$resonance_names), low_frac=0.05, field=TRUE, proj_frac=0.2) {
 
@@ -1213,6 +1225,8 @@ plot_resonances_2d <- function(fit_data, omega0_plus, resonances=unique(fit_data
 #' @param omega0_plus length 3 vector giving ppm range for each dimension
 #' @param resonances character vector with resonances to plot
 #'
+#' @return No return value, called for side effects (draws one set of projections
+#'   per resonance).
 #' @export
 plot_resonances_3d <- function(fit_data, omega0_plus, resonances=unique(fit_data$resonance_names)) {
 

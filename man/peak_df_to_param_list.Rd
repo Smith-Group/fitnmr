@@ -11,6 +11,10 @@ peak_df_to_param_list(peak_df, spectra)
 
 \item{spectra}{list of spectra}
 }
+\value{
+A parameter `list` with `start_list`, `group_list`, and `comb_list`
+  inferred from `peak_df` and aligned to `spectra`.
+}
 \description{
 Convert a peak data frame to a parameter list
 }

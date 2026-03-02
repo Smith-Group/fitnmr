@@ -11,6 +11,11 @@ coupling_param_idx(param_list, comb_idx_offset = 0)
 
 \item{comb_idx_offset}{offset for combination index mapping}
 }
+\value{
+A named `list` of logical index arrays/vectors (matching
+  `param_list$group_list`) that identify scalar-coupling parameters in
+  `omega0_comb`.
+}
 \description{
 Get a list of logical arrays indicating which parameters correspond to scalar couplings
 }

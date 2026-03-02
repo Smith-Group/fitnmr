@@ -9,6 +9,10 @@ nmrpipe_ft(fid)
 \arguments{
 \item{fid}{list with `int`, `header`, and `fheader` elements containing FID data}
 }
+\value{
+A transformed spectrum `list` with updated `int`, `ppm`, `header`,
+  and `fheader` fields.
+}
 \description{
 This function aims to numerically match the NMRPipe `FT` function.
 }

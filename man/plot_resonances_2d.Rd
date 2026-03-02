@@ -26,6 +26,10 @@ plot_resonances_2d(
 
 \item{proj_frac}{fraction of plot area reserved for 1D projections}
 }
+\value{
+No return value, called for side effects (draws one plot layout per
+  resonance).
+}
 \description{
 Plot resonances from 2D fit
 }

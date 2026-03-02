@@ -277,6 +277,8 @@ read_nmrdraw_peak_tab_old <- function(filepath) {
 #' Read an NMRDraw formatted peak table
 #'
 #' @param file_path path to the NMRDraw peak table file
+#' @return A `data.frame` containing the peak table, with columns defined by the
+#'   `VARS` line in the NMRDraw file.
 #' @export
 read_nmrdraw_peak_tab <- function(file_path) {
 
@@ -303,6 +305,7 @@ names(peak_tab_formats) <- c("INDEX", "X_AXIS", "Y_AXIS", "DX", "DY", "X_PPM", "
 #'
 #' @param peak_tab data frame containing peak table data
 #' @param file_path path to write the NMRDraw peak table file
+#' @return No return value, called for side effects (writes `file_path`).
 #' @export
 write_nmrdraw_peak_tab <- function(peak_tab, file_path) {
 
@@ -326,6 +329,8 @@ write_nmrdraw_peak_tab <- function(peak_tab, file_path) {
 #'
 #' @param ppm_mat matrix of ppm values
 #' @param fheader matrix of generalized ND parameters
+#' @return A numeric matrix of point indices with the same dimensions as
+#'   `ppm_mat`, with column names converted from `*_PPM` to `*_AXIS`.
 #' @export
 ppm_to_pts <- function(ppm_mat, fheader) {
 
@@ -369,6 +374,8 @@ collapse_args <- function(named_args) {
 #' @param iseed random seed
 #' @param file_path optional output path for the simulated FID
 #' @param verbose logical indicating whether to print the command
+#' @return The integer exit status from `system2("SimTimeND", ...)` (typically
+#'   `0` on success).
 #' @export
 sim_time_nd <- function(peak_tab, fheader, rms=0, iseed=stats::runif(1,max=.Machine$integer.max), file_path=NULL, verbose=FALSE) {
 
@@ -428,6 +435,7 @@ sim_time_nd <- function(peak_tab, fheader, rms=0, iseed=stats::runif(1,max=.Mach
 #' @param zf optional zero-fill argument matrix
 #' @param ps optional phase correction argument matrix
 #' @param ext optional extraction argument matrix
+#' @return The integer exit status from `system(...)` (typically `0` on success).
 #' @export
 nmr_pipe <- function(in_path, out_path, ndim=1, apod=NULL, sp=rbind(off=0.5, end=1.0, pow=1, c=0.5), zf=rbind(auto=""), ps=rbind(p0=0, p1=0, di=""), ext=NULL) {
 
@@ -498,6 +506,8 @@ shifter <- function(x, n = 1) {
 #' @param cval equivalent to `-c` flag
 #' @param dmx equivalent to `-dmx` flag
 #'
+#' @return A modified FID `list` with updated `int`, `header`, and `fheader`
+#'   values after sine-bell apodization.
 #' @export
 nmrpipe_sp <- function(fid, off=0, end=1, pow=1, cval=1, dmx=FALSE) {
 
@@ -532,6 +542,8 @@ nmrpipe_sp <- function(fid, off=0, end=1, pow=1, cval=1, dmx=FALSE) {
 #' @param size equivalent to `-size` flag
 #' @param auto equivalent to `-auto` flag
 #'
+#' @return A modified FID `list` with zero-filled `int` data and updated
+#'   `header`/`fheader` metadata.
 #' @export
 nmrpipe_zf <- function(fid, zf=1, pad=NULL, size=NULL, auto=FALSE) {
 	
@@ -572,6 +584,8 @@ nmrpipe_zf <- function(fid, zf=1, pad=NULL, size=NULL, auto=FALSE) {
 #'
 #' @param fid list with `int`, `header`, and `fheader` elements containing FID data
 #'
+#' @return A transformed spectrum `list` with updated `int`, `ppm`, `header`,
+#'   and `fheader` fields.
 #' @export
 nmrpipe_ft <- function(fid) {
 	
@@ -606,6 +620,8 @@ nmrpipe_ft <- function(fid) {
 #'
 #' @param ft list with `int`, `header`, and `fheader` elements containing spectrum data
 #'
+#' @return A modified FID-like `list` with inverse-transformed `int` values and
+#'   updated `header`/`fheader` metadata.
 #' @export
 nmrpipe_fti <- function(ft) {
 	
@@ -637,6 +653,8 @@ nmrpipe_fti <- function(ft) {
 #' @param p0 equivalent to `-p0` flag
 #' @param p1 equivalent to `-p1` flag
 #'
+#' @return A modified spectrum `list` with phase-corrected `int` values and
+#'   updated phase metadata in `header` and `fheader`.
 #' @export
 nmrpipe_ps <- function(ft, p0=0, p1=0) {
 	

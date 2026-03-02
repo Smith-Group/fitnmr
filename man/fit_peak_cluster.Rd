@@ -44,6 +44,11 @@ fit_peak_cluster(
 
 \item{plot_fit_stages}{logical indicating whether to plot intermediate fits}
 }
+\value{
+Usually a fit-output `list` (including `fit_list`) for the accepted
+  peak cluster. In edge cases where no acceptable fit is retained, returns
+  modeled intensity matrix/matrices used for subtraction.
+}
 \description{
 Fit a cluster nearby peaks starting from a seed table of chemical shifts
 }

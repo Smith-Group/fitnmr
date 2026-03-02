@@ -434,6 +434,9 @@ coupling_omega0_weights <- function(omega0, coupling_mat=NULL, omega0_comb=NULL,
 #' @param field_start starting field values
 #' @param field_group grouping for field values
 #' @param fheader optional fheader matrix when spectra is a data frame
+#' @return A `fit_input` `list` containing `spec_data`, parameter lists
+#'   (`start_list`, `group_list`, `comb_list`), parameter bounds
+#'   (`lower_list`, `upper_list`), naming metadata, and `num_points`.
 #' @export
 make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omega0_plus, omega0_trunc=NULL, r2_start=NULL, m0_start=NULL, m0_region=(omega0_plus+omega0_minus)/2, p0_start=0, p1_start=0, omega0_group=NULL, r2_group=NULL, m0_group=NULL, p0_group=0, p1_group=0, omega0_comb=NULL, omega0_comb_start=NULL, omega0_comb_group=NULL, coupling_comb=NULL, resonance_names=NULL, nucleus_names=NULL, field_offsets=numeric(), field_start=numeric(), field_group=0, fheader=NULL) {
 
@@ -1261,6 +1264,9 @@ optim_gr <- function(par, fit_data, cache=NULL) {
 #' @param fit_input fit_input structure
 #' @param method fitting method
 #' @param ... additional arguments passed to the fitting routine
+#' @return The input `fit_input` list, augmented with fitted parameters in
+#'   `fit_list` and fit diagnostics in `fit_rsstrace`, `fit_counts`, and
+#'   `fit_time`.
 #' @export
 perform_fit <- function(fit_input, method=c("minpack.lm", "gslnls", "sparseLM", "L-BFGS-B"), ...) {
 
@@ -1360,6 +1366,9 @@ fit_jac_nlfb <- function(par, fit_data) {
 #' @param spec_type character indicating which spectra to return
 #' @param spec_idx indices of spectra to return
 #' @param peak_idx indices of peaks to include (for start/fit)
+#' @return A `list` of numeric arrays, one per selected spectrum. Each array is
+#'   on contiguous ppm axes and contains either observed (`input`) or modeled
+#'   (`start`/`fit`) intensities.
 #' @export
 get_spec_int <- function(fit_data, spec_type=c("input", "start", "fit"), spec_idx=seq_along(fit_data$spec_data), peak_idx=seq_len(dim(fit_data$start_list$omega0)[2])) {
 
@@ -1420,6 +1429,7 @@ get_spec_int <- function(fit_data, spec_type=c("input", "start", "fit"), spec_id
 #'
 #' @param fit_data fit_input or fit_output structure
 #' @param always_show_start logical indicating whether to show starting model when fit is present
+#' @return No return value, called for side effects (draws plots).
 #' @export
 plot_fit_1d <- function(fit_data, always_show_start=FALSE) {
 
@@ -1470,6 +1480,7 @@ plot_fit_1d <- function(fit_data, always_show_start=FALSE) {
 #' @param spec_ord order of spectral dimensions to plot
 #' @param always_show_start logical indicating whether to show starting model when fit is present
 #' @param main optional title for the plot
+#' @return No return value, called for side effects (draws plots).
 #' @export
 plot_fit_2d <- function(fit_output, spec_ord=seq_len(dim(fit_output$start_list$omega0)[1]), always_show_start=FALSE, main=NULL) {
 
@@ -1544,6 +1555,7 @@ plot_fit_2d <- function(fit_output, spec_ord=seq_len(dim(fit_output$start_list$o
 #' @param ylab label for y-axis, defaults to \code{names(dimnames(datamat))[2]}.
 #' @param frame.plot a logical indicating whether a box should be drawn around the plot.
 #'
+#' @return No return value, called for side effects (draws contour lines).
 #' @export
 contour_pipe <- function(data_mat, nlevels=10, zlim=range(data_mat, na.rm=TRUE), low_frac=0.05, lwd=0.25, main=NA, col_pos="black", col_neg=grDevices::rgb(t(grDevices::col2rgb(col_pos))/255*0.25+0.75), add=FALSE, xlab=NULL, ylab=NULL, frame.plot=TRUE) {
 
@@ -1664,6 +1676,8 @@ fit_footprint <- function(fit, frac=0.12) {
 #'
 #' @param fit_input fit_input structure
 #' @param factor multiplier applied to r2 to set omega0 bounds
+#' @return A modified `fit_input` list with updated `lower_list$omega0` and
+#'   `upper_list$omega0` bounds.
 #' @export
 limit_omega0_by_r2 <- function(fit_input, factor=1.5) {
 
@@ -1695,6 +1709,7 @@ limit_omega0_by_r2 <- function(fit_input, factor=1.5) {
 #' @param omega0_r2_factor optional factor for omega0 bounds based on r2
 #' @param r2_bounds optional numeric vector of length 2
 #' @param sc_bounds optional numeric vector of length 2
+#' @return A modified `fit_input` list with updated parameter bounds.
 #' @export
 update_fit_bounds <- function(fit_input, omega0_r2_factor=NULL, r2_bounds=NULL, sc_bounds=NULL) {
 
@@ -1782,6 +1797,8 @@ spec_overlap_mat <- function(peak_int_list) {
 #' @param sc_bounds numeric vector of length 2 with scalar coupling bounds
 #' @param positive_only logical indicating whether to constrain m0 to be positive
 #' @param plot_fit_stages logical indicating whether to plot intermediate fits
+#' @return A fitted parameter `list` (fit-output structure) containing fitted
+#'   values in `fit_list` plus the original fit metadata and bounds.
 #' @export
 fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plus=c(0.075, 0.75), r2_start=5, r2_bounds=c(0.5, 20), sc_start=NULL, sc_bounds=c(0, Inf), positive_only=TRUE, plot_fit_stages=TRUE) {
 
@@ -1939,6 +1956,8 @@ fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plu
 #' @param sc_start starting scalar coupling values
 #' @param same_r2 logical indicating whether to tie r2 across dimensions
 #' @param same_coupling logical indicating whether to tie coupling across dimensions
+#' @return A parameter `list` with `start_list`, `group_list`, and `comb_list`
+#'   components that can be passed to `make_fit_input()`.
 #' @export
 make_param_list <- function(spec_list, cs_mat, fit_prev=NULL, r2_start=5, m0_start=1, sc_start=NULL, same_r2=FALSE, same_coupling=FALSE) {
 
@@ -2080,6 +2099,9 @@ make_param_list <- function(spec_list, cs_mat, fit_prev=NULL, r2_start=5, m0_sta
 #' @param dims dimensions to include
 #' @param peaks peaks to include
 #' @param specs spectra to include
+#' @return A named `list` of logical index arrays/vectors (matching
+#'   `param_list$group_list`) that identify omega0-related parameters to extract
+#'   or modify.
 #' @export
 omega0_param_idx <- function(param_list, dims=seq_len(dim(param_list[["group_list"]][["omega0"]])[1]), peaks=seq_len(dim(param_list[["group_list"]][["omega0"]])[2]), specs=seq_len(dim(param_list[["group_list"]][["omega0"]])[3])) {
 	
@@ -2106,6 +2128,9 @@ omega0_param_idx <- function(param_list, dims=seq_len(dim(param_list[["group_lis
 #'
 #' @param param_list parameter list
 #' @param comb_idx_offset offset for combination index mapping
+#' @return A named `list` of logical index arrays/vectors (matching
+#'   `param_list$group_list`) that identify scalar-coupling parameters in
+#'   `omega0_comb`.
 #' @export
 coupling_param_idx <- function(param_list, comb_idx_offset=0) {
 	
@@ -2202,6 +2227,8 @@ param_values <- function(params, idx_list) {
 #' Convert a list of parameters for use with make_fit_input
 #'
 #' @param param_list parameter list
+#' @return A flattened, named `list` of arguments suitable for `do.call()` with
+#'   `make_fit_input()`.
 #' @export
 param_list_to_arg_list <- function(param_list) {
 
@@ -2235,6 +2262,9 @@ param_list_to_arg_list <- function(param_list) {
 #' @param plot_main_prefix optional prefix for plot titles
 #' @param peak_num_offset offset added to peak numbers in plots
 #' @param plot_fit_stages logical indicating whether to plot intermediate fits
+#' @return Usually a fit-output `list` (including `fit_list`) for the accepted
+#'   peak cluster. In edge cases where no acceptable fit is retained, returns
+#'   modeled intensity matrix/matrices used for subtraction.
 #' @export
 fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001, omega0_plus=c(0.075, 0.75), r2_start=5, r2_bounds=c(0.5, 20), sc_start=NULL, sc_bounds=c(0, Inf), plot_main_prefix=NULL, peak_num_offset=0, plot_fit_stages=FALSE) {
 
@@ -2683,6 +2713,8 @@ param_list_to_peak_df <- function(param_list, spec_names=NULL) {
 #'
 #' @param peak_df data frame of peak parameters
 #' @param spectra list of spectra
+#' @return A parameter `list` with `start_list`, `group_list`, and `comb_list`
+#'   inferred from `peak_df` and aligned to `spectra`.
 #' @export
 peak_df_to_param_list <- function(peak_df, spectra) {
 
@@ -2723,6 +2755,8 @@ peak_df_to_param_list <- function(peak_df, spectra) {
 #' @param peak_df data frame of peak parameters
 #' @param spectra list of spectra
 #' @param ... additional arguments passed to \code{\link{make_fit_input}}
+#' @return A `fit_input` list ready for optimization, as produced by
+#'   `make_fit_input()`.
 #' @export
 peak_df_to_fit_input <- function(peak_df, spectra, ...) {
 
@@ -2750,6 +2784,7 @@ peak_df_to_fit_input <- function(peak_df, spectra, ...) {
 #' @param p1 first order phase for plotting modeled peaks.
 #' @param add logical indicating whether to suppress generation of a new plot and add to an existing plot.
 #'
+#' @return No return value, called for side effects (draws plots).
 #' @export
 plot_peak_df <- function(peak_df, spectra, noise_sigma=NULL, noise_cutoff=4, omega0_plus=c(0.075, 0.75)*2, cex=0.2, lwd=0.25, label=TRUE, label_col="black", p0=NULL, p1=NULL, add=FALSE) {
 
@@ -2934,6 +2969,9 @@ noise_estimate <- function(x, height=TRUE, thresh=10, plot_distributions=TRUE, p
 #' @param assigned two column matrix with assigned peak chemical shifts
 #' @param unknown three column matrix with unknown peak chemical shifts and heights
 #' @param thresh maximum distance (as a fraction of the two chemical shift ranges)
+#' @return An integer vector of length `nrow(assigned)` giving matched row
+#'   indices in `unknown` (or `NA` when unmatched). The `thresh` attribute stores
+#'   the effective distance thresholds in each dimension.
 #' @export
 height_assign <- function(assigned, unknown, thresh=0.01) {
 

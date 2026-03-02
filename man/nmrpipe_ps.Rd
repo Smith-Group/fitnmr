@@ -13,6 +13,10 @@ nmrpipe_ps(ft, p0 = 0, p1 = 0)
 
 \item{p1}{equivalent to `-p1` flag}
 }
+\value{
+A modified spectrum `list` with phase-corrected `int` values and
+  updated phase metadata in `header` and `fheader`.
+}
 \description{
 This function aims to numerically match the NMRPipe `PS` function.
 }

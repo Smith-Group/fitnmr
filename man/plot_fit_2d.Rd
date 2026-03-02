@@ -20,6 +20,9 @@ plot_fit_2d(
 
 \item{main}{optional title for the plot}
 }
+\value{
+No return value, called for side effects (draws plots).
+}
 \description{
 Plot a two dimensional peak fit
 }

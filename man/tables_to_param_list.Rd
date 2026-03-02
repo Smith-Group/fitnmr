@@ -11,6 +11,10 @@ tables_to_param_list(spec_list, tables)
 
 \item{tables}{list with resonance/nuclei/couplings tables}
 }
+\value{
+A parameter `list` containing `start_list`, `group_list`,
+  `comb_list`, and associated naming vectors used by fitting functions.
+}
 \description{
 Convert tables with resonance/nuclei/couplings to a parameter list
 }

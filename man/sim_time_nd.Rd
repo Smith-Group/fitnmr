@@ -26,6 +26,10 @@ sim_time_nd(
 
 \item{verbose}{logical indicating whether to print the command}
 }
+\value{
+The integer exit status from `system2("SimTimeND", ...)` (typically
+  `0` on success).
+}
 \description{
 Simulate an FID using the NMRPipe SimTimeND function
 }

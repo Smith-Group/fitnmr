@@ -59,6 +59,9 @@ plot_sparse_2d(
 
 \item{ppm_map_list}{optional list of sparse axis maps created by \code{\link{make_map}}}
 }
+\value{
+No return value, called for side effects (draws a plot).
+}
 \description{
 Plot spectrum from 2D fit
 }

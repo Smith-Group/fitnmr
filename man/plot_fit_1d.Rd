@@ -11,6 +11,9 @@ plot_fit_1d(fit_data, always_show_start = FALSE)
 
 \item{always_show_start}{logical indicating whether to show starting model when fit is present}
 }
+\value{
+No return value, called for side effects (draws plots).
+}
 \description{
 Plot a one dimensional peak fit
 }

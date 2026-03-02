@@ -32,6 +32,10 @@ make_param_list(
 
 \item{same_coupling}{logical indicating whether to tie coupling across dimensions}
 }
+\value{
+A parameter `list` with `start_list`, `group_list`, and `comb_list`
+  components that can be passed to `make_fit_input()`.
+}
 \description{
 Make a parameter list for a set of spectra and chemical shifts
 }

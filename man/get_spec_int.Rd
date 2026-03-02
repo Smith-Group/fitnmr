@@ -20,6 +20,11 @@ get_spec_int(
 
 \item{peak_idx}{indices of peaks to include (for start/fit)}
 }
+\value{
+A `list` of numeric arrays, one per selected spectrum. Each array is
+  on contiguous ppm axes and contains either observed (`input`) or modeled
+  (`start`/`fit`) intensities.
+}
 \description{
 Get arrays of spectral intensities for input, starting parameters, and fit peaks
 }

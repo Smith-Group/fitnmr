@@ -9,6 +9,10 @@ nmrpipe_fti(ft)
 \arguments{
 \item{ft}{list with `int`, `header`, and `fheader` elements containing spectrum data}
 }
+\value{
+A modified FID-like `list` with inverse-transformed `int` values and
+  updated `header`/`fheader` metadata.
+}
 \description{
 This function aims to numerically match the NMRPipe `FT -inv` function.
 }

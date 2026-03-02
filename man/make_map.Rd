@@ -23,6 +23,11 @@ make_map(
 
 \item{ends}{optional numeric vector of segment end positions}
 }
+\value{
+A two-column numeric matrix mapping original coordinates (column 1) to
+  sparse-axis coordinates (column 2), with `starts` and `ends` attributes
+  giving segment boundaries.
+}
 \description{
 Create a sparse axis
 }

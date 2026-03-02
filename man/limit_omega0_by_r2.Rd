@@ -11,6 +11,10 @@ limit_omega0_by_r2(fit_input, factor = 1.5)
 
 \item{factor}{multiplier applied to r2 to set omega0 bounds}
 }
+\value{
+A modified `fit_input` list with updated `lower_list$omega0` and
+  `upper_list$omega0` bounds.
+}
 \description{
 Add upper/lower limits based on the r2 value
 }

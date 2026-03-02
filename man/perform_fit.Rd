@@ -17,6 +17,11 @@ perform_fit(
 
 \item{...}{additional arguments passed to the fitting routine}
 }
+\value{
+The input `fit_input` list, augmented with fitted parameters in
+  `fit_list` and fit diagnostics in `fit_rsstrace`, `fit_counts`, and
+  `fit_time`.
+}
 \description{
 Perform a fit with an input data structure
 }

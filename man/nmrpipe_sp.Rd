@@ -19,6 +19,10 @@ nmrpipe_sp(fid, off = 0, end = 1, pow = 1, cval = 1, dmx = FALSE)
 
 \item{dmx}{equivalent to `-dmx` flag}
 }
+\value{
+A modified FID `list` with updated `int`, `header`, and `fheader`
+  values after sine-bell apodization.
+}
 \description{
 This function aims to numerically match the NMRPipe `SP` function.
 }

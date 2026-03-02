@@ -32,6 +32,9 @@ nmr_pipe(
 
 \item{ext}{optional extraction argument matrix}
 }
+\value{
+The integer exit status from `system(...)` (typically `0` on success).
+}
 \description{
 Process an FID with NMRPipe
 }

@@ -13,6 +13,11 @@ height_assign(assigned, unknown, thresh = 0.01)
 
 \item{thresh}{maximum distance (as a fraction of the two chemical shift ranges)}
 }
+\value{
+An integer vector of length `nrow(assigned)` giving matched row
+  indices in `unknown` (or `NA` when unmatched). The `thresh` attribute stores
+  the effective distance thresholds in each dimension.
+}
 \description{
 This uses a greedy algorithm. It iterates over the unknown peaks in order of
 decreasing height and assigns each unknown to the closest assigned peak within a

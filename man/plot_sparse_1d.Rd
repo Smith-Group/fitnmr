@@ -53,6 +53,9 @@ plot_sparse_1d(
 
 \item{ppm_map}{sparse axis map created by \code{\link{make_map}}}
 }
+\value{
+No return value, called for side effects (draws a plot).
+}
 \description{
 Plot spectrum from 1D fit
 }
