@@ -68,6 +68,8 @@ peak_df <- read.csv("start_volume.csv", check.names=FALSE)
 parallel::mclapply(seq_along(spec_list), function(spec_i) {
 
 	output_basename <- sub(".ft2$", "_", names(spec_list)[spec_i])
+	oldpar <- par(no.readonly=TRUE)
+	on.exit(par(oldpar), add=TRUE)
 
 	fit_input <- peak_df_to_fit_input(peak_df, spec_list[spec_i], omega0_plus=omega0_plus)
 	# remember original group_list to facilitate later regeneration of peak_df

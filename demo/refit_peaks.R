@@ -43,6 +43,7 @@ fit_phases <- FALSE
 preserve_m0_sign <- FALSE
 
 library(fitnmr)
+oldpar <- par(no.readonly=TRUE)
 
 ft_files <- list.files(".", pattern="[.]ft[1-4]?$", full.names=TRUE, recursive=TRUE)
 
@@ -132,3 +133,5 @@ if (ncol(spec_list[[1]]$fheader) == 1) {
 	plot_resonances_3d(fit_output, omega0_plus=omega0_plus)
 	dev.off()
 }
+
+par(oldpar)

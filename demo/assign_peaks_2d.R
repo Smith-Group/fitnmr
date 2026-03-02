@@ -41,6 +41,7 @@ unmatched_col <- "purple"
 
 
 library("fitnmr")
+oldpar <- par(no.readonly=TRUE)
 
 ovals <- function(x, y=NULL, x_radius, y_radius, border=1, lwd=1) {
 
@@ -184,3 +185,5 @@ for (i in seq_along(peak_df_list)) {
 text(median_tab[,c("omega0_ppm_1","omega0_ppm_2")], labels=assignment_labels, pos=3, offset=cex*0.5, cex=cex)
 
 dev.off()
+
+par(oldpar)
