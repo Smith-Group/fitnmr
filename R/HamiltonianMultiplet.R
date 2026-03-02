@@ -36,7 +36,7 @@ HamiltonianMultiplet <- R6::R6Class(
 			self$params <- private$normalize_params(params)
 			self$ops <- private$build_spin_ops(self$n)
 			self$dH <- private$build_dH()
-			self$cache <- list(dirty = TRUE, E = NULL, V = NULL, mvals = NULL)
+			self$cache <- list(dirty = TRUE, E = NULL, V = NULL, mvals = NULL, spin_index = NULL, spin_label = NULL)
 		},
 		#' @description
 		#' Update parameter values and mark the cache dirty if changed.
@@ -125,6 +125,8 @@ HamiltonianMultiplet <- R6::R6Class(
 				l = transitions$l,
 				frequency = Re(freqs),
 				intensity = Re(intens),
+				spin_index = cache$spin_index[idx],
+				spin_label = cache$spin_label[idx],
 				derivs,
 				check.names = FALSE
 			)
@@ -250,9 +252,35 @@ HamiltonianMultiplet <- R6::R6Class(
 				self$cache$E <- eig$values
 				self$cache$V <- eig$vectors
 				self$cache$mvals <- Re(diag(Iz_e))
+				self$cache$spin_index <- private$compute_transition_spin_index(eig$vectors)
+				self$cache$spin_label <- matrix(
+					self$shift_labels[self$cache$spin_index],
+					nrow = nrow(self$cache$spin_index),
+					ncol = ncol(self$cache$spin_index)
+				)
+				diag(self$cache$spin_label) <- NA_character_
 				self$cache$dirty <- FALSE
 			}
-			list(E = self$cache$E, V = self$cache$V, mvals = self$cache$mvals)
+			list(
+				E = self$cache$E,
+				V = self$cache$V,
+				mvals = self$cache$mvals,
+				spin_index = self$cache$spin_index,
+				spin_label = self$cache$spin_label
+			)
+		},
+		compute_transition_spin_index = function(V) {
+			nstates <- nrow(V)
+			amp <- array(0, dim = c(nstates, nstates, self$n))
+			for (i in seq_len(self$n)) {
+				Dei <- t(Conj(V)) %*% self$ops$Ix[[i]] %*% V
+				amp[, , i] <- abs(Dei)
+			}
+			spin_index <- apply(amp, c(1, 2), function(x) {
+				if (all(x == 0)) NA_integer_ else which.max(x)
+			})
+			diag(spin_index) <- NA_integer_
+			spin_index
 		},
 		parse_operator_sum = function(label) {
 			if (is.null(label) || !nzchar(label)) {
