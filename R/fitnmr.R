@@ -1889,7 +1889,6 @@ spec_overlap_mat <- function(peak_int_list) {
 #' @param plot_fit_stages logical indicating whether to plot intermediate fits
 #' @return A fitted parameter `list` (fit-output structure) containing fitted
 #'   values in `fit_list` plus the original fit metadata and bounds.
-#' @export
 fit_peaks <- function(spec_list, cs_mat, fit_prev=NULL, spec_ord=1:2, omega0_plus=c(0.075, 0.75), r2_start=5, r2_bounds=c(0.5, 20), sc_start=NULL, sc_bounds=c(0, Inf), positive_only=TRUE, plot_fit_stages=TRUE) {
 
 	if (FALSE) {
@@ -2338,7 +2337,7 @@ param_list_to_arg_list <- function(param_list) {
 	do.call(c, param_list)
 }
 
-#' Fit a cluster nearby peaks starting from a seed table of chemical shifts
+#' Fit a cluster of nearby peaks starting from a seed table of chemical shifts
 #'
 #' @param spec_list list of spectra
 #' @param cs_start matrix of starting chemical shifts
@@ -2356,7 +2355,6 @@ param_list_to_arg_list <- function(param_list) {
 #' @return Usually a fit-output `list` (including `fit_list`) for the accepted
 #'   peak cluster. In edge cases where no acceptable fit is retained, returns
 #'   modeled intensity matrix/matrices used for subtraction.
-#' @export
 fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001, omega0_plus=c(0.075, 0.75), r2_start=5, r2_bounds=c(0.5, 20), sc_start=NULL, sc_bounds=c(0, Inf), plot_main_prefix=NULL, peak_num_offset=0, plot_fit_stages=FALSE, verbose=TRUE) {
 
 	cs_new <- cs_start
@@ -2668,7 +2666,7 @@ fit_peak_iter <- function(spectra, noise_sigma=NULL, noise_cutoff=15, f_alpha=1e
 		if (plot_fit) {
 			plot_main_prefix <- paste("Fit", fit_num)
 		}
-		fit_output <- fitnmr::fit_peak_cluster(spec_sub_list, max_cs, spec_ord=1:2, f_alpha_thresh=f_alpha, omega0_plus=omega0_plus, r2_start=r2_start, r2_bounds=r2_bounds, sc_start=sc_start, sc_bounds=sc_bounds, plot_main_prefix=plot_main_prefix, peak_num_offset=peak_num_offset, plot_fit_stages=plot_fit_stages, verbose=verbose)
+		fit_output <- fit_peak_cluster(spec_sub_list, max_cs, spec_ord=1:2, f_alpha_thresh=f_alpha, omega0_plus=omega0_plus, r2_start=r2_start, r2_bounds=r2_bounds, sc_start=sc_start, sc_bounds=sc_bounds, plot_main_prefix=plot_main_prefix, peak_num_offset=peak_num_offset, plot_fit_stages=plot_fit_stages, verbose=verbose)
 		
 		if ("fit_list" %in% names(fit_output)) {
 

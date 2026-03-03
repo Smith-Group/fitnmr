@@ -2,7 +2,7 @@
 % Please edit documentation in R/fitnmr.R
 \name{fit_peak_cluster}
 \alias{fit_peak_cluster}
-\title{Fit a cluster nearby peaks starting from a seed table of chemical shifts}
+\title{Fit a cluster of nearby peaks starting from a seed table of chemical shifts}
 \usage{
 fit_peak_cluster(
   spec_list,
@@ -53,5 +53,5 @@ Usually a fit-output `list` (including `fit_list`) for the accepted
   modeled intensity matrix/matrices used for subtraction.
 }
 \description{
-Fit a cluster nearby peaks starting from a seed table of chemical shifts
+Fit a cluster of nearby peaks starting from a seed table of chemical shifts
 }
