@@ -40,3 +40,9 @@ This function estimates noise using iterative calculation of the mean and standa
 
 The iterative algorithm first calculates the mean and standard deviation of the values in \code{x}. In the next iteration, only points within \code{thresh} times the standard deviation of the mean value are used for calculating a new mean and standard deviation. This is repeated 20 times. A histogram with 512 bins is then computed within a range determined from the final mean and standard deviation. The returned parameters are based on a Gaussian fit to this histogram.
 }
+\examples{
+spec_file <- system.file("extdata", "t1", "1.ft2", package="fitnmr")
+spec <- read_nmrpipe(spec_file, dim_order="hx")
+noise_estimate(spec$int)
+
+}

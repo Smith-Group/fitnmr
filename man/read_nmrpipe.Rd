@@ -74,3 +74,9 @@ The default 2D NMRPipe scripts only have a single transpose ("TP") command, leav
 
 This function is partly based on the pipe2rnmr function from rNMR.
 }
+\examples{
+spec_file <- system.file("extdata", "t1", "1.ft2", package="fitnmr")
+spec <- read_nmrpipe(spec_file, dim_order="hx")
+str(spec)
+
+}

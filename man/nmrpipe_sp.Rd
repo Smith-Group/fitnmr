@@ -29,3 +29,9 @@ This function aims to numerically match the NMRPipe `SP` function.
 \details{
 See the NMRPipe documentation: https://www.nmrscience.com/ref/nmrpipe/sp.html
 }
+\examples{
+fid_path <- system.file("extdata", "noesy1d", "11", "test.fid", package = "fitnmr")
+fid <- read_nmrpipe(fid_path, complex_data = TRUE)
+sp <- nmrpipe_sp(fid)
+
+}

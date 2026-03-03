@@ -121,6 +121,11 @@ infer_aliasing <- function(fheader, phase_tolerance=10) {
 #' | alias     | Aliasing (0/1) with inversion (-1)     |
 #' | mag       | Magnitude mode (direct from FDMCFLAG)  |
 #'
+#' @examples
+#' spec_file <- system.file("extdata", "t1", "1.ft2", package="fitnmr")
+#' spec <- read_nmrpipe(spec_file, dim_order="hx")
+#' str(spec)
+#'
 #' @md
 #' @export
 read_nmrpipe <- function(inFormat, dim_order=NULL, complex_data=FALSE) {
@@ -506,6 +511,11 @@ shifter <- function(x, n = 1) {
 #' @param cval equivalent to `-c` flag
 #' @param dmx equivalent to `-dmx` flag
 #'
+#' @examples
+#' fid_path <- system.file("extdata", "noesy1d", "11", "test.fid", package = "fitnmr")
+#' fid <- read_nmrpipe(fid_path, complex_data = TRUE)
+#' sp <- nmrpipe_sp(fid)
+#'
 #' @return A modified FID `list` with updated `int`, `header`, and `fheader`
 #'   values after sine-bell apodization.
 #' @export
@@ -541,6 +551,12 @@ nmrpipe_sp <- function(fid, off=0, end=1, pow=1, cval=1, dmx=FALSE) {
 #' @param pad equivalent to `-pad` flag
 #' @param size equivalent to `-size` flag
 #' @param auto equivalent to `-auto` flag
+#'
+#' @examples
+#' fid_path <- system.file("extdata", "noesy1d", "11", "test.fid", package = "fitnmr")
+#' fid <- read_nmrpipe(fid_path, complex_data = TRUE)
+#' sp <- nmrpipe_sp(fid)
+#' zf <- nmrpipe_zf(sp)
 #'
 #' @return A modified FID `list` with zero-filled `int` data and updated
 #'   `header`/`fheader` metadata.
@@ -584,6 +600,13 @@ nmrpipe_zf <- function(fid, zf=1, pad=NULL, size=NULL, auto=FALSE) {
 #'
 #' @param fid list with `int`, `header`, and `fheader` elements containing FID data
 #'
+#' @examples
+#' fid_path <- system.file("extdata", "noesy1d", "11", "test.fid", package = "fitnmr")
+#' fid <- read_nmrpipe(fid_path, complex_data = TRUE)
+#' sp <- nmrpipe_sp(fid)
+#' zf <- nmrpipe_zf(sp)
+#' ft <- nmrpipe_ft(zf)
+#'
 #' @return A transformed spectrum `list` with updated `int`, `ppm`, `header`,
 #'   and `fheader` fields.
 #' @export
@@ -620,6 +643,14 @@ nmrpipe_ft <- function(fid) {
 #'
 #' @param ft list with `int`, `header`, and `fheader` elements containing spectrum data
 #'
+#' @examples
+#' fid_path <- system.file("extdata", "noesy1d", "11", "test.fid", package = "fitnmr")
+#' fid <- read_nmrpipe(fid_path, complex_data = TRUE)
+#' sp <- nmrpipe_sp(fid)
+#' zf <- nmrpipe_zf(sp)
+#' ft <- nmrpipe_ft(zf)
+#' fti <- nmrpipe_fti(ft)
+#'
 #' @return A modified FID-like `list` with inverse-transformed `int` values and
 #'   updated `header`/`fheader` metadata.
 #' @export
@@ -652,6 +683,14 @@ nmrpipe_fti <- function(ft) {
 #' @param ft list with `int`, `header`, and `fheader` elements containing spectrum data
 #' @param p0 equivalent to `-p0` flag
 #' @param p1 equivalent to `-p1` flag
+#'
+#' @examples
+#' fid_path <- system.file("extdata", "noesy1d", "11", "test.fid", package = "fitnmr")
+#' fid <- read_nmrpipe(fid_path, complex_data = TRUE)
+#' sp <- nmrpipe_sp(fid)
+#' zf <- nmrpipe_zf(sp)
+#' ft <- nmrpipe_ft(zf)
+#' ps <- nmrpipe_ps(ft, p0 = 129, p1 = 3)
 #'
 #' @return A modified spectrum `list` with phase-corrected `int` values and
 #'   updated phase metadata in `header` and `fheader`.

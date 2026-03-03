@@ -59,3 +59,9 @@ If \code{low_frac} is set to \code{NA}, then the contour levels are calculated i
 
 Note that this function does not directly take the data returned by \code{\link{read_nmrpipe}}. You must pass the \code{int} matrix from the value returned by that function.
 }
+\examples{
+spec_file <- system.file("extdata", "t1", "1.ft2", package = "fitnmr")
+spec <- read_nmrpipe(spec_file, dim_order = "hx")
+contour_pipe(spec$int)
+
+}

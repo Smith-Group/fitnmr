@@ -66,3 +66,9 @@ This function currently only supports fitting of 2D spectra, but will be general
 
 For visualizing the iterative algorithm as it progresses, you can enable either the \code{plot_fit} or \code{plot_fit_stages} parameters.
 }
+\examples{
+spec_file <- system.file("extdata", "t1", "1.ft2", package = "fitnmr")
+spec <- list("1.ft2" = read_nmrpipe(spec_file, dim_order = "hx"))
+peak_fits <- fit_peak_iter(spec, iter_max = 3)
+
+}

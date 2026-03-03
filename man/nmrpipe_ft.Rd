@@ -19,3 +19,11 @@ This function aims to numerically match the NMRPipe `FT` function.
 \details{
 See the NMRPipe documentation: https://www.nmrscience.com/ref/nmrpipe/ft.html
 }
+\examples{
+fid_path <- system.file("extdata", "noesy1d", "11", "test.fid", package = "fitnmr")
+fid <- read_nmrpipe(fid_path, complex_data = TRUE)
+sp <- nmrpipe_sp(fid)
+zf <- nmrpipe_zf(sp)
+ft <- nmrpipe_ft(zf)
+
+}

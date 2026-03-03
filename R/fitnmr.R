@@ -437,6 +437,19 @@ coupling_omega0_weights <- function(omega0, coupling_mat=NULL, omega0_comb=NULL,
 #' @return A `fit_input` `list` containing `spec_data`, parameter lists
 #'   (`start_list`, `group_list`, `comb_list`), parameter bounds
 #'   (`lower_list`, `upper_list`), naming metadata, and `num_points`.
+#'
+#' @examples
+#' spec_file <- system.file("extdata", "t1", "1.ft2", package = "fitnmr")
+#' spec <- read_nmrpipe(spec_file, dim_order = "hx")
+#' fit_input <- make_fit_input(
+#'   list(spec),
+#'   omega0_start = matrix(c(8.5400, 119.76), nrow = 2),
+#'   omega0_plus = c(0.075, 0.75),
+#'   r2_start = 4,
+#'   m0_start = 1e9
+#' )
+#' str(fit_input)
+#'
 #' @export
 make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omega0_plus, omega0_trunc=NULL, r2_start=NULL, m0_start=NULL, m0_region=(omega0_plus+omega0_minus)/2, p0_start=0, p1_start=0, omega0_group=NULL, r2_group=NULL, m0_group=NULL, p0_group=0, p1_group=0, omega0_comb=NULL, omega0_comb_start=NULL, omega0_comb_group=NULL, coupling_comb=NULL, resonance_names=NULL, nucleus_names=NULL, field_offsets=numeric(), field_start=numeric(), field_group=0, fheader=NULL) {
 
@@ -1266,6 +1279,21 @@ optim_gr <- function(par, fit_data, cache=NULL) {
 #' @return The input `fit_input` list, augmented with fitted parameters in
 #'   `fit_list` and fit diagnostics in `fit_rsstrace`, `fit_counts`, and
 #'   `fit_time`.
+#'
+#' @examples
+#' spec_file <- system.file("extdata", "t1", "1.ft2", package = "fitnmr")
+#' spec <- read_nmrpipe(spec_file, dim_order = "hx")
+#' fit_input <- make_fit_input(
+#'   list(spec),
+#'   omega0_start = matrix(c(8.5400, 119.76), nrow = 2),
+#'   omega0_plus = c(0.075, 0.75),
+#'   r2_start = 4,
+#'   m0_start = 1e9
+#' )
+#' fit_output <- perform_fit(fit_input)
+#' fit_output$start_list[1:3]
+#' fit_output$fit_list[1:3]
+#' 
 #' @export
 perform_fit <- function(fit_input, method=c("minpack.lm", "gslnls", "sparseLM", "L-BFGS-B"), ...) {
 
@@ -1368,6 +1396,20 @@ fit_jac_nlfb <- function(par, fit_data) {
 #' @return A `list` of numeric arrays, one per selected spectrum. Each array is
 #'   on contiguous ppm axes and contains either observed (`input`) or modeled
 #'   (`start`/`fit`) intensities.
+#'
+#' @examples
+#' spec_file <- system.file("extdata", "t1", "1.ft2", package = "fitnmr")
+#' spec <- read_nmrpipe(spec_file, dim_order = "hx")
+#' fit_input <- make_fit_input(
+#'   list(spec),
+#'   omega0_start = matrix(c(8.5400, 119.76), nrow = 2),
+#'   omega0_plus = c(0.075, 0.75),
+#'   r2_start = 4,
+#'   m0_start = 1e9
+#' )
+#' input_int <- get_spec_int(fit_input, "input")
+#' start_int <- get_spec_int(fit_input, "start")
+#'
 #' @export
 get_spec_int <- function(fit_data, spec_type=c("input", "start", "fit"), spec_idx=seq_along(fit_data$spec_data), peak_idx=seq_len(dim(fit_data$start_list$omega0)[2])) {
 
@@ -1480,6 +1522,19 @@ plot_fit_1d <- function(fit_data, always_show_start=FALSE) {
 #' @param always_show_start logical indicating whether to show starting model when fit is present
 #' @param main optional title for the plot
 #' @return No return value, called for side effects (draws plots).
+#'
+#' @examples
+#' spec_file <- system.file("extdata", "t1", "1.ft2", package = "fitnmr")
+#' spec <- read_nmrpipe(spec_file, dim_order = "hx")
+#' fit_input <- make_fit_input(
+#'   list(spec),
+#'   omega0_start = matrix(c(8.5400, 119.76), nrow = 2),
+#'   omega0_plus = c(0.075, 0.75),
+#'   r2_start = 4,
+#'   m0_start = 1e9
+#' )
+#' plot_fit_2d(fit_input)
+#'
 #' @export
 plot_fit_2d <- function(fit_output, spec_ord=seq_len(dim(fit_output$start_list$omega0)[1]), always_show_start=FALSE, main=NULL) {
 
@@ -1553,6 +1608,11 @@ plot_fit_2d <- function(fit_output, spec_ord=seq_len(dim(fit_output$start_list$o
 #' @param xlab label for x-axis, defaults to \code{names(dimnames(datamat))[1]}.
 #' @param ylab label for y-axis, defaults to \code{names(dimnames(datamat))[2]}.
 #' @param frame.plot a logical indicating whether a box should be drawn around the plot.
+#'
+#' @examples
+#' spec_file <- system.file("extdata", "t1", "1.ft2", package = "fitnmr")
+#' spec <- read_nmrpipe(spec_file, dim_order = "hx")
+#' contour_pipe(spec$int)
 #'
 #' @return No return value, called for side effects (draws contour lines).
 #' @export
@@ -1677,6 +1737,24 @@ fit_footprint <- function(fit, frac=0.12) {
 #' @param factor multiplier applied to r2 to set omega0 bounds
 #' @return A modified `fit_input` list with updated `lower_list$omega0` and
 #'   `upper_list$omega0` bounds.
+#'
+#' @examples
+#' spec_file <- system.file("extdata", "t1", "1.ft2", package = "fitnmr")
+#' spec <- read_nmrpipe(spec_file, dim_order = "hx")
+#' fit_input <- make_fit_input(
+#'   list(spec),
+#'   omega0_start = matrix(c(8.5400, 119.76), nrow = 2),
+#'   omega0_plus = c(0.075, 0.75),
+#'   r2_start = 4,
+#'   m0_start = 1e9
+#' )
+#' fit_input$start_list[1:2]
+#' fit_input$lower_list[1]
+#' fit_input$upper_list[1]
+#' fit_input <- limit_omega0_by_r2(fit_input)
+#' fit_input$lower_list[1]
+#' fit_input$upper_list[1]
+#'
 #' @export
 limit_omega0_by_r2 <- function(fit_input, factor=1.5) {
 
@@ -1709,6 +1787,19 @@ limit_omega0_by_r2 <- function(fit_input, factor=1.5) {
 #' @param r2_bounds optional numeric vector of length 2
 #' @param sc_bounds optional numeric vector of length 2
 #' @return A modified `fit_input` list with updated parameter bounds.
+#'
+#' @examples
+#' spec_file <- system.file("extdata", "t1", "1.ft2", package = "fitnmr")
+#' spec <- read_nmrpipe(spec_file, dim_order = "hx")
+#' fit_input <- make_fit_input(
+#'   list(spec),
+#'   omega0_start = matrix(c(8.5400, 119.76), nrow = 2),
+#'   omega0_plus = c(0.075, 0.75),
+#'   r2_start = 4,
+#'   m0_start = 1e9
+#' )
+#' fit_input <- update_fit_bounds(fit_input, omega0_r2_factor=1.5, r2_bounds=c(0.5, 20))
+#'
 #' @export
 update_fit_bounds <- function(fit_input, omega0_r2_factor=NULL, r2_bounds=NULL, sc_bounds=NULL) {
 
@@ -2510,6 +2601,11 @@ fit_peak_cluster <- function(spec_list, cs_start, spec_ord, f_alpha_thresh=0.001
 #' @param verbose logical indicating whether to print progress updates
 #' @return List of fit objects returned by \code{\link{fit_peak_cluster}}, one for each iteration. They are appended to \code{fit_list} if supplied.
 #'
+#' @examples
+#' spec_file <- system.file("extdata", "t1", "1.ft2", package = "fitnmr")
+#' spec <- list("1.ft2" = read_nmrpipe(spec_file, dim_order = "hx"))
+#' peak_fits <- fit_peak_iter(spec, iter_max = 3)
+#'
 #' @export
 fit_peak_iter <- function(spectra, noise_sigma=NULL, noise_cutoff=15, f_alpha=1e-3, iter_max=100, omega0_plus=c(0.075, 0.75), r2_start=5, r2_bounds=c(0.5, 20), sc_start=c(6, NA), sc_bounds=c(2, 12), fit_list=list(), plot_fit=FALSE, plot_fit_stages=FALSE, iter_callback=NULL, verbose=TRUE) {
 
@@ -2645,6 +2741,12 @@ fit_peak_iter <- function(spectra, noise_sigma=NULL, noise_cutoff=15, f_alpha=1e
 #'   \item{...}{\code{m0} values for each spectrum}
 #' }
 #'
+#' @examples
+#' spec_file <- system.file("extdata", "t1", "1.ft2", package = "fitnmr")
+#' spec <- list("1.ft2" = read_nmrpipe(spec_file, dim_order = "hx"))
+#' peak_fits <- fit_peak_iter(spec, iter_max = 3)
+#' param_list_to_peak_df(peak_fits)
+#'
 #' @export
 param_list_to_peak_df <- function(param_list, spec_names=NULL) {
 
@@ -2728,6 +2830,26 @@ param_list_to_peak_df <- function(param_list, spec_names=NULL) {
 #' @param spectra list of spectra
 #' @return A parameter `list` with `start_list`, `group_list`, and `comb_list`
 #'   inferred from `peak_df` and aligned to `spectra`.
+#'
+#' @examples
+#' spec_file <- system.file("extdata", "t1", "1.ft2", package = "fitnmr")
+#' spectra <- list("1.ft2" = read_nmrpipe(spec_file, dim_order = "hx"))
+#'
+#' peak_df <- data.frame(
+#'   peak = c(1, 2, 3, 4),
+#'   fit = c(1, 1, 2, 2),
+#'   f_pvalue = c(4.566421e-10, 1.118991e-05, 1.876528e-15, 5.817124e-04),
+#'   omega0_ppm_1 = c(8.247602, 8.259565, 8.540030, 8.520232),
+#'   omega0_ppm_2 = c(121.8666, 121.9299, 119.7611, 119.7266),
+#'   sc_hz_1 = c(3.280589, 3.280589, 2.000000, 2.000000),
+#'   r2_hz_1 = c(2.907218, 2.907218, 4.788566, 4.788566),
+#'   r2_hz_2 = c(2.334497, 2.334497, 2.099646, 2.099646),
+#'   `1.ft2` = c(824420657, 240560662, 1020008726, 89977216),
+#'   check.names = FALSE
+#' )
+#'
+#' peak_df_to_param_list(peak_df, spectra)
+#'
 #' @export
 peak_df_to_param_list <- function(peak_df, spectra) {
 
@@ -2770,6 +2892,26 @@ peak_df_to_param_list <- function(peak_df, spectra) {
 #' @param ... additional arguments passed to \code{\link{make_fit_input}}
 #' @return A `fit_input` list ready for optimization, as produced by
 #'   `make_fit_input()`.
+#'
+#' @examples
+#' spec_file <- system.file("extdata", "t1", "1.ft2", package = "fitnmr")
+#' spectra <- list("1.ft2" = read_nmrpipe(spec_file, dim_order = "hx"))
+#'
+#' peak_df <- data.frame(
+#'   peak = c(1, 2, 3, 4),
+#'   fit = c(1, 1, 2, 2),
+#'   f_pvalue = c(4.566421e-10, 1.118991e-05, 1.876528e-15, 5.817124e-04),
+#'   omega0_ppm_1 = c(8.247602, 8.259565, 8.540030, 8.520232),
+#'   omega0_ppm_2 = c(121.8666, 121.9299, 119.7611, 119.7266),
+#'   sc_hz_1 = c(3.280589, 3.280589, 2.000000, 2.000000),
+#'   r2_hz_1 = c(2.907218, 2.907218, 4.788566, 4.788566),
+#'   r2_hz_2 = c(2.334497, 2.334497, 2.099646, 2.099646),
+#'   `1.ft2` = c(824420657, 240560662, 1020008726, 89977216),
+#'   check.names = FALSE
+#' )
+#'
+#' fit_input <- peak_df_to_fit_input(peak_df, spectra, omega0_plus=c(0.075, 0.75))
+#'
 #' @export
 peak_df_to_fit_input <- function(peak_df, spectra, ...) {
 
@@ -2796,6 +2938,27 @@ peak_df_to_fit_input <- function(peak_df, spectra, ...) {
 #' @param p0 zero order phase for plotting modeled peaks.
 #' @param p1 first order phase for plotting modeled peaks.
 #' @param add logical indicating whether to suppress generation of a new plot and add to an existing plot.
+#'
+#' @examples
+#' spec_file <- system.file("extdata", "t1", "1.ft2", package = "fitnmr")
+#' spec <- read_nmrpipe(spec_file, dim_order = "hx")
+#'
+#' peak_df <- data.frame(
+#'   peak = 1:8,
+#'   fit = c(1, 1, 2, 2, 3, 3, 3, 3),
+#'   f_pvalue = c(4.5664e-10, 1.1190e-05, 1.8765e-15, 5.8171e-04,
+#'                7.5270e-13, 2.5923e-27, 1.3424e-05, 1.4680e-13),
+#'   omega0_ppm_1 = c(8.2476, 8.2596, 8.5400, 8.5202, 8.6124, 8.5853, 8.6449, 8.5370),
+#'   omega0_ppm_2 = c(121.87, 121.93, 119.76, 119.73, 123.36, 123.03, 123.47, 122.96),
+#'   sc_hz_1 = c(3.2806, 3.2806, 2.0000, 2.0000, 7.6481, 7.6481, 7.6481, 7.6481),
+#'   r2_hz_1 = c(2.9072, 2.9072, 4.7886, 4.7886, 5.2849, 5.2849, 5.2849, 5.2849),
+#'   r2_hz_2 = c(2.3345, 2.3345, 2.0996, 2.0996, 2.1801, 2.1801, 2.1801, 2.1801),
+#'   `1.ft2` = c(824420657, 240560662, 1020008726, 89977216,
+#'               848579189, 607904936, 147984411, 161971930),
+#'   check.names = FALSE
+#' )
+#'
+#' plot_peak_df(peak_df, list("1.ft2" = spec), cex = 0.6)
 #'
 #' @return No return value, called for side effects (draws plots).
 #' @export
@@ -2874,6 +3037,11 @@ plot_peak_df <- function(peak_df, spectra, noise_sigma=NULL, noise_cutoff=4, ome
 #'   \item{h}{height of Gaussian fit (optional depending on value of \code{height} parameter)}
 #'   \item{max}{maximum value of \code{x}}
 #'  }
+#'
+#' @examples
+#' spec_file <- system.file("extdata", "t1", "1.ft2", package="fitnmr")
+#' spec <- read_nmrpipe(spec_file, dim_order="hx")
+#' noise_estimate(spec$int)
 #'
 #' @export
 noise_estimate <- function(x, height=TRUE, thresh=10, plot_distributions=TRUE, peak_intensities=NULL) {

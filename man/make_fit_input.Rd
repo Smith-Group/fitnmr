@@ -91,3 +91,16 @@ A `fit_input` `list` containing `spec_data`, parameter lists
 \description{
 Prepare input data structure for peak fitting
 }
+\examples{
+spec_file <- system.file("extdata", "t1", "1.ft2", package = "fitnmr")
+spec <- read_nmrpipe(spec_file, dim_order = "hx")
+fit_input <- make_fit_input(
+  list(spec),
+  omega0_start = matrix(c(8.5400, 119.76), nrow = 2),
+  omega0_plus = c(0.075, 0.75),
+  r2_start = 4,
+  m0_start = 1e9
+)
+str(fit_input)
+
+}
