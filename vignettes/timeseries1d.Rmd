@@ -164,7 +164,7 @@ Free induction decay (FID) data is first converted to NMRPipe format then read b
 ```{r phases, fig.cap="**Automated optimization of zero- and first-order phases.** The red to purple color scheme is used in all figures to indicate the data acquisition time."}
 all_cols <- rainbow(ncol(phase_vals), end=0.80)
 
-par(mar=c(1.5, 3.1, 0.5, 0.5), oma=c(1.6, 0, 0, 0), mgp=c(1.9, 0.6, 0), mfrow=c(2, 1), cex=1)
+old_par <- par(mar=c(1.5, 3.1, 0.5, 0.5), oma=c(1.6, 0, 0, 0), mgp=c(1.9, 0.6, 0), mfrow=c(2, 1), cex=1)
 
 plot(hours, phase_vals[1,], col=all_cols, pch=16, cex=0.75, xlab=NA, ylab="P0 (degrees)")
 points(hours, phase_vals[1,], type="l")
@@ -996,4 +996,8 @@ if (class(rate_fit) != "try-error") {
 	legend("topright", legend=parse(text=sprintf("\"k = \"*%s ~ s^{-1}", sub("e(-?)0?", " %*% 10^\\1", sprintf("%.2e", rate_fit$m$getPars()[3])))), col=c("purple"), lwd=2, bty="n", title=" ")
 }
 figure_letter("D")
+```
+
+```{r, include = FALSE}
+par(old_par)
 ```

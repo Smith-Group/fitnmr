@@ -30,10 +30,11 @@ knitr::opts_chunk$set(
 )
 #knitr::opts_chunk$set(optipng = "-o7 -strip all")
 #knitr::knit_hooks$set(optipng = knitr::hook_optipng)
-options(digits=5, width=90)
+old_options_peak2d_scripts <- options(digits = 5, width = 90)
+old_options_mc_cores <- NULL
 check_limit_cores <- tolower(Sys.getenv("_R_CHECK_LIMIT_CORES_", ""))
 if (nzchar(check_limit_cores) && (check_limit_cores != "false")) {
-	options(mc.cores=2)
+	old_options_mc_cores <- options(mc.cores = 2)
 }
 if (Sys.getenv("IN_PKGDOWN") == "" && ! interactive()) {
   knitr::opts_chunk$set(fig.retina = 1)
@@ -479,4 +480,8 @@ knitr::kable(csv_table)
 
 ```{r, include = FALSE}
 knitr::opts_knit$set(root.dir = original_wd)
+if (!is.null(old_options_mc_cores)) {
+  options(old_options_mc_cores)
+}
+options(old_options_peak2d_scripts)
 ```
