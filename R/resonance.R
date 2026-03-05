@@ -278,6 +278,52 @@ spec_bind <- function(...) {
 #'
 #' @return A parameter `list` containing `start_list`, `group_list`,
 #'   `comb_list`, and associated naming vectors used by fitting functions.
+#'
+#' @examples
+#' spec_file <- system.file("extdata", "tyrosine", "proton.ft1", package = "fitnmr")
+#' spec <- read_nmrpipe(spec_file)
+#'
+#' start_resonances <- structure(
+#'   list(
+#'     x = c("HA", "HB3", "HB2", "HD1/2", "HE1/2"),
+#'     x_sc = c(
+#'       "HA-HB3 HA-HB2",
+#'       "HA-HB3 HB3-HB2",
+#'       "HA-HB2 HB3-HB2",
+#'       "HD1/2-HE1/2-3 HD1/2-HE1/2-5",
+#'       "HD1/2-HE1/2-3 HD1/2-HE1/2-5"
+#'     )
+#'   ),
+#'   row.names = c("HA", "HB3", "HB2", "HD1/2", "HE1/2"),
+#'   class = "data.frame"
+#' )
+#'
+#' start_nuclei <- structure(
+#'   list(
+#'     omega0_ppm = c(3.364, 2.635, 2.799, 6.94, 6.538),
+#'     r2_hz = c(0.7, 0.7, 0.7, 0.7, 0.7)
+#'   ),
+#'   class = "data.frame",
+#'   row.names = c("HA", "HB3", "HB2", "HD1/2", "HE1/2")
+#' )
+#'
+#' start_couplings <- structure(
+#'   list(hz = c(7.153, 5.159, -13.941, 7.7, 2)),
+#'   class = "data.frame",
+#'   row.names = c("HA-HB3", "HA-HB2", "HB3-HB2", "HD1/2-HE1/2-3", "HD1/2-HE1/2-5")
+#' )
+#'
+#' start_tables <- list(
+#'   resonances = start_resonances,
+#'   nuclei = start_nuclei,
+#'   couplings = start_couplings
+#' )
+#' param_list <- tables_to_param_list(list(spec), start_tables)
+#' param_list$start_list$m0[] <- 1e9
+#' arg_list <- param_list_to_arg_list(param_list)
+#' fit_input <- do.call(make_fit_input, c(list(list(spec), omega0_plus = 0.075), arg_list))
+#' fit_output <- perform_fit(fit_input)
+#'
 #' @export
 tables_to_param_list <- function(spec_list, tables) {
 
@@ -335,6 +381,53 @@ tables_to_param_list <- function(spec_list, tables) {
 #'
 #' @return A named `list` with updated `resonances`, `nuclei`, and `couplings`
 #'   data frames.
+#'
+#' @examples
+#' spec_file <- system.file("extdata", "tyrosine", "proton.ft1", package = "fitnmr")
+#' spec <- read_nmrpipe(spec_file)
+#'
+#' start_resonances <- structure(
+#'   list(
+#'     x = c("HA", "HB3", "HB2", "HD1/2", "HE1/2"),
+#'     x_sc = c(
+#'       "HA-HB3 HA-HB2",
+#'       "HA-HB3 HB3-HB2",
+#'       "HA-HB2 HB3-HB2",
+#'       "HD1/2-HE1/2-3 HD1/2-HE1/2-5",
+#'       "HD1/2-HE1/2-3 HD1/2-HE1/2-5"
+#'     )
+#'   ),
+#'   row.names = c("HA", "HB3", "HB2", "HD1/2", "HE1/2"),
+#'   class = "data.frame"
+#' )
+#'
+#' start_nuclei <- structure(
+#'   list(
+#'     omega0_ppm = c(3.364, 2.635, 2.799, 6.94, 6.538),
+#'     r2_hz = c(0.7, 0.7, 0.7, 0.7, 0.7)
+#'   ),
+#'   class = "data.frame",
+#'   row.names = c("HA", "HB3", "HB2", "HD1/2", "HE1/2")
+#' )
+#'
+#' start_couplings <- structure(
+#'   list(hz = c(7.153, 5.159, -13.941, 7.7, 2)),
+#'   class = "data.frame",
+#'   row.names = c("HA-HB3", "HA-HB2", "HB3-HB2", "HD1/2-HE1/2-3", "HD1/2-HE1/2-5")
+#' )
+#'
+#' start_tables <- list(
+#'   resonances = start_resonances,
+#'   nuclei = start_nuclei,
+#'   couplings = start_couplings
+#' )
+#' param_list <- tables_to_param_list(list(spec), start_tables)
+#' param_list$start_list$m0[] <- 1e9
+#' arg_list <- param_list_to_arg_list(param_list)
+#' fit_input <- do.call(make_fit_input, c(list(list(spec), omega0_plus = 0.075), arg_list))
+#' fit_output <- perform_fit(fit_input)
+#' fit_tables <- param_list_to_tables(fit_output, start_tables)
+#'
 #' @export
 param_list_to_tables <- function(param_list, tables) {
 
@@ -461,7 +554,7 @@ collapse_na_array <- function(x) {
 	x_new
 }
 
-#' Create a sparse axis
+#' Create a sparse axis map
 #'
 #' @param x numeric vector or array used to define the sparse axis
 #' @param max_spacing maximum spacing between segments before inserting a gap
@@ -606,6 +699,53 @@ remove_overlaps <- function(interval_mat) {
 #' @param ppm_map sparse axis map created by \code{\link{make_map}}
 #'
 #' @return No return value, called for side effects (draws a plot).
+#'
+#' @examples
+#' spec_file <- system.file("extdata", "tyrosine", "proton.ft1", package = "fitnmr")
+#' spec <- read_nmrpipe(spec_file)
+#'
+#' start_resonances <- structure(
+#'   list(
+#'     x = c("HA", "HB3", "HB2", "HD1/2", "HE1/2"),
+#'     x_sc = c(
+#'       "HA-HB3 HA-HB2",
+#'       "HA-HB3 HB3-HB2",
+#'       "HA-HB2 HB3-HB2",
+#'       "HD1/2-HE1/2-3 HD1/2-HE1/2-5",
+#'       "HD1/2-HE1/2-3 HD1/2-HE1/2-5"
+#'     )
+#'   ),
+#'   row.names = c("HA", "HB3", "HB2", "HD1/2", "HE1/2"),
+#'   class = "data.frame"
+#' )
+#'
+#' start_nuclei <- structure(
+#'   list(
+#'     omega0_ppm = c(3.364, 2.635, 2.799, 6.94, 6.538),
+#'     r2_hz = c(0.7, 0.7, 0.7, 0.7, 0.7)
+#'   ),
+#'   class = "data.frame",
+#'   row.names = c("HA", "HB3", "HB2", "HD1/2", "HE1/2")
+#' )
+#'
+#' start_couplings <- structure(
+#'   list(hz = c(7.153, 5.159, -13.941, 7.7, 2)),
+#'   class = "data.frame",
+#'   row.names = c("HA-HB3", "HA-HB2", "HB3-HB2", "HD1/2-HE1/2-3", "HD1/2-HE1/2-5")
+#' )
+#'
+#' start_tables <- list(
+#'   resonances = start_resonances,
+#'   nuclei = start_nuclei,
+#'   couplings = start_couplings
+#' )
+#' param_list <- tables_to_param_list(list(spec), start_tables)
+#' param_list$start_list$m0[] <- 1e9
+#' arg_list <- param_list_to_arg_list(param_list)
+#' fit_input <- do.call(make_fit_input, c(list(list(spec), omega0_plus = 0.075), arg_list))
+#' fit_output <- perform_fit(fit_input)
+#' plot_sparse_1d(fit_output, start_tables)
+#'
 #' @export
 plot_sparse_1d <- function(fit_data, tables=NULL, spec_idx=1, col_model=2, col_resonance=NULL, lwd=1, tick_spacing=0.02, coupling_spacing=0.01, coupling_marks=0.009, xaxs="i", yaxt="n", bty="n", always_show_start=FALSE, add=FALSE, ppm_map=make_map(get_spec_int(fit_data, "input", spec_idx)[[1]])) {
 
@@ -811,6 +951,53 @@ plot_sparse_1d <- function(fit_data, tables=NULL, spec_idx=1, col_model=2, col_r
 #' @param always_show_start show start parameters even if fit already done
 #'
 #' @return No return value, called for side effects (draws one or more plots).
+#'
+#' @examples
+#' spec_file <- system.file("extdata", "tyrosine", "proton.ft1", package = "fitnmr")
+#' spec <- read_nmrpipe(spec_file)
+#'
+#' start_resonances <- structure(
+#'   list(
+#'     x = c("HA", "HB3", "HB2", "HD1/2", "HE1/2"),
+#'     x_sc = c(
+#'       "HA-HB3 HA-HB2",
+#'       "HA-HB3 HB3-HB2",
+#'       "HA-HB2 HB3-HB2",
+#'       "HD1/2-HE1/2-3 HD1/2-HE1/2-5",
+#'       "HD1/2-HE1/2-3 HD1/2-HE1/2-5"
+#'     )
+#'   ),
+#'   row.names = c("HA", "HB3", "HB2", "HD1/2", "HE1/2"),
+#'   class = "data.frame"
+#' )
+#'
+#' start_nuclei <- structure(
+#'   list(
+#'     omega0_ppm = c(3.364, 2.635, 2.799, 6.94, 6.538),
+#'     r2_hz = c(0.7, 0.7, 0.7, 0.7, 0.7)
+#'   ),
+#'   class = "data.frame",
+#'   row.names = c("HA", "HB3", "HB2", "HD1/2", "HE1/2")
+#' )
+#'
+#' start_couplings <- structure(
+#'   list(hz = c(7.153, 5.159, -13.941, 7.7, 2)),
+#'   class = "data.frame",
+#'   row.names = c("HA-HB3", "HA-HB2", "HB3-HB2", "HD1/2-HE1/2-3", "HD1/2-HE1/2-5")
+#' )
+#'
+#' start_tables <- list(
+#'   resonances = start_resonances,
+#'   nuclei = start_nuclei,
+#'   couplings = start_couplings
+#' )
+#' param_list <- tables_to_param_list(list(spec), start_tables)
+#' param_list$start_list$m0[] <- 1e9
+#' arg_list <- param_list_to_arg_list(param_list)
+#' fit_input <- do.call(make_fit_input, c(list(list(spec), omega0_plus = 0.075), arg_list))
+#' fit_output <- perform_fit(fit_input)
+#' plot_resonances_1d(fit_output, always_show_start = FALSE, omega0_plus = 0.075)
+#'
 #' @export
 plot_resonances_1d <- function(fit_data, always_show_start=FALSE, omega0_plus=0.05) {
 
