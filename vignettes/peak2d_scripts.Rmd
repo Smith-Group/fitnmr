@@ -36,12 +36,15 @@ check_limit_cores <- tolower(Sys.getenv("_R_CHECK_LIMIT_CORES_", ""))
 if (nzchar(check_limit_cores) && (check_limit_cores != "false")) {
 	old_options_mc_cores <- options(mc.cores = 2)
 }
-if (Sys.getenv("IN_PKGDOWN") == "" && ! interactive()) {
-  knitr::opts_chunk$set(fig.retina = 1)
-}
 
 # Set to FALSE to run the vignette in the current working directory.
 run_in_temp <- TRUE
+if (Sys.getenv("IN_PKGDOWN") == "" && ! interactive()) {
+  knitr::opts_chunk$set(fig.retina = 1)
+} else {
+  run_in_temp <- FALSE
+}
+
 original_wd <- getwd()
 if (run_in_temp) {
   vignette_wd <- file.path(tempdir(), "fitnmr_peak2d_scripts")
