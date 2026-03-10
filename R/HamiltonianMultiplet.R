@@ -2,8 +2,9 @@
 #'
 #' Build and differentiate NMR Hamiltonians for fixed-size spin systems.
 #'
+#' @importFrom R6 R6Class
 #' @export
-HamiltonianMultiplet <- R6::R6Class(
+HamiltonianMultiplet <- R6Class(
 	"HamiltonianMultiplet",
 	public = list(
 		#' @field n Number of spins in the system.
