@@ -141,7 +141,6 @@ read_nmrpipe <- function(inFormat, dim_order=NULL, complex_data=FALSE) {
 		close(readCon)
 		stop(paste('Could not read NMRPipe file:\n"', inFile, '"',	sep=''))
 	}
-	close(readCon)
 	header_raw <- matrix(header_raw, nrow=4)
 	
 	header <- readBin(header_raw, what='numeric', n=512, size=4)
@@ -154,6 +153,7 @@ read_nmrpipe <- function(inFormat, dim_order=NULL, complex_data=FALSE) {
 	} else {
 		endianness <- .Platform$endian
 	}
+	close(readCon)
 	
 	names(header) <- c("FDMAGIC", "FDFLTFORMAT", "FDFLTORDER", "", "", "", "", "", "", "FDDIMCOUNT", "FDF3OBS", "FDF3SW", "FDF3ORIG", "FDF3FTFLAG", "FDPLANELOC", "FDF3SIZE", "FDF2LABEL", "", "FDF1LABEL", "", "FDF3LABEL", "", "FDF4LABEL", "", "FDDIMORDER1", "FDDIMORDER2", "FDDIMORDER3", "FDDIMORDER4", "FDF4OBS", "FDF4SW", "FDF4ORIG", "FDF4FTFLAG", "FDF4SIZE", "", "", "", "", "", "", "", "FDDMXVAL", "FDDMXFLAG", "FDDELTATR", "", "", "FDNUSDIM", "", "", "", "", "FDF3APOD", "FDF3QUADFLAG", "", "FDF4APOD", "FDF4QUADFLAG", "FDF1QUADFLAG", "FDF2QUADFLAG", "FDPIPEFLAG", "FDF3UNITS", "FDF4UNITS", "FDF3P0", "FDF3P1", "FDF4P0", "FDF4P1", "FDF2AQSIGN", "FDPARTITION", "FDF2CAR", "FDF1CAR", "FDF3CAR", "FDF4CAR", "FDUSER1", "FDUSER2", "FDUSER3", "FDUSER4", "FDUSER5", "FDPIPECOUNT", "FDUSER6", "FDFIRSTPLANE", "FDLASTPLANE", "FDF2CENTER", "FDF1CENTER", "FDF3CENTER", "FDF4CENTER", "", "", "", "", "", "", "", "", "", "", "", "", "FDF2APOD", "FDF2FTSIZE", "FDREALSIZE", "FDF1FTSIZE", "FDSIZE", "FDF2SW", "FDF2ORIG", "", "", "", "", "FDQUADFLAG", "", "FDF2ZF", "FDF2P0", "FDF2P1", "FDF2LB", "", "", "", "", "", "", "", "FDF2OBS", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "FDMCFLAG", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "FDF2UNITS", "FDNOISE", "", "", "", "FDTEMPERATURE", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "FDRANK", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "FDTAU", "FDF3FTSIZE", "FDF4FTSIZE", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "FDF1OBS", "FDSPECNUM", "FDF2FTFLAG", "FDTRANSPOSED", "FDF1FTFLAG", "", "", "", "", "", "", "FDF1SW", "", "", "", "", "FDF1UNITS", "", "", "", "", "", "", "", "", "FDF1LB", "", "FDF1P0", "FDF1P1", "FDMAX", "FDMIN", "FDF1ORIG", "FDSCALEFLAG", "FDDISPMAX", "FDDISPMIN", "FDPTHRESH", "FDNTHRESH", "", "FD2DPHASE", "FDF2X1", "FDF2XN", "FDF1X1", "FDF1XN", "FDF3X1", "FDF3XN", "FDF4X1", "FDF4XN", "", "FDDOMINFO", "FDMETHINFO", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "FDHOURS", "FDMINS", "FDSECS", "FDSRCNAME", "", "", "", "FDUSERNAME", "", "", "", "FDMONTH", "FDDAY", "FDYEAR", "FDTITLE", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "FDCOMMENT", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "FDLASTBLOCK", "FDCONTBLOCK", "FDBASEBLOCK", "FDPEAKBLOCK", "FDBMAPBLOCK", "FDHISTBLOCK", "FD1DBLOCK", "", "", "", "", "FDSCORE", "FDSCANS", "FDF3LB", "FDF4LB", "FDF2GB", "FDF1GB", "FDF3GB", "FDF4GB", "FDF2OBSMID", "FDF1OBSMID", "FDF3OBSMID", "FDF4OBSMID", "FDF2GOFF", "FDF1GOFF", "FDF3GOFF", "FDF4GOFF", "FDF2TDSIZE", "FDF1TDSIZE", "FDF3TDSIZE", "FDF4TDSIZE", "", "", "", "", "", "", "", "", "", "FD2DVIRGIN", "FDF3APODCODE", "FDF3APODQ1", "FDF3APODQ2", "FDF3APODQ3", "FDF3C1", "FDF4APODCODE", "FDF4APODQ1", "FDF4APODQ2", "FDF4APODQ3", "FDF4C1", "", "", "", "FDF2APODCODE", "FDF1APODCODE", "FDF2APODQ1", "FDF2APODQ2", "FDF2APODQ3", "FDF2C1", "", "FDF1APODQ1", "FDF1APODQ2", "FDF1APODQ3", "FDF1C1", "", "", "", "", "FDF1APOD", "", "", "", "", "", "", "", "", "FDF1ZF", "FDF3ZF", "FDF4ZF", "", "", "FDFILECOUNT", "FDSLICECOUNT0", "FDTHREADCOUNT", "FDTHREADID", "FDSLICECOUNT1", "FDCUBEFLAG", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "FDOPERNAME", "", "", "", "", "", "", "", "", "", "", "FDF1AQSIGN", "FDF3AQSIGN", "FDF4AQSIGN", "", "", "FDF2OFFPPM", "FDF1OFFPPM", "FDF3OFFPPM", "FDF4OFFPPM", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "")
 	
@@ -217,7 +217,7 @@ read_nmrpipe <- function(inFormat, dim_order=NULL, complex_data=FALSE) {
 	for (i in seq_len(header["FDFILECOUNT"])) {
 	
 		if (header["FDFILECOUNT"] > 1) {
-			inFile <- sprintf(inFormat, 1)
+			inFile <- sprintf(inFormat, i)
 		} else {
 			inFile <- inFormat
 		}
