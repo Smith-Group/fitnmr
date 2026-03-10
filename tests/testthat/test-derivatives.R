@@ -1,9 +1,3 @@
-if (!requireNamespace("HamiltonianMultiplet", quietly = TRUE)) {
-	source(file.path("..", "..", "R", "HamiltonianMultiplet.R"))
-} else {
-	library(HamiltonianMultiplet)
-}
-
 test_that("analytical derivatives match finite differences", {
 	n <- 2
 	shift_labels <- c("Ha", "Hb")

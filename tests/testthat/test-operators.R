@@ -1,9 +1,3 @@
-if (!requireNamespace("HamiltonianMultiplet", quietly = TRUE)) {
-	source(file.path("..", "..", "R", "HamiltonianMultiplet.R"))
-} else {
-	library(HamiltonianMultiplet)
-}
-
 test_that("label ordinals resolve correctly", {
 	n <- 3
 	shift_labels <- c("Ha", "Ha", "Hb")
