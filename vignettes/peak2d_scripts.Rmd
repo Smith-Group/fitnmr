@@ -177,6 +177,9 @@ file.copy(system.file("demo", "refit_peaks_2d.R", package="fitnmr"), "refine", o
 ```
 ```{r, include = FALSE}
 update_cex(file.path("refine", "refit_peaks_2d.R"), 0.6)
+script_lines <- readLines(file.path("refine", "refit_peaks_2d.R"))
+script_lines <- sub("mc_cores <- getOption\\(\"mc.cores\", parallel::detectCores\\(\\)\\)", "mc_cores <- 1", script_lines)
+writeLines(script_lines, file.path("refine", "refit_peaks_2d.R"))
 ```
 
 Any of the options at the top of `refit_peaks_2d.R` can then be customized:
@@ -259,7 +262,7 @@ file.copy(system.file("demo", "refit_peaks_2d.R", package="fitnmr"), "extend", o
 ```{r, include = FALSE}
 update_cex(file.path("extend", "refit_peaks_2d.R"), 0.6)
 script_lines <- readLines(file.path("extend", "refit_peaks_2d.R"))
-script_lines <- sub("mc_cores <- parallel::detectCores\\(\\)", "mc_cores <- 1", script_lines)
+script_lines <- sub("mc_cores <- getOption\\(\"mc.cores\", parallel::detectCores\\(\\)\\)", "mc_cores <- 1", script_lines)
 writeLines(script_lines, file.path("extend", "refit_peaks_2d.R"))
 ```
 
