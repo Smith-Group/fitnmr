@@ -269,7 +269,7 @@ resonance_to_param_list <- function(spec, resonance, nuclei, couplings) {
 	}
 	m0_group <- NA_integer_
 	if ("m0_group" %in% names(resonance)) {
-		m0_group <- nuclei[["m0_group"]]
+		m0_group <- resonance[["m0_group"]]
 	}
 	omega0_comb_group <- rep(NA_integer_, length(omega0_comb_start))
 	names(omega0_comb_group) <- names(omega0_comb_start)
