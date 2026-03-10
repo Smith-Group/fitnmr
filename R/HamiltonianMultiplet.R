@@ -31,7 +31,7 @@ HamiltonianMultiplet <- R6::R6Class(
 			self$shift_labels <- parsed$shift_labels
 			self$coupling_labels <- parsed$coupling_labels
 			if (is.null(params)) {
-				params <- setNames(rep(0, length(private$all_labels())), private$all_labels())
+				params <- stats::setNames(rep(0, length(private$all_labels())), private$all_labels())
 			}
 			self$params <- private$normalize_params(params)
 			self$ops <- private$build_spin_ops(self$n)

@@ -574,7 +574,7 @@ make_fit_input <- function(spectra, omega0_start, omega0_plus, omega0_minus=omeg
 
 		coupling_values <- couplings
 		if (is.data.frame(coupling_values) && "hz" %in% colnames(coupling_values)) {
-			coupling_values <- setNames(coupling_values[,"hz"], rownames(coupling_values))
+			coupling_values <- stats::setNames(coupling_values[,"hz"], rownames(coupling_values))
 		}
 		set_spinsystem_params(
 			spinsystems,

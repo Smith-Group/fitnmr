@@ -118,7 +118,7 @@ update_spinsystem_params <- function(fit_data, spec_idx=1, param_list=NULL) {
 	ref_freq <- fit_data[["spec_data"]][[spec_idx]][["ref_freq"]]
 	coupling_values <- fit_data[["couplings"]]
 	if (is.data.frame(coupling_values) && "hz" %in% colnames(coupling_values)) {
-		coupling_values <- setNames(coupling_values[,"hz"], rownames(coupling_values))
+		coupling_values <- stats::setNames(coupling_values[,"hz"], rownames(coupling_values))
 	}
 
 	set_spinsystem_params(
@@ -145,11 +145,11 @@ read_resonance_tables <- function(resonances_file = "start_resonances.csv",
                                   couplings_file = "start_couplings.csv",
                                   comment.char = "") {
 
-	resonances <- read.csv(text = readLines(resonances_file, warn = FALSE),
+	resonances <- utils::read.csv(text = readLines(resonances_file, warn = FALSE),
 		row.names = 1, check.names = FALSE, comment.char = comment.char)
-	nuclei <- read.csv(text = readLines(nuclei_file, warn = FALSE),
+	nuclei <- utils::read.csv(text = readLines(nuclei_file, warn = FALSE),
 		row.names = 1, check.names = FALSE, comment.char = comment.char)
-	couplings <- read.csv(text = readLines(couplings_file, warn = FALSE),
+	couplings <- utils::read.csv(text = readLines(couplings_file, warn = FALSE),
 		row.names = 1, check.names = FALSE, comment.char = comment.char)
 
 	sc_cols <- grep("_sc$", colnames(resonances), value = TRUE)
@@ -181,7 +181,7 @@ read_resonance_tables <- function(resonances_file = "start_resonances.csv",
 			if (!file.exists(spin_path)) {
 				stop("Missing spin system file: ", spin_path)
 			}
-			spin_df <- read.csv(text = readLines(spin_path, warn = FALSE),
+			spin_df <- utils::read.csv(text = readLines(spin_path, warn = FALSE),
 				header = FALSE, check.names = FALSE, comment.char = comment.char,
 				stringsAsFactors = FALSE)
 			spin_mat <- as.matrix(spin_df)
@@ -475,7 +475,7 @@ tables_to_param_list <- function(spec_list, tables) {
 		coupling_labels <- unique(trimws(coupling_labels))
 		coupling_labels <- coupling_labels[nzchar(coupling_labels)]
 		if (length(coupling_labels)) {
-			all_couplings <- setNames(couplings[,"hz"], rownames(couplings))
+			all_couplings <- stats::setNames(couplings[,"hz"], rownames(couplings))
 			missing <- setdiff(coupling_labels, names(param_list[["start_list"]][["omega0_comb"]]))
 			missing <- intersect(missing, names(all_couplings))
 			if (length(missing)) {
