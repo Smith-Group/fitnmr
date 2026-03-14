@@ -1239,11 +1239,14 @@ fit_jac <- function(par, fit_data, drss_dspec=NULL) {
 			update_spinsystem_params(fit_data, spec_idx, param_list)
 			
 			# Map nucleus names to omega0 group indices (per dimension) for strong-coupling derivatives.
-			omega0_group_map <- lapply(seq_len(dim(fit_data$nucleus_names)[1]), function(dim_idx) {
-				names_vec <- fit_data$nucleus_names[dim_idx, ]
-				group_vec <- idx_list[["omega0"]][dim_idx, , spec_idx]
-				tapply(group_vec, names_vec, function(x) x[[1]])
-			})
+			omega0_group_map <- NULL
+			if (!is.null(fit_data$nucleus_names) && length(dim(fit_data$nucleus_names)) > 0) {
+				omega0_group_map <- lapply(seq_len(dim(fit_data$nucleus_names)[1]), function(dim_idx) {
+					names_vec <- fit_data$nucleus_names[dim_idx, ]
+					group_vec <- idx_list[["omega0"]][dim_idx, , spec_idx]
+					tapply(group_vec, names_vec, function(x) x[[1]])
+				})
+			}
 		
 			for (peak_idx in seq_len(dim(fit_data[["start_list"]][["omega0"]])[2])) {
 			
@@ -1382,7 +1385,7 @@ fit_jac <- function(par, fit_data, drss_dspec=NULL) {
 							# Split extra columns into coupling vs. omega0 (shift) derivatives.
 							extra_cols <- colnames(deriv_1d_evals[[idx]])[-(1:5)]
 							all_coupling_names <- names(param_list[["omega0_comb"]])
-							all_omega_names <- unique(as.vector(fit_data$nucleus_names))
+							all_omega_names <- if (is.null(omega0_group_map)) character() else unique(as.vector(fit_data$nucleus_names))
 							coupling_names <- intersect(extra_cols, all_coupling_names)
 							omega0_names <- intersect(extra_cols, all_omega_names)
 
