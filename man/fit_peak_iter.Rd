@@ -69,6 +69,6 @@ For visualizing the iterative algorithm as it progresses, you can enable either 
 \examples{
 spec_file <- system.file("extdata", "t1", "1.ft2", package = "fitnmr")
 spec <- list("1.ft2" = read_nmrpipe(spec_file, dim_order = "hx"))
-peak_fits <- fit_peak_iter(spec, iter_max = 3)
+peak_fits <- fit_peak_iter(spec, iter_max = 2)
 
 }

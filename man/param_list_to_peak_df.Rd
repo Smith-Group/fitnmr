@@ -44,7 +44,7 @@ This function can take either a single parameter list or a list of parameter lis
 \examples{
 spec_file <- system.file("extdata", "t1", "1.ft2", package = "fitnmr")
 spec <- list("1.ft2" = read_nmrpipe(spec_file, dim_order = "hx"))
-peak_fits <- fit_peak_iter(spec, iter_max = 3)
+peak_fits <- fit_peak_iter(spec, iter_max = 2)
 param_list_to_peak_df(peak_fits)
 
 }
