@@ -1,6 +1,6 @@
 Package: fitnmr
 Version: 1.0
-Title: Multidimensional NMR Spectrum Peak Fitting and Analysis
+Title: Multidimensional Nuclear Magnetic Resonance Peak Fitting and Analysis
 Authors@R: c(person("Colin", "Smith", role=c("aut", "cre"),
                     email = "colin.smith@wesleyan.edu"))
 Description: Tools for fitting and analyzing 1D-4D nuclear magnetic resonance
