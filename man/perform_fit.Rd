@@ -7,6 +7,7 @@
 perform_fit(
   fit_input,
   method = c("minpack.lm", "gslnls", "sparseLM", "L-BFGS-B"),
+  max_iter = 200,
   ...
 )
 }
@@ -14,6 +15,8 @@ perform_fit(
 \item{fit_input}{fit_input structure}
 
 \item{method}{fitting method}
+
+\item{max_iter}{maximum number of iterations for method = "minpack.lm"}
 
 \item{...}{additional arguments passed to the fitting routine}
 }

@@ -1486,9 +1486,10 @@ optim_gr <- function(par, fit_data, cache=NULL) {
 #'
 #' @param fit_input fit_input structure
 #' @param method fitting method
+#' @param max_iter maximum number of iterations for method = "minpack.lm"
 #' @param ... additional arguments passed to the fitting routine
 #' @export
-perform_fit <- function(fit_input, method=c("minpack.lm", "gslnls", "sparseLM", "L-BFGS-B"), ...) {
+perform_fit <- function(fit_input, method=c("minpack.lm", "gslnls", "sparseLM", "L-BFGS-B"), max_iter = 200, ...) {
 
 	method <- match.arg(method)
 
@@ -1510,7 +1511,7 @@ perform_fit <- function(fit_input, method=c("minpack.lm", "gslnls", "sparseLM", 
 	
 		systime <- system.time(
 			fit <- withCallingHandlers(
-				minpack.lm::nls.lm(fit_par, fit_lower, fit_upper, fn=fit_fn, jac=fit_jac, fit_data=fit_input, control=minpack.lm::nls.lm.control(maxiter = 200), ...),
+				minpack.lm::nls.lm(fit_par, fit_lower, fit_upper, fn=fit_fn, jac=fit_jac, fit_data=fit_input, control=minpack.lm::nls.lm.control(maxiter = max_iter), ...),
 				warning = function(w) {
 					if (grepl("Number of iterations has reached", conditionMessage(w))) {
 						invokeRestart("muffleWarning")
