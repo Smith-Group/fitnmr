@@ -1132,6 +1132,10 @@ fit_fn <- function(par, fit_data, return_resid=TRUE) {
 			update_spinsystem_params(fit_data, spec_idx, param_list)
 		
 			for (peak_idx in seq_len(dim(fit_data[["start_list"]][["omega0"]])[2])) {
+				peak_m0 <- param_list[["m0"]][peak_idx,spec_idx]
+				if (peak_m0 == 0) {
+					next
+				}
 			
 				if ("peak_nd_idx" %in% names(spec_data)) {
 					nd_idx <- spec_data$peak_nd_idx[[peak_idx]]
@@ -1174,7 +1178,7 @@ fit_fn <- function(par, fit_data, return_resid=TRUE) {
 					) * sign_factor
 				})
 			
-				func_nd_prod <- func_1d_evals[[1]][nd_idx[,1]]*param_list[["m0"]][peak_idx,spec_idx]
+				func_nd_prod <- func_1d_evals[[1]][nd_idx[,1]]*peak_m0
 				for (i in seq_len(ncol(nd_idx))[-1]) {
 					func_nd_prod <- func_nd_prod*func_1d_evals[[i]][nd_idx[,i]]
 				}
