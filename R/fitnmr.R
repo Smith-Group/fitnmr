@@ -1508,7 +1508,16 @@ perform_fit <- function(fit_input, method=c("minpack.lm", "gslnls", "sparseLM", 
 	
 	if (method == "minpack.lm") {
 	
-		systime <- system.time(fit <- minpack.lm::nls.lm(fit_par, fit_lower, fit_upper, fn=fit_fn, jac=fit_jac, fit_data=fit_input, control=minpack.lm::nls.lm.control(maxiter = 200), ...))
+		systime <- system.time(
+			fit <- withCallingHandlers(
+				minpack.lm::nls.lm(fit_par, fit_lower, fit_upper, fn=fit_fn, jac=fit_jac, fit_data=fit_input, control=minpack.lm::nls.lm.control(maxiter = 200), ...),
+				warning = function(w) {
+					if (grepl("Number of iterations has reached", conditionMessage(w))) {
+						invokeRestart("muffleWarning")
+					}
+				}
+			)
+		)
 		
 		fit_input[["fit_list"]] <- unpack_fit_params(fit$par, fit_input$group_list, fit_input$comb_list, default_list=fit_input$start_list)
 		fit_input[["fit_rsstrace"]] <- fit$rsstrace
