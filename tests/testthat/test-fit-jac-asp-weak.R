@@ -1,5 +1,8 @@
 testthat::test_that("fit-jac-asp-weak", {
-  spec_path <- file.path("inst", "extdata", "asp", "400mhz.ft1")
+  spec_path <- system.file("extdata", "asp", "400mhz.ft1", package = "fitnmr")
+  if (!nzchar(spec_path)) {
+    spec_path <- file.path("inst", "extdata", "asp", "400mhz.ft1")
+  }
   if (!file.exists(spec_path)) {
     spec_path <- file.path("..", "..", "inst", "extdata", "asp", "400mhz.ft1")
   }
