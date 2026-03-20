@@ -20,6 +20,22 @@ plot_fit_2d(
 
 \item{main}{optional title for the plot}
 }
+\value{
+No return value, called for side effects (draws plots).
+}
 \description{
 Plot a two dimensional peak fit
+}
+\examples{
+spec_file <- system.file("extdata", "t1", "1.ft2", package = "fitnmr")
+spec <- read_nmrpipe(spec_file, dim_order = "hx")
+fit_input <- make_fit_input(
+  list(spec),
+  omega0_start = matrix(c(8.5400, 119.76), nrow = 2),
+  omega0_plus = c(0.075, 0.75),
+  r2_start = 4,
+  m0_start = 1e9
+)
+plot_fit_2d(fit_input)
+
 }

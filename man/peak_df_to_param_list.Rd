@@ -11,6 +11,30 @@ peak_df_to_param_list(peak_df, spectra)
 
 \item{spectra}{list of spectra}
 }
+\value{
+A parameter `list` with `start_list`, `group_list`, and `comb_list`
+  inferred from `peak_df` and aligned to `spectra`.
+}
 \description{
 Convert a peak data frame to a parameter list
+}
+\examples{
+spec_file <- system.file("extdata", "t1", "1.ft2", package = "fitnmr")
+spectra <- list("1.ft2" = read_nmrpipe(spec_file, dim_order = "hx"))
+
+peak_df <- data.frame(
+  peak = c(1, 2, 3, 4),
+  fit = c(1, 1, 2, 2),
+  f_pvalue = c(4.566421e-10, 1.118991e-05, 1.876528e-15, 5.817124e-04),
+  omega0_ppm_1 = c(8.247602, 8.259565, 8.540030, 8.520232),
+  omega0_ppm_2 = c(121.8666, 121.9299, 119.7611, 119.7266),
+  sc_hz_1 = c(3.280589, 3.280589, 2.000000, 2.000000),
+  r2_hz_1 = c(2.907218, 2.907218, 4.788566, 4.788566),
+  r2_hz_2 = c(2.334497, 2.334497, 2.099646, 2.099646),
+  `1.ft2` = c(824420657, 240560662, 1020008726, 89977216),
+  check.names = FALSE
+)
+
+peak_df_to_param_list(peak_df, spectra)
+
 }

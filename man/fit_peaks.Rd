@@ -41,6 +41,10 @@ fit_peaks(
 
 \item{plot_fit_stages}{logical indicating whether to plot intermediate fits}
 }
+\value{
+A fitted parameter `list` (fit-output structure) containing fitted
+  values in `fit_list` plus the original fit metadata and bounds.
+}
 \description{
 Fit peaks from a table of chemical shifts
 }

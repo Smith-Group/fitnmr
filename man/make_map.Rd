@@ -2,7 +2,7 @@
 % Please edit documentation in R/resonance.R
 \name{make_map}
 \alias{make_map}
-\title{Create a sparse axis}
+\title{Create a sparse axis map}
 \usage{
 make_map(
   x,
@@ -23,6 +23,11 @@ make_map(
 
 \item{ends}{optional numeric vector of segment end positions}
 }
+\value{
+A two-column numeric matrix mapping original coordinates (column 1) to
+  sparse-axis coordinates (column 2), with `starts` and `ends` attributes
+  giving segment boundaries.
+}
 \description{
-Create a sparse axis
+Create a sparse axis map
 }

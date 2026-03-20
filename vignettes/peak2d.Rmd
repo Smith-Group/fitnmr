@@ -19,7 +19,7 @@ knitr::opts_chunk$set(
 )
 #knitr::opts_chunk$set(optipng = "-o7 -strip all")
 #knitr::knit_hooks$set(optipng = knitr::hook_optipng)
-options(digits=5, width=90)
+old_options_peak2d <- options(digits = 5, width = 90)
 if (Sys.getenv("IN_PKGDOWN") == "" && ! interactive()) {
   knitr::opts_chunk$set(fig.retina = 1)
 }
@@ -78,7 +78,7 @@ This shows that there is a list of two spectra. Each spectrum is itself a list w
 We can produce a contour plot of the first spectrum using the `contour_pipe` function. It takes a matrix as input, so we must extract the `int` matrix of the first spectrum with the syntax shown.
 
 ```{r, include = FALSE}
-par(mar=c(3, 3, 1, 1), mgp=c(2, 0.8, 0))
+old_par <- par(mar=c(3, 3, 1, 1), mgp=c(2, 0.8, 0))
 ```
 ```{r, fig.height = 7, fig.width = 7, fig.align = "left"}
 contour_pipe(spec_list[[1]]$int)
@@ -254,4 +254,9 @@ ylim <- range(0, extended_peak_df[,"2.ft2"])
 plot(extended_peak_df[,c("1.ft2", "2.ft2")], xlim=xlim, ylim=ylim)
 abline(lsfit(extended_peak_df[,"1.ft2"], extended_peak_df[,"2.ft2"]), col="red")
 plot(extended_peak_df[,"2.ft2"]/extended_peak_df[,"1.ft2"], xlab="Peak Number", ylab="Spectrum 2 Volume/Spectrum 1 Volume")
+```
+
+```{r, include = FALSE}
+options(old_options_peak2d)
+par(old_par)
 ```

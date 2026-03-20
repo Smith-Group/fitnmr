@@ -20,6 +20,22 @@ update_fit_bounds(
 
 \item{sc_bounds}{optional numeric vector of length 2}
 }
+\value{
+A modified `fit_input` list with updated parameter bounds.
+}
 \description{
 Update bounds on fitting parameters
+}
+\examples{
+spec_file <- system.file("extdata", "t1", "1.ft2", package = "fitnmr")
+spec <- read_nmrpipe(spec_file, dim_order = "hx")
+fit_input <- make_fit_input(
+  list(spec),
+  omega0_start = matrix(c(8.5400, 119.76), nrow = 2),
+  omega0_plus = c(0.075, 0.75),
+  r2_start = 4,
+  m0_start = 1e9
+)
+fit_input <- update_fit_bounds(fit_input, omega0_r2_factor=1.5, r2_bounds=c(0.5, 20))
+
 }

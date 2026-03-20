@@ -11,6 +11,28 @@ limit_omega0_by_r2(fit_input, factor = 1.5)
 
 \item{factor}{multiplier applied to r2 to set omega0 bounds}
 }
+\value{
+A modified `fit_input` list with updated `lower_list$omega0` and
+  `upper_list$omega0` bounds.
+}
 \description{
 Add upper/lower limits based on the r2 value
+}
+\examples{
+spec_file <- system.file("extdata", "t1", "1.ft2", package = "fitnmr")
+spec <- read_nmrpipe(spec_file, dim_order = "hx")
+fit_input <- make_fit_input(
+  list(spec),
+  omega0_start = matrix(c(8.5400, 119.76), nrow = 2),
+  omega0_plus = c(0.075, 0.75),
+  r2_start = 4,
+  m0_start = 1e9
+)
+fit_input$start_list[1:2]
+fit_input$lower_list[1]
+fit_input$upper_list[1]
+fit_input <- limit_omega0_by_r2(fit_input)
+fit_input$lower_list[1]
+fit_input$upper_list[1]
+
 }

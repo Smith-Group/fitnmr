@@ -19,9 +19,19 @@ nmrpipe_sp(fid, off = 0, end = 1, pow = 1, cval = 1, dmx = FALSE)
 
 \item{dmx}{equivalent to `-dmx` flag}
 }
+\value{
+A modified FID `list` with updated `int`, `header`, and `fheader`
+  values after sine-bell apodization.
+}
 \description{
 This function aims to numerically match the NMRPipe `SP` function.
 }
 \details{
 See the NMRPipe documentation: https://www.nmrscience.com/ref/nmrpipe/sp.html
+}
+\examples{
+fid_path <- system.file("extdata", "noesy1d", "11", "test.fid", package = "fitnmr")
+fid <- read_nmrpipe(fid_path, complex_data = TRUE)
+sp <- nmrpipe_sp(fid)
+
 }

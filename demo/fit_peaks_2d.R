@@ -45,6 +45,7 @@ cex <- 0.2
 
 
 library(fitnmr)
+oldpar <- par(no.readonly=TRUE)
 
 ft2_files <- list.files(".", pattern=".ft2", full.names=TRUE, recursive=TRUE)
 
@@ -106,3 +107,5 @@ plot_peak_df(
 )
 
 dev.off()
+
+par(oldpar)

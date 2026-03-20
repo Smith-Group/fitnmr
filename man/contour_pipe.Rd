@@ -44,6 +44,9 @@ contour_pipe(
 
 \item{frame.plot}{a logical indicating whether a box should be drawn around the plot.}
 }
+\value{
+No return value, called for side effects (draws contour lines).
+}
 \description{
 Plot a two dimensional contour plot
 }
@@ -55,4 +58,10 @@ If \code{low_frac} is specified, then there can actually be up to \code{nlevels}
 If \code{low_frac} is set to \code{NA}, then the contour levels are calculated in the same way as \code{\link[graphics]{contour}}, with there being approximately \code{nlevels} linearly spaced levels in a range close to \code{zlim}.
 
 Note that this function does not directly take the data returned by \code{\link{read_nmrpipe}}. You must pass the \code{int} matrix from the value returned by that function.
+}
+\examples{
+spec_file <- system.file("extdata", "t1", "1.ft2", package = "fitnmr")
+spec <- read_nmrpipe(spec_file, dim_order = "hx")
+contour_pipe(spec$int)
+
 }

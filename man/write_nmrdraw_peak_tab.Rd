@@ -11,6 +11,9 @@ write_nmrdraw_peak_tab(peak_tab, file_path)
 
 \item{file_path}{path to write the NMRDraw peak table file}
 }
+\value{
+No return value, called for side effects (writes `file_path`).
+}
 \description{
 Write an NMRDraw formatted peak table
 }

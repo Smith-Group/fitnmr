@@ -18,7 +18,8 @@ fit_peak_iter(
   fit_list = list(),
   plot_fit = FALSE,
   plot_fit_stages = FALSE,
-  iter_callback = NULL
+  iter_callback = NULL,
+  verbose = TRUE
 )
 }
 \arguments{
@@ -49,6 +50,8 @@ fit_peak_iter(
 \item{plot_fit_stages}{logical indicating whether to plot each stage of fitting within the iterations.}
 
 \item{iter_callback}{function called after each iteration with two arguments: \code{iter} and \code{iter_max}}
+
+\item{verbose}{logical indicating whether to print progress updates}
 }
 \value{
 List of fit objects returned by \code{\link{fit_peak_cluster}}, one for each iteration. They are appended to \code{fit_list} if supplied.
@@ -62,4 +65,10 @@ This function uses an iterative algorithm to fit all the peaks in a given list o
 This function currently only supports fitting of 2D spectra, but will be generalized to work with spectra of any dimensionality in the near future. To reduce the number of false positives/negatives, the most important parameters to adjust are \code{noise_cutoff}, \code{f_alpha}, and \code{iter_max}. If \code{iter_max} is reached before all peaks have been identified, then you can call this function again, setting the \code{fit_list} parameter to the return value of the previous invocation. In that case, \code{iter_max} new iterations will be performed and appended to \code{fit_list}.
 
 For visualizing the iterative algorithm as it progresses, you can enable either the \code{plot_fit} or \code{plot_fit_stages} parameters.
+}
+\examples{
+spec_file <- system.file("extdata", "t1", "1.ft2", package = "fitnmr")
+spec <- list("1.ft2" = read_nmrpipe(spec_file, dim_order = "hx"))
+peak_fits <- fit_peak_iter(spec, iter_max = 2)
+
 }

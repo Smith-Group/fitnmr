@@ -31,3 +31,18 @@ bibentry(
   pages = "103-120",
   doi = "10.5194/mr-5-103-2024"
 )
+
+bibentry(
+  bibtype = "Article",
+  title = "Deamidation and isomerization to elusive isoaspartate in a computationally designed miniprotein",
+  author = c(
+    person(c("Katerina", "M."), "Blejec"),
+    person(c("Colin", "A."), "Smith")
+  ),
+  journal = "Protein Science",
+  year = "2026",
+  volume = "35",
+  number = "3",
+  pages = "e70508",
+  doi = "10.1002/pro.70508"
+)

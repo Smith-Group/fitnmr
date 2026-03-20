@@ -20,6 +20,11 @@ omega0_param_idx(
 
 \item{specs}{spectra to include}
 }
+\value{
+A named `list` of logical index arrays/vectors (matching
+  `param_list$group_list`) that identify omega0-related parameters to extract
+  or modify.
+}
 \description{
 Get a list of logical arrays indicating which parameters correspond to peak positions
 }
