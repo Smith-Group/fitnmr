@@ -3283,7 +3283,13 @@ plot_peak_df <- function(peak_df, spectra, noise_sigma=NULL, noise_cutoff=4, ome
 		fitnmr::contour_pipe(spectra[[spec_i]]$int, zlim=zlim_mat[,spec_i], col_pos="black", col_neg="gray", low_frac=low_frac, lwd=lwd, add=add)
 		fitnmr::contour_pipe(int_start[[spec_i]], zlim=zlim_mat[,spec_i], col_pos="red", col_neg="pink", low_frac=low_frac, lwd=lwd, add=TRUE)
 		m0_vec <- fit_input$start_list$m0[,spec_i]
-		graphics::points(t(fit_input$start_list$omega0[,,spec_i]), col=grDevices::rgb(0, 0, 1, 0.5), pch=16, cex=sqrt(m0_vec/max(m0_vec))*5*cex)
+		m0_scale <- max(abs(m0_vec), na.rm=TRUE)
+		point_cex <- if (is.finite(m0_scale) && m0_scale > 0) {
+			sqrt(abs(m0_vec)/m0_scale)*5*cex
+		} else {
+			rep(0, length(m0_vec))
+		}
+		graphics::points(t(fit_input$start_list$omega0[,,spec_i]), col=grDevices::rgb(0, 0, 1, 0.5), pch=16, cex=point_cex)
 	
 		if (label) {
 			lab_coord <- matrix(nrow=length(omega_comb_ids_unique), ncol=2)

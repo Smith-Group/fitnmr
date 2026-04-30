@@ -1281,11 +1281,11 @@ plot_resonances_1d <- function(fit_data, always_show_start=FALSE, omega0_plus=0.
 				})
 				fit_omega0_weights <- do.call(rbind, fit_omega0_weights_list)
 				fit_omega0_weights[,2] <- fit_omega0_weights[,2]/sum(fit_omega0_weights[,2])
-				graphics::abline(v=fit_omega0_weights[,1], col=grDevices::rgb(0, 0, 1, sqrt(start_omega0_weights[,2])))
+				graphics::abline(v=fit_omega0_weights[,1], col=grDevices::rgb(0, 0, 1, sqrt(abs(start_omega0_weights[,2]))))
 			}
 			
 			if (!is.null(spec_start_int)) {
-				graphics::abline(v=start_omega0_weights[,1], col=grDevices::rgb(0, 0, 1, sqrt(start_omega0_weights[,2])), lty="dashed")
+				graphics::abline(v=start_omega0_weights[,1], col=grDevices::rgb(0, 0, 1, sqrt(abs(start_omega0_weights[,2]))), lty="dashed")
 			}
 		}
 		
@@ -1697,7 +1697,7 @@ plot_resonances_3d <- function(fit_data, omega0_plus, resonances=unique(fit_data
 				fit_data$spec_data[[spec_i]]$ref_freq[idx[1]],
 				fit_data$spinsystems
 			)
-			graphics::abline(v=omega0_weights_1[,1], col=grDevices::rgb(0,0,1,sqrt(omega0_weights_1[,2])))
+			graphics::abline(v=omega0_weights_1[,1], col=grDevices::rgb(0,0,1,sqrt(abs(omega0_weights_1[,2]))))
 			
 			zlim <- range(input_spec_2d, fit_spec_2d, na.rm=TRUE)
 			zlim <- range(resonance_spec_1d, na.rm=TRUE)
@@ -1748,7 +1748,7 @@ plot_resonances_3d <- function(fit_data, omega0_plus, resonances=unique(fit_data
 				omega0_weights_2[omega0_weights_idx[,2],1],
 				omega0_weights_1[omega0_weights_idx[,1],2]*omega0_weights_2[omega0_weights_idx[,2],2]
 			)
-			graphics::points(omega0_weights[,1], omega0_weights[,2], pch=16, col=grDevices::rgb(0,0,1,sqrt(omega0_weights[,3])))
+			graphics::points(omega0_weights[,1], omega0_weights[,2], pch=16, col=grDevices::rgb(0,0,1,sqrt(abs(omega0_weights[,3]))))
 			
 			#graphics::abline(v=limits[idx[1],], col="green")
 			#graphics::abline(h=limits[idx[2],], col="green")
