@@ -113,7 +113,7 @@ assigned_tab_adj <- t(t(assigned_tab)+assign_adj+cs_adj_2)
 assign_idx_adj <- height_assign(assigned_tab_adj, unknown_tab, thresh=thresh_2)
 
 
-median_tab <- apply(peak_array[,-peak_vol_idx,], 1:2, median)
+median_tab <- apply(peak_array[,-peak_vol_idx,,drop=FALSE], 1:2, median)
 volume_tab <- matrix(peak_array[,peak_vol_idx,], nrow=dim(peak_array)[1])
 colnames(volume_tab) <- sub("^[.]/", "", ft2_files)
 

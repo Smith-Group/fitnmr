@@ -3456,14 +3456,16 @@ height_assign <- function(assigned, unknown, thresh=0.01) {
 	# find widths peak ranges in each dimension
 	wd1 <- abs(diff(range(assigned[,1], unknown[,1], na.rm=TRUE)))
 	wd2 <- abs(diff(range(assigned[,2], unknown[,2], na.rm=TRUE)))
+	scale_wd <- c(wd1, wd2)
+	scale_wd[scale_wd == 0] <- 1
 	
 	# normalize assigned peaks by their ranges
-	assigned[,1] <- assigned[,1]/wd1
-	assigned[,2] <- assigned[,2]/wd2
+	assigned[,1] <- assigned[,1]/scale_wd[1]
+	assigned[,2] <- assigned[,2]/scale_wd[2]
 	
 	# normalize unknown peaks by their ranges
-	unknown[,1] <- unknown[,1]/wd1
-	unknown[,2] <- unknown[,2]/wd2
+	unknown[,1] <- unknown[,1]/scale_wd[1]
+	unknown[,2] <- unknown[,2]/scale_wd[2]
 	
 	t_assigned <- t(assigned)
 	
